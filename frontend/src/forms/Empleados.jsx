@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 
 function Empleados({ usuarioActivo, usuarioId, onVolver }) {
 
@@ -16,7 +16,7 @@ const [nuevoEmpleado, setNuevoEmpleado] = useState({
   sueldo_base: "",
 });
 
-  const cargarEmpleados = async () => {
+  const cargarEmpleados = useCallback(async () => {
 
     try {
 
@@ -41,7 +41,7 @@ const [nuevoEmpleado, setNuevoEmpleado] = useState({
     } catch (error) {
       console.error("Error cargando empleados:", error);
     }
-  };
+  }, [filtro]);
 
 const crearEmpleado = async () => {
   if (!nuevoEmpleado.nombre.trim()) {
@@ -197,7 +197,7 @@ const reactivarEmpleado = async (empleado) => {
 
   try {
     const respuesta = await fetch(
-      `http://127.0.0.1:5000/api/empleados/${empleado.id}/reactivar`,
+      `4/1AeoWuM-fqqMb_hSW3Rs-Ckebmhl6g9BPlXhHj7i9s_a_l0urbyKAPfxVGGw.0.1:5000/api/empleados/${empleado.id}/reactivar`,
       {
         method: "PUT",
       }
@@ -217,8 +217,8 @@ const reactivarEmpleado = async (empleado) => {
 };
 
   useEffect(() => {
-    cargarEmpleados();
-  }, [filtro]);
+  cargarEmpleados();
+}, [cargarEmpleados]);
 
   return (
     <div style={{ padding: "40px" }}>
