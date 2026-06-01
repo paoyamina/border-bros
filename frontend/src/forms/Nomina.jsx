@@ -40,6 +40,7 @@ function Nomina({ usuarioActivo, usuarioId, onVolver }) {
 
   const [statusNomina, setStatusNomina] = useState("CAPTURA");
   const [empleadosDisponibles, setEmpleadosDisponibles] = useState([]);
+  const [comentariosExtraordinarios, setComentariosExtraordinarios] = useState("");
   useEffect(() => {
   const cargarEmpleados = async () => {
     try {
@@ -186,6 +187,7 @@ const respuestaPrenomina = await fetch(`${API_BASE_URL}/api/prenomina`, {
     fecha_fin: null,
     total: totalGlobal,
     usuario_crea_id: usuarioId,
+    comentarios_extraordinarios: comentariosExtraordinarios,
     comentarios: "Prenómina enviada a aprobación desde módulo BOSSE",
     detalle: detallePrenomina,
   }),
@@ -403,6 +405,25 @@ if (!resultadoPrenomina.success) {
             </tbody>
           </table>
         </div>
+
+        <div style={{ marginBottom: "20px" }}>
+  <label style={estilos.panelLabel}>
+    Comentarios extraordinarios
+  </label>
+
+  <textarea
+    placeholder="Ej. Bono especial, aclaraciones, ajustes extraordinarios..."
+    value={comentariosExtraordinarios}
+    onChange={(e) => setComentariosExtraordinarios(e.target.value)}
+    style={{
+      ...estilos.input,
+      width: "100%",
+      minHeight: "90px",
+      resize: "vertical",
+      marginTop: "8px",
+    }}
+  />
+</div>
 
         <button
           onClick={() =>

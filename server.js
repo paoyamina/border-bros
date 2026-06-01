@@ -718,6 +718,7 @@ app.post('/api/prenomina', async (req, res) => {
       fecha_fin,
       total,
       usuario_crea_id,
+      comentarios_extraordinarios,
       comentarios,
       detalle
     } = req.body;
@@ -739,10 +740,11 @@ app.post('/api/prenomina', async (req, res) => {
         total,
         estatus,
         usuario_crea_id,
+        comentarios_extraordinarios,
         comentarios,
         fecha_creacion
       )
-      VALUES ($1, $2, $3, 'PENDIENTE', $4, $5, NOW())
+      VALUES ($1, $2, $3, 'PENDIENTE', $4, $5, $6, NOW())
       RETURNING *
       `,
       [
@@ -750,6 +752,7 @@ app.post('/api/prenomina', async (req, res) => {
         fecha_fin || null,
         total || 0,
         usuario_crea_id || null,
+        comentarios_extraordinarios || null,
         comentarios || null
       ]
     );
