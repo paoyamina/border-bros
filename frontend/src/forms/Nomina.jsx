@@ -259,13 +259,6 @@ if (!resultadoPrenomina.success) {
 
             <tbody>
               {filas.map((fila) => {
-                const esDuplicado =
-                  filas.filter(
-                    (f) =>
-                      f.nombre.trim().toLowerCase() ===
-                        fila.nombre.trim().toLowerCase() && f.nombre !== ""
-                  ).length > 1;
-
                 return (
                   <tr key={fila.id} style={{ borderBottom: "1px solid #eee" }}>
                     <td style={{ padding: "5px" }}>

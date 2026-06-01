@@ -1,5 +1,4 @@
 import React from "react";
-import estilos from "../styles/estilos";
 
 const permisosPorRol = {
   socio: ["caja", "egresos_caja", "egresos_bancos", "egresos_banca", "nomina","empleados","aprobaciones_nomina","historial_nomina"],
