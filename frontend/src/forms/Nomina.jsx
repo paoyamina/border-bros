@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import estilos from "../styles/estilos";
-import { API_ENDPOINTS } from "../config/api";
+import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 import { validarNomina } from "../utils/validaciones";
 import { exportarExcelNomina } from "../utils/exportExcel";
 
