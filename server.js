@@ -827,6 +827,62 @@ app.post('/api/prenomina', async (req, res) => {
   }
 });
 
+// Obtener detalle de una prenómina
+app.get('/api/prenomina/:id/detalle', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const prenominaResult = await pool.query(
+      `
+      SELECT
+        p.*,
+        u.nombre AS usuario_crea
+      FROM prenomina p
+      LEFT JOIN usuarios u
+        ON u.id = p.usuario_crea_id
+      WHERE p.id = $1
+      `,
+      [id]
+    );
+
+    if (prenominaResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Prenómina no encontrada"
+      });
+    }
+
+    const detalleResult = await pool.query(
+      `
+      SELECT
+        pd.*,
+        e.nombre AS empleado,
+        e.puesto
+      FROM prenomina_detalle pd
+      LEFT JOIN empleados e
+        ON e.id = pd.empleado_id
+      WHERE pd.prenomina_id = $1
+      ORDER BY e.nombre ASC
+      `,
+      [id]
+    );
+
+    res.json({
+      success: true,
+      prenomina: prenominaResult.rows[0],
+      detalle: detalleResult.rows
+    });
+
+  } catch (error) {
+    console.error("Error detalle prenómina:", error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Obtener prenóminas pendientes
 app.get('/api/prenomina/pendientes', async (req, res) => {
 
