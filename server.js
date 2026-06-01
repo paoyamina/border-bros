@@ -24,11 +24,10 @@ const upload = multer({ dest: 'uploads/' });
 
 // 1. Conexión a Base de Datos
 const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'sistema_negocios_pyrd',
-  password: 'PYRD020496', 
-  port: 5432,
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL
+    ? { rejectUnauthorized: false }
+    : false,
 });
 
 // 2. Google Drive Auth (OAuth)
