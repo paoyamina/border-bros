@@ -43,7 +43,7 @@ function Nomina({ usuarioActivo, usuarioId, onVolver }) {
   useEffect(() => {
   const cargarEmpleados = async () => {
     try {
-      const respuesta = await fetch("API_BASE_URL/api/empleados?activos=true");
+      const respuesta = await fetch(`${API_BASE_URL}/api/empleados?activos=true`);
       const resultado = await respuesta.json();
 
       if (resultado.success) {
@@ -176,7 +176,7 @@ Al aceptar, se guardará el registro y se descargará el Excel local.
     nota: null,
   }));
 
-const respuestaPrenomina = await fetch("API_BASE_URL/api/prenomina", {
+const respuestaPrenomina = await fetch(`${API_BASE_URL}/api/prenomina`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",

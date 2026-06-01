@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import estilos from "../styles/estilos";
 import { validarEgreso } from "../utils/validaciones";
-import { API_ENDPOINTS } from "../config/api";
+import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 
 function EgresosEfectivo({
   usuarioActivo,
@@ -26,7 +26,7 @@ const [categoriasExistentes, setCategoriasExistentes] = useState([]);
     try {
 
       const respuesta = await fetch(
-        "API_BASE_URL/api/proveedores"
+        `${API_BASE_URL}/api/proveedores`
       );
 
       const resultado = await respuesta.json();
@@ -46,7 +46,7 @@ const [categoriasExistentes, setCategoriasExistentes] = useState([]);
   try {
 
     const respuesta = await fetch(
-      "API_BASE_URL/api/categorias"
+      `${API_BASE_URL}/api/categorias`
     );
 
     const resultado = await respuesta.json();
@@ -193,7 +193,7 @@ Monto: ${
   }
 
   console.log("USUARIO ID EN EGRESO:", usuarioId);
-  const respuestaProveedor = await fetch("API_BASE_URL/api/proveedores/buscar-o-crear", {
+  const respuestaProveedor = await fetch(`${API_BASE_URL}/api/proveedores/buscar-o-crear`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -211,7 +211,7 @@ if (!resultadoProveedor.success) {
 }
 
 const proveedorId = resultadoProveedor.proveedor.id;
-  const respuestaBD = await fetch("API_BASE_URL/api/egresos", {
+  const respuestaBD = await fetch(`${API_BASE_URL}/api/egresos`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",

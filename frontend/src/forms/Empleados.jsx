@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import API_BASE_URL from "../config/api";
 
 function Empleados({ usuarioActivo, usuarioId, onVolver }) {
 
@@ -20,7 +21,7 @@ const [nuevoEmpleado, setNuevoEmpleado] = useState({
 
     try {
 
-      let url = "API_BASE_URL/api/empleados";
+      let url = `${API_BASE_URL}/api/empleados`;
 
       if (filtro === "activos") {
         url += "?activos=true";
@@ -50,7 +51,7 @@ const crearEmpleado = async () => {
   }
 
   try {
-    const respuesta = await fetch("API_BASE_URL/api/empleados", {
+    const respuesta = await fetch(`${API_BASE_URL}/api/empleados`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -110,7 +111,7 @@ const actualizarEmpleado = async () => {
 
   try {
     const respuesta = await fetch(
-      `API_BASE_URL/api/empleados/${empleadoEditando.id}`,
+      `${API_BASE_URL}/api/empleados/${empleadoEditando.id}`,
       {
         method: "PUT",
         headers: {
@@ -162,7 +163,7 @@ const darDeBaja = async (empleado) => {
 
   try {
     const respuesta = await fetch(
-      `API_BASE_URL/api/empleados/${empleado.id}/baja`,
+      `${API_BASE_URL}/api/empleados/${empleado.id}/baja`,
       {
         method: "PUT",
         headers: {
@@ -197,7 +198,7 @@ const reactivarEmpleado = async (empleado) => {
 
   try {
     const respuesta = await fetch(
-      `4/1AeoWuM-fqqMb_hSW3Rs-Ckebmhl6g9BPlXhHj7i9s_a_l0urbyKAPfxVGGw.0.1:5000/api/empleados/${empleado.id}/reactivar`,
+      `${API_BASE_URL}/api/empleados/${empleado.id}/reactivar`,
       {
         method: "PUT",
       }

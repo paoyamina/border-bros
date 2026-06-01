@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import estilos from "../styles/estilos";
 import { validarEgreso } from "../utils/validaciones";
-import { API_ENDPOINTS } from "../config/api";
+import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 
 function EgresosBancos({ usuarioActivo, usuarioId, onVolver }) {
 
@@ -42,7 +42,7 @@ useEffect(() => {
     try {
 
       const respuesta = await fetch(
-        "API_BASE_URL/api/proveedores"
+        `${API_BASE_URL}/api/proveedores`
       );
 
       const resultado = await respuesta.json();
@@ -61,7 +61,7 @@ useEffect(() => {
     try {
 
       const respuesta = await fetch(
-        "API_BASE_URL/api/categorias"
+        `${API_BASE_URL}/api/categorias`
       );
 
       const resultado = await respuesta.json();
@@ -203,7 +203,7 @@ Monto: $${parseFloat(montoEgreso).toLocaleString()}
     throw new Error(resultado.error || "Error desconocido.");
   }
 
-  const respuestaProveedor = await fetch("API_BASE_URL/api/proveedores/buscar-o-crear", {
+  const respuestaProveedor = await fetch(`${API_BASE_URL}/api/proveedores/buscar-o-crear`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -222,7 +222,7 @@ if (!resultadoProveedor.success) {
 
 const proveedorId = resultadoProveedor.proveedor.id;
 
-const respuestaCategoria = await fetch("API_BASE_URL/api/categorias/buscar-o-crear", {
+const respuestaCategoria = await fetch(`${API_BASE_URL}/api/categorias/buscar-o-crear`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -242,7 +242,7 @@ const categoriaId = resultadoCategoria.categoria.id;
 
 const montoNumerico = parseFloat(montoEgreso) || 0;
 
-const respuestaBD = await fetch("API_BASE_URL/api/egresos", {
+const respuestaBD = await fetch(`${API_BASE_URL}/api/egresos`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",

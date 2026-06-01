@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import estilos from "../styles/estilos";
+import API_BASE_URL from "../config/api";
 
 function HistorialNomina({ usuarioActivo, onVolver }) {
   const [prenominas, setPrenominas] = useState([]);
 
   const cargarHistorial = async () => {
-    const respuesta = await fetch("API_BASE_URL/api/prenomina");
+    const respuesta = await fetch(`${API_BASE_URL}/api/prenomina`);
     const resultado = await respuesta.json();
 
     if (resultado.success) {

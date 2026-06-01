@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import estilos from "../styles/estilos";
+import API_BASE_URL from "../config/api";
 
 function AprobacionesNomina({ usuarioActivo, usuarioId, onVolver }) {
   const [prenominas, setPrenominas] = useState([]);
 
   const cargarPendientes = async () => {
     try {
-      const respuesta = await fetch("API_BASE_URL/api/prenomina/pendientes");
+      const respuesta = await fetch(`${API_BASE_URL}/api/prenomina/pendientes`);
       const resultado = await respuesta.json();
 
       if (resultado.success) {
@@ -28,7 +29,7 @@ function AprobacionesNomina({ usuarioActivo, usuarioId, onVolver }) {
   try {
 
     const respuesta = await fetch(
-      `API_BASE_URL/api/prenomina/${prenomina.id}/aprobar`,
+      `${API_BASE_URL}/api/prenomina/${prenomina.id}/aprobar`,
       {
         method: "PUT",
         headers: {
@@ -68,7 +69,7 @@ const rechazarPrenomina = async (prenomina) => {
   try {
 
     const respuesta = await fetch(
-      `API_BASE_URL/api/prenomina/${prenomina.id}/rechazar`,
+      `${API_BASE_URL}/api/prenomina/${prenomina.id}/rechazar`,
       {
         method: "PUT",
         headers: {
