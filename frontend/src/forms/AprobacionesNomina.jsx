@@ -6,7 +6,7 @@ function AprobacionesNomina({ usuarioActivo, usuarioId, onVolver }) {
 
   const cargarPendientes = async () => {
     try {
-      const respuesta = await fetch("http://127.0.0.1:5000/api/prenomina/pendientes");
+      const respuesta = await fetch("API_BASE_URL/api/prenomina/pendientes");
       const resultado = await respuesta.json();
 
       if (resultado.success) {
@@ -28,7 +28,7 @@ function AprobacionesNomina({ usuarioActivo, usuarioId, onVolver }) {
   try {
 
     const respuesta = await fetch(
-      `http://127.0.0.1:5000/api/prenomina/${prenomina.id}/aprobar`,
+      `API_BASE_URL/api/prenomina/${prenomina.id}/aprobar`,
       {
         method: "PUT",
         headers: {
@@ -68,7 +68,7 @@ const rechazarPrenomina = async (prenomina) => {
   try {
 
     const respuesta = await fetch(
-      `http://127.0.0.1:5000/api/prenomina/${prenomina.id}/rechazar`,
+      `API_BASE_URL/api/prenomina/${prenomina.id}/rechazar`,
       {
         method: "PUT",
         headers: {

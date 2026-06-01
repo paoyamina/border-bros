@@ -40,7 +40,7 @@ const [categoriasExistentes, setCategoriasExistentes] = useState([]);
     try {
 
       const respuesta = await fetch(
-        "http://127.0.0.1:5000/api/proveedores"
+        "API_BASE_URL/api/proveedores"
       );
 
       const resultado = await respuesta.json();
@@ -59,7 +59,7 @@ const [categoriasExistentes, setCategoriasExistentes] = useState([]);
     try {
 
       const respuesta = await fetch(
-        "http://127.0.0.1:5000/api/categorias"
+        "API_BASE_URL/api/categorias"
       );
 
       const resultado = await respuesta.json();
@@ -201,7 +201,7 @@ Monto: $${parseFloat(montoEgreso).toLocaleString()}
     throw new Error(resultado.error || "Error desconocido.");
   }
 
-  const respuestaProveedor = await fetch("http://127.0.0.1:5000/api/proveedores/buscar-o-crear", {
+  const respuestaProveedor = await fetch("API_BASE_URL/api/proveedores/buscar-o-crear", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -218,7 +218,7 @@ if (!resultadoProveedor.success) {
 
 const proveedorId = resultadoProveedor.proveedor.id;
 
-const respuestaCategoria = await fetch("http://127.0.0.1:5000/api/categorias/buscar-o-crear", {
+const respuestaCategoria = await fetch("API_BASE_URL/api/categorias/buscar-o-crear", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -236,7 +236,7 @@ const categoriaId = resultadoCategoria.categoria.id;
 
 const montoNumerico = parseFloat(montoEgreso) || 0;
 
-const respuestaBD = await fetch("http://127.0.0.1:5000/api/egresos", {
+const respuestaBD = await fetch("API_BASE_URL/api/egresos", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({

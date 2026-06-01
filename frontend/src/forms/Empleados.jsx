@@ -20,7 +20,7 @@ const [nuevoEmpleado, setNuevoEmpleado] = useState({
 
     try {
 
-      let url = "http://127.0.0.1:5000/api/empleados";
+      let url = "API_BASE_URL/api/empleados";
 
       if (filtro === "activos") {
         url += "?activos=true";
@@ -50,7 +50,7 @@ const crearEmpleado = async () => {
   }
 
   try {
-    const respuesta = await fetch("http://127.0.0.1:5000/api/empleados", {
+    const respuesta = await fetch("API_BASE_URL/api/empleados", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -110,7 +110,7 @@ const actualizarEmpleado = async () => {
 
   try {
     const respuesta = await fetch(
-      `http://127.0.0.1:5000/api/empleados/${empleadoEditando.id}`,
+      `API_BASE_URL/api/empleados/${empleadoEditando.id}`,
       {
         method: "PUT",
         headers: {
@@ -162,7 +162,7 @@ const darDeBaja = async (empleado) => {
 
   try {
     const respuesta = await fetch(
-      `http://127.0.0.1:5000/api/empleados/${empleado.id}/baja`,
+      `API_BASE_URL/api/empleados/${empleado.id}/baja`,
       {
         method: "PUT",
         headers: {

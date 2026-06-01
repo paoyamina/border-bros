@@ -5,7 +5,7 @@ function HistorialNomina({ usuarioActivo, onVolver }) {
   const [prenominas, setPrenominas] = useState([]);
 
   const cargarHistorial = async () => {
-    const respuesta = await fetch("http://127.0.0.1:5000/api/prenomina");
+    const respuesta = await fetch("API_BASE_URL/api/prenomina");
     const resultado = await respuesta.json();
 
     if (resultado.success) {

@@ -26,7 +26,7 @@ const [categoriasExistentes, setCategoriasExistentes] = useState([]);
     try {
 
       const respuesta = await fetch(
-        "http://127.0.0.1:5000/api/proveedores"
+        "API_BASE_URL/api/proveedores"
       );
 
       const resultado = await respuesta.json();
@@ -46,7 +46,7 @@ const [categoriasExistentes, setCategoriasExistentes] = useState([]);
   try {
 
     const respuesta = await fetch(
-      "http://127.0.0.1:5000/api/categorias"
+      "API_BASE_URL/api/categorias"
     );
 
     const resultado = await respuesta.json();
@@ -193,7 +193,7 @@ Monto: ${
   }
 
   console.log("USUARIO ID EN EGRESO:", usuarioId);
-  const respuestaProveedor = await fetch("http://127.0.0.1:5000/api/proveedores/buscar-o-crear", {
+  const respuestaProveedor = await fetch("API_BASE_URL/api/proveedores/buscar-o-crear", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -211,7 +211,7 @@ if (!resultadoProveedor.success) {
 }
 
 const proveedorId = resultadoProveedor.proveedor.id;
-  const respuestaBD = await fetch("http://127.0.0.1:5000/api/egresos", {
+  const respuestaBD = await fetch("API_BASE_URL/api/egresos", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
