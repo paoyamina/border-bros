@@ -4,7 +4,7 @@ import estilos from "../styles/estilos";
 import { validarEgreso } from "../utils/validaciones";
 import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 
-function EgresosBancos({ usuarioActivo, usuarioId, onVolver }) {
+function EgresosBancos({ usuarioActivo, usuarioId, rol, onVolver }) {
 
   const [fechaEgreso, setFechaEgreso] = useState(
     new Date().toISOString().split("T")[0]
@@ -33,6 +33,9 @@ function EgresosBancos({ usuarioActivo, usuarioId, onVolver }) {
 
 const [proveedoresExistentes, setProveedoresExistentes] = useState([]);
 const [categoriasExistentes, setCategoriasExistentes] = useState([]);
+const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
+  String(rol || "").trim().toLowerCase()
+);
 
 
 useEffect(() => {
@@ -142,6 +145,11 @@ const descargarExcelBanco = () => {
     alert(`⚠️ ${errorValidacion}`);
     return;
   }
+
+  if (!referencia.trim()) {
+  alert("⚠️ El folio bancario es obligatorio.");
+  return;
+}
 
   if (fotosEgreso.length === 0) {
 
@@ -361,10 +369,6 @@ if (!resultadoBD.success) {
                 }}
               >
                 <option>BBVA</option>
-                <option>Santander</option>
-                <option>Banorte</option>
-                <option>HSBC</option>
-                <option>Banamex</option>
               </select>
             </div>
 
@@ -397,13 +401,15 @@ if (!resultadoBD.success) {
 
               </select>
 
-              <button
-                type="button"
-                style={estilos.btnAdd}
-                onClick={agregarCategoria}
-              >
-                +
-              </button>
+              {puedeAgregarCategoria && (
+  <button
+    type="button"
+    style={estilos.btnAdd}
+    onClick={agregarCategoria}
+  >
+    +
+  </button>
+)}
 
             </div>
 
@@ -561,14 +567,14 @@ if (!resultadoBD.success) {
 
           <button
             onClick={registrarEgreso}
-            disabled={!montoEgreso || !conceptoEgreso}
+            disabled={!montoEgreso || !conceptoEgreso || !referencia.trim()}
             style={{
               ...estilos.btnSubmit,
               marginTop: "10px",
               background:
-                !montoEgreso || !conceptoEgreso
-                  ? "#ccc"
-                  : "#000",
+                !montoEgreso || !conceptoEgreso || !referencia.trim()
+  ? "#ccc"
+  : "#000",
             }}
           >
             REGISTRAR EGRESO BANCARIO

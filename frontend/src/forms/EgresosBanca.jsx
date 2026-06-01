@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import estilos from "../styles/estilos";
 import { validarEgreso } from "../utils/validaciones";
-import { API_ENDPOINTS } from "../config/api";
+import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 
-function EgresosBanca({ usuarioActivo, usuarioId, onVolver }) {
+function EgresosBanca({ usuarioActivo, usuarioId, rol, onVolver }) {
 
   const [fechaEgreso, setFechaEgreso] = useState(
     new Date().toISOString().split("T")[0]
@@ -19,6 +19,9 @@ function EgresosBanca({ usuarioActivo, usuarioId, onVolver }) {
   const [fotosEgreso, setFotosEgreso] = useState([]);
   const [proveedoresExistentes, setProveedoresExistentes] = useState([]);
 const [categoriasExistentes, setCategoriasExistentes] = useState([]);
+const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
+  String(rol || "").trim().toLowerCase()
+);
 
   const [listaProveedores, setListaProveedores] = useState([
     "Coca-Cola",
@@ -40,8 +43,8 @@ const [categoriasExistentes, setCategoriasExistentes] = useState([]);
     try {
 
       const respuesta = await fetch(
-        "API_BASE_URL/api/proveedores"
-      );
+  `${API_BASE_URL}/api/proveedores`
+);
 
       const resultado = await respuesta.json();
 
@@ -59,7 +62,7 @@ const [categoriasExistentes, setCategoriasExistentes] = useState([]);
     try {
 
       const respuesta = await fetch(
-        "API_BASE_URL/api/categorias"
+        `${API_BASE_URL}/api/categorias`
       );
 
       const resultado = await respuesta.json();
@@ -141,6 +144,11 @@ const descargarExcelBanca = () => {
     return;
   }
 
+  if (!referencia.trim()) {
+  alert("⚠️ El folio bancario es obligatorio.");
+  return;
+}
+
   if (fotosEgreso.length === 0) {
 
       const continuar = window.confirm(
@@ -201,7 +209,7 @@ Monto: $${parseFloat(montoEgreso).toLocaleString()}
     throw new Error(resultado.error || "Error desconocido.");
   }
 
-  const respuestaProveedor = await fetch("API_BASE_URL/api/proveedores/buscar-o-crear", {
+  const respuestaProveedor = await fetch(`${API_BASE_URL}/api/proveedores/buscar-o-crear`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -218,7 +226,7 @@ if (!resultadoProveedor.success) {
 
 const proveedorId = resultadoProveedor.proveedor.id;
 
-const respuestaCategoria = await fetch("API_BASE_URL/api/categorias/buscar-o-crear", {
+const respuestaCategoria = await fetch(`${API_BASE_URL}/api/categorias/buscar-o-crear`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -236,7 +244,7 @@ const categoriaId = resultadoCategoria.categoria.id;
 
 const montoNumerico = parseFloat(montoEgreso) || 0;
 
-const respuestaBD = await fetch("API_BASE_URL/api/egresos", {
+const respuestaBD = await fetch(`${API_BASE_URL}/api/egresos`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -350,11 +358,7 @@ if (!resultadoBD.success) {
                   height: "42px",
                 }}
               >
-                <option>BBVA</option>
-                <option>Santander</option>
-                <option>Banorte</option>
-                <option>HSBC</option>
-                <option>Banamex</option>
+                <option>Kueski</option>
               </select>
             </div>
 
@@ -387,13 +391,15 @@ if (!resultadoBD.success) {
 
               </select>
 
-              <button
-                type="button"
-                style={estilos.btnAdd}
-                onClick={agregarCategoria}
-              >
-                +
-              </button>
+              {puedeAgregarCategoria && (
+  <button
+    type="button"
+    style={estilos.btnAdd}
+    onClick={agregarCategoria}
+  >
+    +
+  </button>
+)}
 
             </div>
 
@@ -551,14 +557,14 @@ if (!resultadoBD.success) {
 
           <button
             onClick={registrarEgreso}
-            disabled={!montoEgreso || !conceptoEgreso}
+            disabled={!montoEgreso || !conceptoEgreso || !referencia.trim()}
             style={{
               ...estilos.btnSubmit,
               marginTop: "10px",
               background:
-                !montoEgreso || !conceptoEgreso
-                  ? "#ccc"
-                  : "#000",
+                !montoEgreso || !conceptoEgreso || !referencia.trim()
+              ? "#ccc"
+              : "#000",
             }}
           >
             REGISTRAR EGRESO BANCARIO

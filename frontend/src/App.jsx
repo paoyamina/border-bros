@@ -76,10 +76,11 @@ if (!isLoggedIn) {
   if (formularioActivo === "egresos_caja") {
     return (
       <EgresosEfectivo
-        usuarioActivo={usuarioActivo}
-        usuarioId={usuarioId}
-        onVolver={volverAlMenu}
-      />
+  usuarioActivo={usuarioActivo}
+  usuarioId={usuarioId}
+  rol={rol}
+  onVolver={volverAlMenu}
+        />
     );
   }
 
@@ -87,8 +88,9 @@ if (!isLoggedIn) {
     return (
       <EgresosBancos
         usuarioActivo={usuarioActivo}
-        usuarioId={usuarioId}
-        onVolver={volverAlMenu}
+       usuarioId={usuarioId}
+        rol={rol}
+       onVolver={volverAlMenu}
       />
     );
   }
@@ -98,6 +100,7 @@ if (!isLoggedIn) {
      <EgresosBanca
   usuarioActivo={usuarioActivo}
   usuarioId={usuarioId}
+  rol={rol}
   onVolver={volverAlMenu}
 />
     );

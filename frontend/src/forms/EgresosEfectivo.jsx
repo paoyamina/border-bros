@@ -7,6 +7,7 @@ import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 function EgresosEfectivo({
   usuarioActivo,
   usuarioId,
+  rol,
   onVolver
 }) {
   const [fechaEgreso, setFechaEgreso] = useState(new Date().toISOString().split("T")[0]);
@@ -19,6 +20,9 @@ function EgresosEfectivo({
   const [fotosEgreso, setFotosEgreso] = useState([]);
   const [proveedoresExistentes, setProveedoresExistentes] = useState([]);
 const [categoriasExistentes, setCategoriasExistentes] = useState([]);
+const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
+  String(rol || "").trim().toLowerCase()
+);
   useEffect(() => {
 
   const cargarProveedores = async () => {
@@ -342,9 +346,11 @@ if (!resultadoBD.success) {
                 ))}
               </select>
 
-              <button type="button" style={estilos.btnAdd} onClick={agregarCategoria}>
-                +
-              </button>
+              {puedeAgregarCategoria && (
+            <button type="button" style={estilos.btnAdd} onClick={agregarCategoria}>
+            +
+            </button>
+                        )}
             </div>
           </div>
 
