@@ -481,6 +481,111 @@ totalTarjetas,
           </div>
 
           <div
+  style={{
+    ...estilos.panelItem,
+    border: "1px solid #3498db",
+    background: "#eef7ff",
+  }}
+>
+  <span style={{ ...estilos.panelLabel, color: "#2980b9" }}>
+    COVER EFECTIVO MXN
+  </span>
+  <div
+    style={{
+      ...estilos.panelMonto,
+      color: "#2980b9",
+      fontSize: "22px",
+    }}
+  >
+    $
+    {calcularCoverMXN().toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+    })}
+  </div>
+</div>
+
+<div
+  style={{
+    ...estilos.panelItem,
+    border: "1px solid #3498db",
+    background: "#eef7ff",
+  }}
+>
+  <span style={{ ...estilos.panelLabel, color: "#2980b9" }}>
+    COVER DÓLARES (USD)
+  </span>
+
+  <div
+    style={{
+      ...estilos.panelMonto,
+      color: "#2980b9",
+      fontSize: "20px",
+    }}
+  >
+    ${calcularCoverUSD().toLocaleString()} USD
+  </div>
+
+  <div style={{ fontSize: "10px", color: "#2980b9", marginTop: "5px" }}>
+    TC: <strong>{tc}</strong> |{" "}
+    <strong>
+      $
+      {coverUsdEnMxn.toLocaleString("es-MX", {
+        minimumFractionDigits: 2,
+      })}{" "}
+      MXN
+    </strong>
+  </div>
+</div>
+
+<div
+  style={{
+    ...estilos.panelItem,
+    border: "1px solid #3498db",
+    background: "#eef7ff",
+  }}
+>
+  <span style={{ ...estilos.panelLabel, color: "#2980b9" }}>
+    COVER TPV
+  </span>
+  <div
+    style={{
+      ...estilos.panelMonto,
+      color: "#2980b9",
+      fontSize: "22px",
+    }}
+  >
+    $
+    {coverTPV.toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+    })}
+  </div>
+</div>
+
+<div
+  style={{
+    ...estilos.panelItem,
+    border: "1px solid #3498db",
+    background: "#eef7ff",
+  }}
+>
+  <span style={{ ...estilos.panelLabel, color: "#2980b9" }}>
+    TOTAL COVER
+  </span>
+  <div
+    style={{
+      ...estilos.panelMonto,
+      color: "#2980b9",
+      fontSize: "22px",
+    }}
+  >
+    $
+    {totalCover.toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+    })}
+  </div>
+</div>
+
+          <div
             style={{
               ...estilos.panelItem,
               background: "#1a1a1a",
