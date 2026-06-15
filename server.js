@@ -130,46 +130,295 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Guardar Reporte y subir a Drive
+// Guardar Reporte, subir a Drive y guardar corte en PostgreSQL
 app.post('/api/guardar-reporte', upload.array('fotos'), async (req, res) => {
-    console.log("BODY:", req.body);
-    console.log("FILES:", req.files);
+  console.log("BODY:", req.body);
+  console.log("FILES:", req.files);
 
-    if (!driveService) {
-        return res.status(500).json({ error: "Drive aún no está listo, intenta de nuevo" });
+  if (!driveService) {
+    return res.status(500).json({
+      success: false,
+      error: "Drive aún no está listo, intenta de nuevo"
+    });
+  }
+
+  const toNumber = (value) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+  };
+
+  try {
+    const { nombreCarpeta, usuario } = req.body;
+    const fotos = req.files;
+
+    let detalles = null;
+
+    if (req.body.detalles) {
+      detalles = JSON.parse(req.body.detalles);
     }
 
-    try {
-        const { nombreCarpeta, usuario } = req.body;
-        const fotos = req.files;
-
-        if (!fotos || fotos.length === 0) {
-    console.log("No se recibieron fotos, pero se procesará la carpeta.");
-}
-
-        console.log(`📂 Procesando reporte de: ${usuario}`);
-        console.log(`📁 Carpeta: ${nombreCarpeta}`);
-
-        // 1. Crear carpeta en Drive
-const folderId = await crearCarpetaEnDrive(nombreCarpeta);
-
-        // 2. Subir archivos SOLO si existen
-if (fotos && fotos.length > 0) {
-    for (const foto of fotos) {
-        await subirArchivoADrive(foto.path, foto.originalname, foto.mimetype, folderId);
+    if (!fotos || fotos.length === 0) {
+      console.log("No se recibieron fotos, pero se procesará la carpeta.");
     }
-}
 
-        res.json({
-  success: true,
-  message: "¡Reporte enviado exitosamente a Drive!",
-  folderId,
-  folderUrl: `https://drive.google.com/drive/folders/${folderId}`
-});
-    } catch (error) {
-        console.error("❌ Error en el servidor:", error);
-        res.status(500).json({ success: false, error: error.message });
+    console.log(`📂 Procesando reporte de: ${usuario}`);
+    console.log(`📁 Carpeta: ${nombreCarpeta}`);
+
+    // 1. Crear carpeta en Drive
+    const folderId = await crearCarpetaEnDrive(nombreCarpeta);
+    const folderUrl = `https://drive.google.com/drive/folders/${folderId}`;
+
+    // 2. Subir archivos SOLO si existen
+    if (fotos && fotos.length > 0) {
+      for (const foto of fotos) {
+        await subirArchivoADrive(
+          foto.path,
+          foto.originalname,
+          foto.mimetype,
+          folderId
+        );
+      }
     }
+
+    let corteGuardado = null;
+
+    // 3. Guardar corte de caja en PostgreSQL
+    if (detalles && detalles.tipo === "CORTE_CAJA") {
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        let usuarioId = null;
+
+        if (usuario) {
+          const usuarioResult = await client.query(
+            `
+            SELECT id
+            FROM usuarios
+            WHERE LOWER(nombre) = LOWER($1)
+            LIMIT 1
+            `,
+            [usuario]
+          );
+
+          if (usuarioResult.rows.length > 0) {
+            usuarioId = usuarioResult.rows[0].id;
+          }
+        }
+
+        const corteResult = await client.query(
+          `
+          INSERT INTO corte_caja (
+            fecha,
+            folio,
+            usuario_id,
+            tipo_cambio,
+            total_tarjetas,
+            total_efectivo_mxn,
+            total_efectivo_usd,
+            total_general,
+            total_tarjetas_mxn,
+            total_tarjetas_usd,
+            cover_tpv,
+            cover_efectivo,
+            cover_usd,
+            total_cover,
+            venta_ticket,
+            diferencia,
+            total_vales,
+            total_cxc,
+            responsable_iniciales,
+            drive_folder_id,
+            drive_folder_url,
+            created_at,
+            updated_at,
+            updated_by
+          )
+          VALUES (
+            $1, $2, $3, $4, $5,
+            $6, $7, $8, $9, $10,
+            $11, $12, $13, $14, $15,
+            $16, $17, $18, $19, $20,
+            $21, NOW(), NOW(), $22
+          )
+          RETURNING *
+          `,
+          [
+            detalles.fecha || null,
+            detalles.folio || nombreCarpeta || null,
+            usuarioId,
+            toNumber(detalles.tipoCambio),
+            toNumber(detalles.totalTarjetas),
+            toNumber(detalles.efectivoMXN),
+            toNumber(detalles.efectivoUSD),
+            toNumber(detalles.totalGlobalMXN),
+            toNumber(detalles.totalTarjetas),
+            0,
+            toNumber(detalles.coverTPV),
+            toNumber(detalles.coverEfectivo),
+            toNumber(detalles.coverUSD),
+            toNumber(detalles.totalCover),
+            toNumber(detalles.ventaTicket),
+            toNumber(detalles.diferencia),
+            toNumber(detalles.totalVales),
+            toNumber(detalles.totalCxC),
+            detalles.responsable || null,
+            folderId,
+            folderUrl,
+            usuarioId
+          ]
+        );
+
+        corteGuardado = corteResult.rows[0];
+
+        // 4. Guardar denominaciones
+        const denominaciones = Array.isArray(detalles.denominaciones)
+          ? detalles.denominaciones
+          : [];
+
+        for (const item of denominaciones) {
+          const moneda = item.moneda;
+          const valor = toNumber(item.valor);
+          const cantidad = parseInt(item.cantidad) || 0;
+          const tipoIngreso = item.tipo_ingreso || "Normal";
+
+          if (!moneda || cantidad <= 0) continue;
+
+          let denominacionId = null;
+
+          const denomResult = await client.query(
+            `
+            SELECT id
+            FROM denominaciones
+            WHERE moneda = $1
+              AND valor = $2
+            LIMIT 1
+            `,
+            [moneda, valor]
+          );
+
+          if (denomResult.rows.length > 0) {
+            denominacionId = denomResult.rows[0].id;
+          } else {
+            const nuevaDenom = await client.query(
+              `
+              INSERT INTO denominaciones (moneda, valor)
+              VALUES ($1, $2)
+              RETURNING id
+              `,
+              [moneda, valor]
+            );
+
+            denominacionId = nuevaDenom.rows[0].id;
+          }
+
+          await client.query(
+            `
+            INSERT INTO corte_denominaciones (
+              corte_id,
+              denominacion_id,
+              cantidad,
+              tipo_ingreso
+            )
+            VALUES ($1, $2, $3, $4)
+            `,
+            [
+              corteGuardado.id,
+              denominacionId,
+              cantidad,
+              tipoIngreso
+            ]
+          );
+        }
+
+        // 5. Guardar vales
+        const vales = Array.isArray(detalles.vales) ? detalles.vales : [];
+
+        for (const vale of vales) {
+          const monto = toNumber(vale.monto);
+
+          if (!vale.concepto && monto <= 0) continue;
+
+          await client.query(
+            `
+            INSERT INTO corte_vales (
+              corte_id,
+              concepto,
+              monto,
+              moneda,
+              tipo_cambio,
+              monto_mxn
+            )
+            VALUES ($1, $2, $3, 'MXN', $4, $5)
+            `,
+            [
+              corteGuardado.id,
+              vale.concepto || "Sin concepto",
+              monto,
+              toNumber(detalles.tipoCambio),
+              monto
+            ]
+          );
+        }
+
+        // 6. Guardar cuentas por cobrar
+        const cxc = Array.isArray(detalles.cxc) ? detalles.cxc : [];
+
+        for (const cuenta of cxc) {
+          const monto = toNumber(cuenta.monto);
+
+          if (!cuenta.nombre && monto <= 0) continue;
+
+          await client.query(
+            `
+            INSERT INTO cuentas_por_cobrar (
+              corte_id,
+              nombre,
+              monto,
+              moneda,
+              tipo_cambio,
+              monto_mxn
+            )
+            VALUES ($1, $2, $3, 'MXN', $4, $5)
+            `,
+            [
+              corteGuardado.id,
+              cuenta.nombre || "Sin nombre",
+              monto,
+              toNumber(detalles.tipoCambio),
+              monto
+            ]
+          );
+        }
+
+        await client.query("COMMIT");
+
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+
+      } finally {
+        client.release();
+      }
+    }
+
+    res.json({
+      success: true,
+      message: "¡Reporte enviado exitosamente a Drive y guardado en base de datos!",
+      folderId,
+      folderUrl,
+      corte: corteGuardado
+    });
+
+  } catch (error) {
+    console.error("❌ Error en el servidor:", error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // Guardar egreso en PostgreSQL

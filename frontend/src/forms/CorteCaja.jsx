@@ -9,11 +9,13 @@ function CorteCaja({ usuarioActivo, onVolver }) {
   const denomUSD = [100, 50, 20, 10, 5, 2, 1, 0.5, 0.25];
 
   const [secciones, setSecciones] = useState({
-    mxn: false,
-    usd: false,
-    vales: false,
-    cxc: false,
-  });
+  mxn: false,
+  usd: false,
+  cover_mxn: false,
+  cover_usd: false,
+  vales: false,
+  cxc: false,
+});
 
   const [cantidades, setCantidades] = useState({});
   const [tc, setTc] = useState(18.5);
@@ -53,6 +55,88 @@ function CorteCaja({ usuarioActivo, onVolver }) {
     return total;
   };
 
+const calcularCoverMXN = () => {
+  let total = 0;
+
+  denomMXN.forEach((v) => {
+    total += v * (parseInt(cantidades[`cover_mxn_${v}`]) || 0);
+  });
+
+  total += parseFloat(cantidades.cover_monedas_mxn) || 0;
+
+  return total;
+};
+
+const calcularCoverUSD = () => {
+  let total = 0;
+
+  denomUSD.forEach((v) => {
+    total += v * (parseInt(cantidades[`cover_usd_${v}`]) || 0);
+  });
+
+  total += parseFloat(cantidades.cover_monedas_usd_extra) || 0;
+
+  return total;
+};
+
+const obtenerDenominacionesCorte = () => {
+  const detalle = [];
+
+  denomMXN.forEach((valor) => {
+    const cantidad = parseInt(cantidades[`mxn_${valor}`]) || 0;
+
+    if (cantidad > 0) {
+      detalle.push({
+        moneda: "MXN",
+        valor,
+        cantidad,
+        tipo_ingreso: "Normal",
+      });
+    }
+  });
+
+  denomUSD.forEach((valor) => {
+    const cantidad = parseInt(cantidades[`usd_${valor}`]) || 0;
+
+    if (cantidad > 0) {
+      detalle.push({
+        moneda: "USD",
+        valor,
+        cantidad,
+        tipo_ingreso: "Normal",
+      });
+    }
+  });
+
+  denomMXN.forEach((valor) => {
+    const cantidad = parseInt(cantidades[`cover_mxn_${valor}`]) || 0;
+
+    if (cantidad > 0) {
+      detalle.push({
+        moneda: "MXN",
+        valor,
+        cantidad,
+        tipo_ingreso: "Cover",
+      });
+    }
+  });
+
+  denomUSD.forEach((valor) => {
+    const cantidad = parseInt(cantidades[`cover_usd_${valor}`]) || 0;
+
+    if (cantidad > 0) {
+      detalle.push({
+        moneda: "USD",
+        valor,
+        cantidad,
+        tipo_ingreso: "Cover",
+      });
+    }
+  });
+
+  return detalle;
+};
+
   const totalVales = valesRows.reduce(
     (acc, row) => acc + (parseFloat(row.monto) || 0),
     0
@@ -63,15 +147,27 @@ function CorteCaja({ usuarioActivo, onVolver }) {
     0
   );
 
-  const totalTarjetas = parseFloat(cantidades.tarjetas) || 0;
-  const montoVentaMeta = parseFloat(cantidades.monto_meta) || 0;
+const totalTarjetas = parseFloat(cantidades.tarjetas) || 0;
+const coverTPV = parseFloat(cantidades.cover_tpv) || 0;
+const montoVentaMeta = parseFloat(cantidades.monto_meta) || 0;
 
-  const usdEnMxn = calcularUSD() * tc;
+const usdEnMxn = calcularUSD() * tc;
+const coverUsdEnMxn = calcularCoverUSD() * tc;
 
-  const totalGlobalMXN =
-    calcularMXN() + usdEnMxn + totalTarjetas + totalVales + totalCxC;
+const totalCover =
+  calcularCoverMXN() + coverUsdEnMxn + coverTPV;
 
-  const diferencia = totalGlobalMXN - montoVentaMeta;
+const totalGlobalMXN =
+  calcularMXN() +
+  usdEnMxn +
+  calcularCoverMXN() +
+  coverUsdEnMxn +
+  coverTPV +
+  totalTarjetas +
+  totalVales +
+  totalCxC;
+
+const diferencia = totalGlobalMXN - montoVentaMeta;
 
   const addRow = (tipo) => {
     const newRow = {
@@ -115,24 +211,31 @@ function CorteCaja({ usuarioActivo, onVolver }) {
   };
 
   const descargarExcel = () => {
-    exportarExcelCorte({
-      fechaReporte,
-      nombreReporte,
-      usuarioActivo,
-      iniciales: iniciales.toUpperCase(),
-      calcularMXN,
-      calcularUSD,
-      tc,
-      totalTarjetas,
-      totalVales,
-      totalCxC,
-      totalGlobalMXN,
-      montoVentaMeta,
-      diferencia,
-      valesRows,
-      cxcRows,
-    });
-  };
+  exportarExcelCorte({
+    fechaReporte,
+    nombreReporte,
+    usuarioActivo,
+    iniciales: iniciales.toUpperCase(),
+
+    calcularMXN,
+    calcularUSD,
+    calcularCoverMXN,
+    calcularCoverUSD,
+
+    tc,
+    coverTPV,
+    totalCover,
+
+    totalTarjetas,
+    totalVales,
+    totalCxC,
+    totalGlobalMXN,
+    montoVentaMeta,
+    diferencia,
+    valesRows,
+    cxcRows,
+  });
+};
 
   const enviarADriveYExcel = async () => {
     if (montoVentaMeta <= 0) {
@@ -190,14 +293,21 @@ Al aceptar, se descargará el Excel local y se enviarán las fotos a Drive.
           cajero: usuarioActivo,
           responsable: iniciales.toUpperCase(),
           efectivoMXN: calcularMXN(),
-          efectivoUSD: calcularUSD(),
-          tipoCambio: tc,
-          totalTarjetas,
+efectivoUSD: calcularUSD(),
+tipoCambio: tc,
+
+coverEfectivo: calcularCoverMXN(),
+coverUSD: calcularCoverUSD(),
+coverTPV,
+totalCover,
+
+totalTarjetas,
           totalVales,
           totalCxC,
           totalGlobalMXN,
           ventaTicket: montoVentaMeta,
           diferencia,
+          denominaciones: obtenerDenominacionesCorte(),
           vales: valesRows,
           cxc: cxcRows,
         })
@@ -583,62 +693,241 @@ Al aceptar, se descargará el Excel local y se enviarán las fotos a Drive.
           </div>
 
           <div style={estilos.section}>
-            <label style={estilos.labelCheck}>
-              <input
-                type="checkbox"
-                onChange={() =>
-                  setSecciones({ ...secciones, vales: !secciones.vales })
-                }
-              />{" "}
-              3. VALES DE GASTOS
-            </label>
+  <label style={estilos.labelCheck}>
+    <input
+      type="checkbox"
+      onChange={() =>
+        setSecciones({
+          ...secciones,
+          cover_mxn: !secciones.cover_mxn,
+        })
+      }
+    />{" "}
+    3. COVER EFECTIVO MONEDA NACIONAL
+  </label>
 
-            {secciones.vales && (
-              <div
-                style={{
-                  marginTop: "15px",
-                  padding: "15px",
-                  background: "#fafafa",
-                  borderRadius: "8px",
-                }}
-              >
-                {valesRows.map((row) => (
-                  <div
-                    key={row.id}
-                    style={{ display: "flex", gap: "8px", marginBottom: "8px" }}
-                  >
-                    <input
-                      type="text"
-                      placeholder="Concepto"
-                      value={row.concepto}
-                      onChange={(e) =>
-                        updateRow(row.id, "vales", "concepto", e.target.value)
-                      }
-                      style={{ ...estilos.input, flex: 2 }}
-                    />
-                    <input
-                      type="number"
-                      placeholder="$"
-                      value={row.monto}
-                      onChange={(e) =>
-                        updateRow(row.id, "vales", "monto", e.target.value)
-                      }
-                      style={{ ...estilos.input, flex: 1 }}
-                    />
-                  </div>
-                ))}
-
-                <button
-                  type="button"
-                  onClick={() => addRow("vales")}
-                  style={estilos.btnAdd}
-                >
-                  + Añadir vale
-                </button>
-              </div>
-            )}
+  {secciones.cover_mxn && (
+    <div
+      style={{
+        marginTop: "15px",
+        padding: "15px",
+        background: "#fafafa",
+        borderRadius: "8px",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+          gap: "10px",
+        }}
+      >
+        {denomMXN.map((v) => (
+          <div
+            key={`cover_mxn_${v}`}
+            style={{ display: "flex", alignItems: "center", gap: "5px" }}
+          >
+            <small style={{ width: "40px", color: "#666" }}>${v}</small>
+            <input
+              type="number"
+              placeholder="0"
+              onChange={(e) =>
+                setCantidades({
+                  ...cantidades,
+                  [`cover_mxn_${v}`]: e.target.value,
+                })
+              }
+              style={estilos.inputNumber}
+            />
           </div>
+        ))}
+      </div>
 
+      <div
+        style={{
+          marginTop: "15px",
+          borderTop: "1px dashed #ccc",
+          paddingTop: "10px",
+        }}
+      >
+        <label style={estilos.panelLabel}>
+          MONEDAS PEQUEÑAS / OTROS COVER (MXN)
+        </label>
+        <input
+          type="number"
+          placeholder="$ 0.00"
+          onChange={(e) =>
+            setCantidades({
+              ...cantidades,
+              cover_monedas_mxn: e.target.value,
+            })
+          }
+          style={{ ...estilos.input, width: "95%" }}
+        />
+      </div>
+    </div>
+  )}
+</div>
+
+<div style={estilos.section}>
+  <label style={estilos.labelCheck}>
+    <input
+      type="checkbox"
+      onChange={() =>
+        setSecciones({
+          ...secciones,
+          cover_usd: !secciones.cover_usd,
+        })
+      }
+    />{" "}
+    4. COVER INGRESO DÓLARES (USD)
+  </label>
+
+  {secciones.cover_usd && (
+    <div
+      style={{
+        marginTop: "15px",
+        padding: "15px",
+        background: "#fafafa",
+        borderRadius: "8px",
+      }}
+    >
+      <div style={{ marginBottom: "10px", fontSize: "13px" }}>
+        T.Cambio: <strong>{tc}</strong>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
+          gap: "8px",
+        }}
+      >
+        {denomUSD.map((v) => (
+          <div
+            key={`cover_usd_${v}`}
+            style={{ display: "flex", alignItems: "center", gap: "5px" }}
+          >
+            <small style={{ width: "50px", color: "#666" }}>USD {v}</small>
+            <input
+              type="number"
+              placeholder="0"
+              onChange={(e) =>
+                setCantidades({
+                  ...cantidades,
+                  [`cover_usd_${v}`]: e.target.value,
+                })
+              }
+              style={estilos.inputNumber}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          marginTop: "15px",
+          borderTop: "1px dashed #ccc",
+          paddingTop: "10px",
+        }}
+      >
+        <label style={estilos.panelLabel}>
+          MONEDAS PEQUEÑAS / OTROS COVER (USD)
+        </label>
+        <input
+          type="number"
+          placeholder="USD $ 0.00"
+          onChange={(e) =>
+            setCantidades({
+              ...cantidades,
+              cover_monedas_usd_extra: e.target.value,
+            })
+          }
+          style={{ ...estilos.input, width: "95%" }}
+        />
+      </div>
+    </div>
+  )}
+</div>
+
+<div
+  style={{
+    background: "#fff",
+    padding: "15px",
+    borderRadius: "8px",
+    border: "1px solid #eee",
+  }}
+>
+  <label style={estilos.panelLabel}>5. COVER TPV</label>
+  <input
+    type="number"
+    placeholder="$ 0.00"
+    onChange={(e) =>
+      setCantidades({
+        ...cantidades,
+        cover_tpv: e.target.value,
+      })
+    }
+    style={{ ...estilos.input, width: "95%", fontSize: "16px" }}
+  />
+</div>
+
+<div style={estilos.section}>
+  <label style={estilos.labelCheck}>
+    <input
+      type="checkbox"
+      onChange={() =>
+        setSecciones({ ...secciones, vales: !secciones.vales })
+      }
+    />{" "}
+    6. VALES DE GASTOS
+  </label>
+
+  {secciones.vales && (
+    <div
+      style={{
+        marginTop: "15px",
+        padding: "15px",
+        background: "#fafafa",
+        borderRadius: "8px",
+      }}
+    >
+      {valesRows.map((row) => (
+        <div
+          key={row.id}
+          style={{ display: "flex", gap: "8px", marginBottom: "8px" }}
+        >
+          <input
+            type="text"
+            placeholder="Concepto"
+            value={row.concepto}
+            onChange={(e) =>
+              updateRow(row.id, "vales", "concepto", e.target.value)
+            }
+            style={{ ...estilos.input, flex: 2 }}
+          />
+          <input
+            type="number"
+            placeholder="$"
+            value={row.monto}
+            onChange={(e) =>
+              updateRow(row.id, "vales", "monto", e.target.value)
+            }
+            style={{ ...estilos.input, flex: 1 }}
+          />
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={() => addRow("vales")}
+        style={estilos.btnAdd}
+      >
+        + Añadir vale
+      </button>
+    </div>
+  )}
+</div>
           <div style={estilos.section}>
             <label style={estilos.labelCheck}>
               <input
@@ -647,7 +936,8 @@ Al aceptar, se descargará el Excel local y se enviarán las fotos a Drive.
                   setSecciones({ ...secciones, cxc: !secciones.cxc })
                 }
               />{" "}
-              4. CUENTAS POR COBRAR
+
+              7. CUENTAS POR COBRAR
             </label>
 
             {secciones.cxc && (
