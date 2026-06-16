@@ -97,17 +97,19 @@ function App() {
       />
 
       <p
-        style={{
-          marginTop: "22px",
-          fontSize: "14px",
-          letterSpacing: "2px",
-          textTransform: "uppercase",
-          color: "#476F4D",
-          animation: "fadeInLogo 1.2s ease",
-        }}
-      >
-        Sistema administrativo y financiero
-      </p>
+  style={{
+    marginTop: "26px",
+    fontSize: "22px",
+    fontWeight: "600",
+    letterSpacing: "2.5px",
+    textTransform: "uppercase",
+    color: "#476F4D",
+    textAlign: "center",
+    animation: "fadeInLogo 1.2s ease",
+  }}
+>
+  Sistema administrativo y financiero
+</p>
     </div>
   );
 }
