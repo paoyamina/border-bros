@@ -1725,6 +1725,27 @@ app.get('/api/analisis-financiero', async (req, res) => {
       [fechaInicio, fechaFin]
     );
 
+    const sociosDistribucionResult = await pool.query(
+  `
+  SELECT
+    s.id,
+    s.nombre AS socio,
+    COALESCE(s.porcentaje_participacion, 0) AS porcentaje_participacion,
+    COALESCE(SUM(i.monto), 0) AS inversion_aportada
+  FROM socios s
+  LEFT JOIN inversiones_socios i
+    ON i.socio_id = s.id
+    AND i.fecha BETWEEN $1 AND $2
+  WHERE s.activo = true
+  GROUP BY
+    s.id,
+    s.nombre,
+    s.porcentaje_participacion
+  ORDER BY s.nombre ASC
+  `,
+  [fechaInicio, fechaFin]
+);
+
     const ingresos = ingresosResult.rows[0];
     const egresos = egresosResult.rows[0];
     const inversiones = inversionesResult.rows[0];
@@ -1737,22 +1758,57 @@ app.get('/api/analisis-financiero', async (req, res) => {
     const utilidadOperativa = totalIngresos - totalEgresos;
     const flujoConInversiones = utilidadOperativa + totalInversionesSocios;
 
+    const porcentajeEgresos =
+  totalIngresos > 0 ? (totalEgresos / totalIngresos) * 100 : 0;
+
+const margenGanancia =
+  totalIngresos > 0 ? (utilidadOperativa / totalIngresos) * 100 : 0;
+
+const porcentajeNominaSobreEgresos =
+  totalEgresos > 0
+    ? ((Number(egresos.total_nomina) || 0) / totalEgresos) * 100
+    : 0;
+
+const porcentajeEgresosOperativosSobreEgresos =
+  totalEgresos > 0
+    ? ((Number(egresos.total_egresos_operativos) || 0) / totalEgresos) * 100
+    : 0;
+
+const distribucionSocios = sociosDistribucionResult.rows.map((socio) => {
+  const porcentaje = Number(socio.porcentaje_participacion) || 0;
+  const utilidadAsignada = utilidadOperativa * (porcentaje / 100);
+  const inversionAportada = Number(socio.inversion_aportada) || 0;
+
+  return {
+    socio: socio.socio,
+    porcentaje_participacion: porcentaje,
+    utilidad_asignada: utilidadAsignada,
+    inversion_aportada: inversionAportada,
+    resultado_neto: utilidadAsignada + inversionAportada
+  };
+});
+
     res.json({
       success: true,
       filtros: {
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin
       },
-      resumen: {
-        total_ingresos: totalIngresos,
-        total_egresos: totalEgresos,
-        total_nomina: Number(egresos.total_nomina) || 0,
-        total_egresos_operativos:
-          Number(egresos.total_egresos_operativos) || 0,
-        total_inversiones_socios: totalInversionesSocios,
-        utilidad_operativa: utilidadOperativa,
-        flujo_con_inversiones: flujoConInversiones
-      },
+            resumen: {
+          total_ingresos: totalIngresos,
+          total_egresos: totalEgresos,
+          total_nomina: Number(egresos.total_nomina) || 0,
+          total_egresos_operativos:
+            Number(egresos.total_egresos_operativos) || 0,
+          total_inversiones_socios: totalInversionesSocios,
+          utilidad_operativa: utilidadOperativa,
+          flujo_con_inversiones: flujoConInversiones,
+          porcentaje_egresos: porcentajeEgresos,
+          margen_ganancia: margenGanancia,
+          porcentaje_nomina_sobre_egresos: porcentajeNominaSobreEgresos,
+          porcentaje_egresos_operativos_sobre_egresos:
+            porcentajeEgresosOperativosSobreEgresos
+        },
       ingresos: {
         total_cover: Number(ingresos.total_cover) || 0,
         total_tarjetas: Number(ingresos.total_tarjetas) || 0,
@@ -1766,7 +1822,8 @@ app.get('/api/analisis-financiero', async (req, res) => {
       },
       egresos_por_categoria: categoriasResult.rows,
       egresos_por_tipo: tipoEgresoResult.rows,
-      inversiones_por_socio: inversionesSociosResult.rows
+      inversiones_por_socio: inversionesSociosResult.rows,
+      distribucion_socios: distribucionSocios
     });
 
   } catch (error) {
