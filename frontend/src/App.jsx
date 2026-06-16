@@ -22,6 +22,11 @@ function App() {
   const [rol, setRol] = useState(null);
   const [mostrandoSplash, setMostrandoSplash] = useState(true);
   const [seccionSeleccionada, setSeccionSeleccionada] = useState(null);
+  const puedeEntrarAnalisis = (rolUsuario) => {
+  return ["socio", "contador", "gobernador"].includes(
+    String(rolUsuario || "").trim().toLowerCase()
+  );
+};
   useEffect(() => {
   const timer = setTimeout(() => {
     setMostrandoSplash(false);
@@ -30,7 +35,25 @@ function App() {
   return () => clearTimeout(timer);
 }, []);
 
-  const manejarLoginExitoso = (usuario) => {
+const manejarLoginExitoso = (usuario) => {
+  if (
+    seccionSeleccionada === "analisis" &&
+    !puedeEntrarAnalisis(usuario.rol)
+  ) {
+    alert(
+      "No tienes permiso para ingresar al módulo de Análisis Financiero."
+    );
+
+    setIsLoggedIn(false);
+    setFormularioActivo(null);
+    setUsuarioActivo(null);
+    setUsuarioId(null);
+    setRol(null);
+    setSeccionSeleccionada(null);
+
+    return;
+  }
+
   setIsLoggedIn(true);
   setUsuarioActivo(usuario.nombre);
   setUsuarioId(usuario.id);
@@ -425,6 +448,55 @@ if (formularioActivo === "inversiones_socios") {
 }
 
 if (formularioActivo === "analisis_financiero") {
+  if (!puedeEntrarAnalisis(rol)) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#FAFAF9",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "30px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "460px",
+            background: "#fff",
+            border: "1px solid #e5e5e5",
+            borderRadius: "16px",
+            padding: "32px",
+            textAlign: "center",
+            boxShadow: "0 10px 28px rgba(0,0,0,0.08)",
+          }}
+        >
+          <h2>Acceso restringido</h2>
+
+          <p style={{ color: "#666", lineHeight: "1.5" }}>
+            Tu usuario no tiene permiso para ver el módulo de Análisis
+            Financiero.
+          </p>
+
+          <button
+            onClick={cerrarSesion}
+            style={{
+              marginTop: "18px",
+              padding: "12px 24px",
+              background: "#111",
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            Salir
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AnalisisFinanciero
       usuarioActivo={usuarioActivo}
