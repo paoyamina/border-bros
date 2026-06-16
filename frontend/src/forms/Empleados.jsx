@@ -409,53 +409,57 @@ const reactivarEmpleado = async (empleado) => {
         <tbody>
 
           {empleados.map((emp) => (
+<tr key={emp.id}>
 
-            <tr key={emp.id}>
+  <td>{emp.id}</td>
 
-              <td>{emp.id}</td>
+  <td>{emp.nombre}</td>
 
-              <td>{emp.nombre}</td>
+  <td>{emp.puesto}</td>
 
-              <td>{emp.puesto}</td>
+  <td>{emp.fecha_ingreso?.split("T")[0]}</td>
 
-              <td>{emp.fecha_ingreso?.split("T")[0]}</td>
-              <td>${emp.sueldo_diario || 0}</td>
+  <td>${emp.sueldo_diario || 0}</td>
 
-              <td>
-                {emp.activo ? "Activo" : "Baja"}
-              </td>
+  <td>{emp.tipo_nomina || "Operativa"}</td>
 
-              <td>
+  <td>{emp.metodo_pago_nomina || "Efectivo"}</td>
 
-  <button
-    onClick={() => empezarEditar(emp)}
-  >
-    Editar
-  </button>
+  <td>
+    {emp.activo ? "Activo" : "Baja"}
+  </td>
 
-  {emp.activo ? (
+  <td>
 
     <button
-      onClick={() => darDeBaja(emp)}
-      style={{ marginLeft: "5px" }}
+      onClick={() => empezarEditar(emp)}
     >
-      Dar baja
+      Editar
     </button>
 
-  ) : (
+    {emp.activo ? (
 
-    <button
-      onClick={() => reactivarEmpleado(emp)}
-      style={{ marginLeft: "5px" }}
-    >
-      Reactivar
-    </button>
+      <button
+        onClick={() => darDeBaja(emp)}
+        style={{ marginLeft: "5px" }}
+      >
+        Dar baja
+      </button>
 
-  )}
+    ) : (
 
-</td>
+      <button
+        onClick={() => reactivarEmpleado(emp)}
+        style={{ marginLeft: "5px" }}
+      >
+        Reactivar
+      </button>
 
-            </tr>
+    )}
+
+  </td>
+
+</tr>
 
           ))}
 
