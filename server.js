@@ -1429,13 +1429,14 @@ app.put('/api/prenomina/:id/aprobar', async (req, res) => {
     );
 
     const categoriaResult = await client.query(
-      `
-      SELECT id
-      FROM categorias
-      WHERE LOWER(nombre) = LOWER('Nómina')
-      LIMIT 1
-      `
-    );
+    `
+    SELECT id
+    FROM categorias
+    WHERE LOWER(REPLACE(TRIM(nombre), 'ó', 'o')) IN ('nomina', 'nominas')
+    ORDER BY id
+    LIMIT 1
+    `
+  );
 
     const categoriaId =
       categoriaResult.rows.length > 0 ? categoriaResult.rows[0].id : null;
