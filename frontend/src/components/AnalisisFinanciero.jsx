@@ -27,6 +27,13 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
     });
   };
 
+  const formatoPorcentaje = (valor) => {
+  return `${Number(valor || 0).toLocaleString("es-MX", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}%`;
+};
+
   const cargarAnalisis = useCallback(async () => {
   try {
     setCargando(true);
@@ -247,6 +254,149 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
                 "Utilidad operativa + inversiones",
                 "#f6f6ff"
               )}
+
+<div
+  style={{
+    background: "#fffaf0",
+    border: "1px solid #e5e5e5",
+    borderRadius: "12px",
+    padding: "18px",
+  }}
+>
+  <div
+    style={{
+      fontSize: "10px",
+      color: "#777",
+      textTransform: "uppercase",
+      letterSpacing: "1px",
+      marginBottom: "8px",
+    }}
+  >
+    Margen de ganancia
+  </div>
+
+  <div
+    style={{
+      fontSize: "26px",
+      fontWeight: "600",
+      color: "#000",
+    }}
+  >
+    {formatoPorcentaje(resumen.margen_ganancia)}
+  </div>
+
+  <div style={{ fontSize: "12px", color: "#777", marginTop: "6px" }}>
+    Utilidad operativa / ingresos
+  </div>
+</div>
+
+<div
+  style={{
+    background: "#fffaf0",
+    border: "1px solid #e5e5e5",
+    borderRadius: "12px",
+    padding: "18px",
+  }}
+>
+  <div
+    style={{
+      fontSize: "10px",
+      color: "#777",
+      textTransform: "uppercase",
+      letterSpacing: "1px",
+      marginBottom: "8px",
+    }}
+  >
+    % egresos sobre ingresos
+  </div>
+
+  <div
+    style={{
+      fontSize: "26px",
+      fontWeight: "600",
+      color: "#000",
+    }}
+  >
+    {formatoPorcentaje(resumen.porcentaje_egresos)}
+  </div>
+
+  <div style={{ fontSize: "12px", color: "#777", marginTop: "6px" }}>
+    Egresos / ingresos
+  </div>
+</div>
+
+<div
+  style={{
+    background: "#fffaf0",
+    border: "1px solid #e5e5e5",
+    borderRadius: "12px",
+    padding: "18px",
+  }}
+>
+  <div
+    style={{
+      fontSize: "10px",
+      color: "#777",
+      textTransform: "uppercase",
+      letterSpacing: "1px",
+      marginBottom: "8px",
+    }}
+  >
+    % nómina sobre egresos
+  </div>
+
+  <div
+    style={{
+      fontSize: "26px",
+      fontWeight: "600",
+      color: "#000",
+    }}
+  >
+    {formatoPorcentaje(resumen.porcentaje_nomina_sobre_egresos)}
+  </div>
+
+  <div style={{ fontSize: "12px", color: "#777", marginTop: "6px" }}>
+    Nómina / egresos
+  </div>
+</div>
+
+<div
+  style={{
+    background: "#fffaf0",
+    border: "1px solid #e5e5e5",
+    borderRadius: "12px",
+    padding: "18px",
+  }}
+>
+  <div
+    style={{
+      fontSize: "10px",
+      color: "#777",
+      textTransform: "uppercase",
+      letterSpacing: "1px",
+      marginBottom: "8px",
+    }}
+  >
+    % egresos operativos
+  </div>
+
+  <div
+    style={{
+      fontSize: "26px",
+      fontWeight: "600",
+      color: "#000",
+    }}
+  >
+    {formatoPorcentaje(
+      resumen.porcentaje_egresos_operativos_sobre_egresos
+    )}
+  </div>
+
+  <div style={{ fontSize: "12px", color: "#777", marginTop: "6px" }}>
+    Egresos operativos / egresos
+  </div>
+</div>
+
             </div>
 
             <h3>Detalle de ingresos</h3>
@@ -380,6 +530,49 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
                         <tr key={index}>
                           <td>{item.socio || "Sin socio"}</td>
                           <td>{formatoMoneda(item.total)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+                           </div>
+
+              <div>
+                <h3>Distribución por socio</h3>
+
+                <table
+                  border="1"
+                  cellPadding="8"
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      <th>Socio</th>
+                      <th>% Participación</th>
+                      <th>Utilidad asignada</th>
+                      <th>Inversión aportada</th>
+                      <th>Resultado neto</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {(analisis.distribucion_socios || []).length === 0 ? (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: "center" }}>
+                          Sin distribución de socios.
+                        </td>
+                      </tr>
+                    ) : (
+                      (analisis.distribucion_socios || []).map((item, index) => (
+                        <tr key={index}>
+                          <td>{item.socio}</td>
+                          <td>{formatoPorcentaje(item.porcentaje_participacion)}</td>
+                          <td>{formatoMoneda(item.utilidad_asignada)}</td>
+                          <td>{formatoMoneda(item.inversion_aportada)}</td>
+                          <td>{formatoMoneda(item.resultado_neto)}</td>
                         </tr>
                       ))
                     )}
