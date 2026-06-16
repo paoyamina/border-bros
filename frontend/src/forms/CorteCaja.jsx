@@ -91,6 +91,9 @@ const obtenerDenominacionesCorte = () => {
         valor,
         cantidad,
         tipo_ingreso: "Normal",
+        concepto: `MXN ${valor}`,
+        monto_original: valor * cantidad,
+        monto_mxn: valor * cantidad,
       });
     }
   });
@@ -104,6 +107,9 @@ const obtenerDenominacionesCorte = () => {
         valor,
         cantidad,
         tipo_ingreso: "Normal",
+        concepto: `USD ${valor}`,
+        monto_original: valor * cantidad,
+        monto_mxn: valor * cantidad * tc,
       });
     }
   });
@@ -117,6 +123,9 @@ const obtenerDenominacionesCorte = () => {
         valor,
         cantidad,
         tipo_ingreso: "Cover",
+        concepto: `Cover MXN ${valor}`,
+        monto_original: valor * cantidad,
+        monto_mxn: valor * cantidad,
       });
     }
   });
@@ -130,9 +139,69 @@ const obtenerDenominacionesCorte = () => {
         valor,
         cantidad,
         tipo_ingreso: "Cover",
+        concepto: `Cover USD ${valor}`,
+        monto_original: valor * cantidad,
+        monto_mxn: valor * cantidad * tc,
       });
     }
   });
+
+  const otrosMXN = parseFloat(cantidades.monedas_mxn) || 0;
+
+  if (otrosMXN > 0) {
+    detalle.push({
+      moneda: "MXN",
+      valor: 0,
+      cantidad: 1,
+      tipo_ingreso: "Normal",
+      concepto: "Monedas pequeñas / otros MXN",
+      monto_original: otrosMXN,
+      monto_mxn: otrosMXN,
+    });
+  }
+
+  const otrosUSD = parseFloat(cantidades.monedas_usd_extra) || 0;
+
+  if (otrosUSD > 0) {
+    detalle.push({
+      moneda: "USD",
+      valor: 0,
+      cantidad: 1,
+      tipo_ingreso: "Normal",
+      concepto: "Monedas pequeñas / otros USD",
+      monto_original: otrosUSD,
+      monto_mxn: otrosUSD * tc,
+    });
+  }
+
+  const otrosCoverMXN = parseFloat(cantidades.cover_monedas_mxn) || 0;
+
+  if (otrosCoverMXN > 0) {
+    detalle.push({
+      moneda: "MXN",
+      valor: 0,
+      cantidad: 1,
+      tipo_ingreso: "Cover",
+      concepto: "Monedas pequeñas / otros cover MXN",
+      monto_original: otrosCoverMXN,
+      monto_mxn: otrosCoverMXN,
+    });
+  }
+
+  const otrosCoverUSD =
+    parseFloat(cantidades.cover_monedas_usd_extra) || 0;
+
+  if (otrosCoverUSD > 0) {
+    detalle.push({
+      moneda: "USD",
+      valor: 0,
+      cantidad: 1,
+      tipo_ingreso: "Cover",
+      concepto: "Monedas pequeñas / otros cover USD",
+      monto_original: otrosCoverUSD,
+      monto_mxn: otrosCoverUSD * tc,
+    });
+  }
 
   return detalle;
 };

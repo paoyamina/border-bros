@@ -282,8 +282,21 @@ app.post('/api/guardar-reporte', upload.array('fotos'), async (req, res) => {
           const valor = toNumber(item.valor);
           const cantidad = parseInt(item.cantidad) || 0;
           const tipoIngreso = item.tipo_ingreso || "Normal";
+const concepto = item.concepto || `${tipoIngreso} ${moneda} ${valor}`;
 
-          if (!moneda || cantidad <= 0) continue;
+const montoOriginal =
+  item.monto_original !== undefined
+    ? toNumber(item.monto_original)
+    : valor * cantidad;
+
+const montoMxn =
+  item.monto_mxn !== undefined
+    ? toNumber(item.monto_mxn)
+    : moneda === "USD"
+      ? montoOriginal * toNumber(detalles.tipoCambio)
+      : montoOriginal;
+
+if (!moneda || cantidad <= 0) continue;
 
           let denominacionId = null;
 
@@ -315,20 +328,26 @@ app.post('/api/guardar-reporte', upload.array('fotos'), async (req, res) => {
 
           await client.query(
             `
-            INSERT INTO corte_denominaciones (
-              corte_id,
-              denominacion_id,
-              cantidad,
-              tipo_ingreso
-            )
-            VALUES ($1, $2, $3, $4)
+           INSERT INTO corte_denominaciones (
+  corte_id,
+  denominacion_id,
+  cantidad,
+  tipo_ingreso,
+  concepto,
+  monto_original,
+  monto_mxn
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
             `,
-            [
-              corteGuardado.id,
-              denominacionId,
-              cantidad,
-              tipoIngreso
-            ]
+           [
+  corteGuardado.id,
+  denominacionId,
+  cantidad,
+  tipoIngreso,
+  concepto,
+  montoOriginal,
+  montoMxn
+]
           );
         }
 
