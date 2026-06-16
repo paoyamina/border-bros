@@ -1013,36 +1013,29 @@ app.post('/api/prenomina', async (req, res) => {
     await client.query('BEGIN');
 
     const prenominaResult = await client.query(
-  `
-  INSERT INTO prenomina_detalle (
-    prenomina_id,
-    empleado_id,
-    dias,
-    costo_unitario,
-    prima,
-    descuento,
-    total,
-    tipo_nomina,
-    metodo_pago_nomina,
-    comentario_pago,
-    nota
-  )
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-  `,
-  [
-    prenomina.id,
-    fila.empleado_id,
-    fila.dias || 0,
-    fila.costo_unitario || 0,
-    fila.prima || 0,
-    fila.descuento || 0,
-    fila.total || 0,
-    fila.tipo_nomina || "Operativa",
-    fila.metodo_pago_nomina || "Efectivo",
-    fila.comentario_pago || null,
-    fila.nota || null
-  ]
-);
+      `
+      INSERT INTO prenomina (
+        fecha_inicio,
+        fecha_fin,
+        total,
+        estatus,
+        usuario_crea_id,
+        comentarios_extraordinarios,
+        comentarios,
+        fecha_creacion
+      )
+      VALUES ($1, $2, $3, 'PENDIENTE', $4, $5, $6, NOW())
+      RETURNING *
+      `,
+      [
+        fecha_inicio || null,
+        fecha_fin || null,
+        total || 0,
+        usuario_crea_id || null,
+        comentarios_extraordinarios || null,
+        comentarios || null
+      ]
+    );
 
     const prenomina = prenominaResult.rows[0];
 
@@ -1057,9 +1050,12 @@ app.post('/api/prenomina', async (req, res) => {
           prima,
           descuento,
           total,
+          tipo_nomina,
+          metodo_pago_nomina,
+          comentario_pago,
           nota
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         `,
         [
           prenomina.id,
@@ -1069,6 +1065,9 @@ app.post('/api/prenomina', async (req, res) => {
           fila.prima || 0,
           fila.descuento || 0,
           fila.total || 0,
+          fila.tipo_nomina || "Operativa",
+          fila.metodo_pago_nomina || "Efectivo",
+          fila.comentario_pago || null,
           fila.nota || null
         ]
       );
