@@ -1609,6 +1609,175 @@ app.put('/api/prenomina/:id/rechazar', async (req, res) => {
   }
 });
 
+// Análisis financiero
+app.get('/api/analisis-financiero', async (req, res) => {
+  try {
+    const { fecha_inicio, fecha_fin } = req.query;
+
+    const hoy = new Date();
+    const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+      .toISOString()
+      .split("T")[0];
+
+    const fechaInicio = fecha_inicio || primerDiaMes;
+    const fechaFin = fecha_fin || hoy.toISOString().split("T")[0];
+
+    const ingresosResult = await pool.query(
+      `
+      SELECT
+        COALESCE(SUM(total_general), 0) AS total_ingresos,
+        COALESCE(SUM(total_cover), 0) AS total_cover,
+        COALESCE(SUM(total_tarjetas), 0) AS total_tarjetas,
+        COALESCE(SUM(total_vales), 0) AS total_vales,
+        COALESCE(SUM(total_cxc), 0) AS total_cxc,
+        COALESCE(SUM(total_efectivo_mxn), 0) AS total_efectivo_mxn,
+        COALESCE(SUM(total_efectivo_usd * tipo_cambio), 0) AS total_efectivo_usd_mxn,
+        COALESCE(SUM(venta_ticket), 0) AS total_venta_ticket,
+        COALESCE(SUM(diferencia), 0) AS total_diferencia
+      FROM corte_caja
+      WHERE fecha BETWEEN $1 AND $2
+      `,
+      [fechaInicio, fechaFin]
+    );
+
+    const egresosResult = await pool.query(
+      `
+      SELECT
+        COALESCE(SUM(e.monto_mxn), 0) AS total_egresos,
+        COALESCE(SUM(
+          CASE
+            WHEN LOWER(COALESCE(c.nombre, '')) = LOWER('Nómina')
+              OR e.referencia LIKE 'PRENOMINA-%'
+            THEN e.monto_mxn
+            ELSE 0
+          END
+        ), 0) AS total_nomina,
+        COALESCE(SUM(
+          CASE
+            WHEN LOWER(COALESCE(c.nombre, '')) = LOWER('Nómina')
+              OR e.referencia LIKE 'PRENOMINA-%'
+            THEN 0
+            ELSE e.monto_mxn
+          END
+        ), 0) AS total_egresos_operativos
+      FROM egresos e
+      LEFT JOIN categorias c
+        ON c.id = e.categoria_id
+      WHERE e.fecha BETWEEN $1 AND $2
+        AND COALESCE(e.estatus, 'REGISTRADO') <> 'CANCELADO'
+      `,
+      [fechaInicio, fechaFin]
+    );
+
+    const categoriasResult = await pool.query(
+      `
+      SELECT
+        COALESCE(c.nombre, 'Sin categoría') AS categoria,
+        COALESCE(SUM(e.monto_mxn), 0) AS total
+      FROM egresos e
+      LEFT JOIN categorias c
+        ON c.id = e.categoria_id
+      WHERE e.fecha BETWEEN $1 AND $2
+        AND COALESCE(e.estatus, 'REGISTRADO') <> 'CANCELADO'
+      GROUP BY COALESCE(c.nombre, 'Sin categoría')
+      ORDER BY total DESC
+      `,
+      [fechaInicio, fechaFin]
+    );
+
+    const tipoEgresoResult = await pool.query(
+      `
+      SELECT
+        COALESCE(tipo_egreso, 'Sin tipo') AS tipo_egreso,
+        COALESCE(SUM(monto_mxn), 0) AS total
+      FROM egresos
+      WHERE fecha BETWEEN $1 AND $2
+        AND COALESCE(estatus, 'REGISTRADO') <> 'CANCELADO'
+      GROUP BY COALESCE(tipo_egreso, 'Sin tipo')
+      ORDER BY total DESC
+      `,
+      [fechaInicio, fechaFin]
+    );
+
+    const inversionesResult = await pool.query(
+      `
+      SELECT
+        COALESCE(SUM(monto), 0) AS total_inversiones_socios
+      FROM inversiones_socios
+      WHERE fecha BETWEEN $1 AND $2
+      `,
+      [fechaInicio, fechaFin]
+    );
+
+    const inversionesSociosResult = await pool.query(
+      `
+      SELECT
+        s.nombre AS socio,
+        COALESCE(SUM(i.monto), 0) AS total
+      FROM inversiones_socios i
+      LEFT JOIN socios s
+        ON s.id = i.socio_id
+      WHERE i.fecha BETWEEN $1 AND $2
+      GROUP BY s.nombre
+      ORDER BY total DESC
+      `,
+      [fechaInicio, fechaFin]
+    );
+
+    const ingresos = ingresosResult.rows[0];
+    const egresos = egresosResult.rows[0];
+    const inversiones = inversionesResult.rows[0];
+
+    const totalIngresos = Number(ingresos.total_ingresos) || 0;
+    const totalEgresos = Number(egresos.total_egresos) || 0;
+    const totalInversionesSocios =
+      Number(inversiones.total_inversiones_socios) || 0;
+
+    const utilidadOperativa = totalIngresos - totalEgresos;
+    const flujoConInversiones = utilidadOperativa + totalInversionesSocios;
+
+    res.json({
+      success: true,
+      filtros: {
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin
+      },
+      resumen: {
+        total_ingresos: totalIngresos,
+        total_egresos: totalEgresos,
+        total_nomina: Number(egresos.total_nomina) || 0,
+        total_egresos_operativos:
+          Number(egresos.total_egresos_operativos) || 0,
+        total_inversiones_socios: totalInversionesSocios,
+        utilidad_operativa: utilidadOperativa,
+        flujo_con_inversiones: flujoConInversiones
+      },
+      ingresos: {
+        total_cover: Number(ingresos.total_cover) || 0,
+        total_tarjetas: Number(ingresos.total_tarjetas) || 0,
+        total_vales: Number(ingresos.total_vales) || 0,
+        total_cxc: Number(ingresos.total_cxc) || 0,
+        total_efectivo_mxn: Number(ingresos.total_efectivo_mxn) || 0,
+        total_efectivo_usd_mxn:
+          Number(ingresos.total_efectivo_usd_mxn) || 0,
+        total_venta_ticket: Number(ingresos.total_venta_ticket) || 0,
+        total_diferencia: Number(ingresos.total_diferencia) || 0
+      },
+      egresos_por_categoria: categoriasResult.rows,
+      egresos_por_tipo: tipoEgresoResult.rows,
+      inversiones_por_socio: inversionesSociosResult.rows
+    });
+
+  } catch (error) {
+    console.error('Error análisis financiero:', error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Obtener historial de prenóminas
 app.get('/api/prenomina', async (req, res) => {
 
