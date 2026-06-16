@@ -136,11 +136,10 @@ const graficaBarras = ({
 }) => {
   const datosLimpios = Array.isArray(datos) ? datos : [];
 
-  const maximo = Math.max(
-    ...datosLimpios.map((item) => Number(item[valorKey]) || 0),
-    1
-  );
-
+ const maximo = Math.max(
+  ...datosLimpios.map((item) => Math.abs(Number(item[valorKey]) || 0)),
+  1
+);
   return (
     <div
       style={{
@@ -164,8 +163,12 @@ const graficaBarras = ({
       ) : (
         datosLimpios.map((item, index) => {
           const valor = Number(item[valorKey]) || 0;
-          const ancho = maximo > 0 ? (valor / maximo) * 100 : 0;
-          const color = coloresGraficas[index % coloresGraficas.length];
+        const ancho = maximo > 0 ? (Math.abs(valor) / maximo) * 100 : 0;
+        const esNegativo = valor < 0;
+
+        const color = esNegativo
+        ? "#7F1D1D"
+        : coloresGraficas[index % coloresGraficas.length];
 
           return (
             <div key={index} style={{ marginBottom: "16px" }}>
@@ -338,6 +341,28 @@ const graficaBarras = ({
         marginBottom: "30px",
       }}
     >
+
+      {graficaBarras({
+  titulo: "Ingresos vs egresos vs utilidad",
+  descripcion: "Comparación general del resultado operativo del periodo.",
+  datos: [
+    {
+      concepto: "Ingresos",
+      total: resumen.total_ingresos,
+    },
+    {
+      concepto: "Egresos",
+      total: resumen.total_egresos,
+    },
+    {
+      concepto: "Utilidad operativa",
+      total: resumen.utilidad_operativa,
+    },
+  ],
+  etiquetaKey: "concepto",
+  valorKey: "total",
+})}
+
       {graficaBarras({
         titulo: "Egresos por categoría",
         descripcion: "Distribución de gastos agrupados por categoría.",
