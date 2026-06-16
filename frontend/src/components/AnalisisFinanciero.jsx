@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import estilos from "../styles/estilos";
 import API_BASE_URL from "../config/api";
+import { exportarExcelAnalisisFinanciero } from "../utils/exportExcel";
 
 function AnalisisFinanciero({ usuarioActivo, onVolver }) {
   const hoy = new Date().toISOString().split("T")[0];
@@ -54,6 +55,14 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
 
   const resumen = analisis?.resumen || {};
   const ingresos = analisis?.ingresos || {};
+
+  const descargarExcel = () => {
+  exportarExcelAnalisisFinanciero({
+    analisis,
+    fechaInicio,
+    fechaFin,
+  });
+};
 
   const tarjeta = (titulo, valor, subtitulo, fondo = "#f9f9f9") => (
     <div
@@ -161,6 +170,23 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
           >
             {cargando ? "Cargando..." : "Actualizar análisis"}
           </button>
+
+<button
+  onClick={descargarExcel}
+  disabled={!analisis}
+  style={{
+    padding: "12px 24px",
+    marginTop: "18px",
+    background: "#fff",
+    color: "#000",
+    border: "1px solid #000",
+    borderRadius: "8px",
+    cursor: !analisis ? "not-allowed" : "pointer",
+  }}
+>
+  Descargar Excel
+</button>
+          
         </div>
 
         {!analisis ? (
