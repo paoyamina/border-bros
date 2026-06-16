@@ -125,6 +125,12 @@ export const exportarExcelAnalisisFinanciero = ({
 
   const formatoNumero = (valor) => Number(valor || 0);
 
+  const formatoPorcentaje = (valor) =>
+    `${Number(valor || 0).toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}%`;
+
   const workbook = XLSX.utils.book_new();
 
   const resumenRows = [
@@ -151,6 +157,23 @@ export const exportarExcelAnalisisFinanciero = ({
     [
       "Flujo con inversiones",
       formatoNumero(analisis.resumen.flujo_con_inversiones),
+    ],
+    [],
+    ["PORCENTAJES"],
+    ["Margen de ganancia", formatoPorcentaje(analisis.resumen.margen_ganancia)],
+    [
+      "% egresos sobre ingresos",
+      formatoPorcentaje(analisis.resumen.porcentaje_egresos),
+    ],
+    [
+      "% nómina sobre egresos",
+      formatoPorcentaje(analisis.resumen.porcentaje_nomina_sobre_egresos),
+    ],
+    [
+      "% egresos operativos sobre egresos",
+      formatoPorcentaje(
+        analisis.resumen.porcentaje_egresos_operativos_sobre_egresos
+      ),
     ],
     [],
     ["DETALLE DE INGRESOS"],
@@ -193,7 +216,7 @@ export const exportarExcelAnalisisFinanciero = ({
   XLSX.utils.book_append_sheet(workbook, hojaTipos, "Egresos tipo");
 
   const sociosRows = [
-    ["Socio", "Total"],
+    ["Socio", "Total invertido"],
     ...(analisis.inversiones_por_socio || []).map((item) => [
       item.socio || "Sin socio",
       formatoNumero(item.total),
@@ -202,6 +225,26 @@ export const exportarExcelAnalisisFinanciero = ({
 
   const hojaSocios = XLSX.utils.aoa_to_sheet(sociosRows);
   XLSX.utils.book_append_sheet(workbook, hojaSocios, "Inversiones socios");
+
+  const distribucionRows = [
+    [
+      "Socio",
+      "% Participación",
+      "Utilidad asignada",
+      "Inversión aportada",
+      "Resultado neto",
+    ],
+    ...(analisis.distribucion_socios || []).map((item) => [
+      item.socio || "Sin socio",
+      formatoPorcentaje(item.porcentaje_participacion),
+      formatoNumero(item.utilidad_asignada),
+      formatoNumero(item.inversion_aportada),
+      formatoNumero(item.resultado_neto),
+    ]),
+  ];
+
+  const hojaDistribucion = XLSX.utils.aoa_to_sheet(distribucionRows);
+  XLSX.utils.book_append_sheet(workbook, hojaDistribucion, "Distribución socios");
 
   const nombreArchivo = `analisis_financiero_${fechaInicio}_a_${fechaFin}.xlsx`;
 
