@@ -1,10 +1,46 @@
 import React from "react";
 
 const permisosPorRol = {
-  socio: ["caja", "egresos_caja", "egresos_bancos", "egresos_banca", "nomina","empleados","aprobaciones_nomina","historial_nomina"],
-  contador: ["caja", "egresos_caja", "egresos_bancos", "egresos_banca", "nomina","aprobaciones_nomina","historial_nomina"],
-  gobernador: ["caja", "egresos_caja", "egresos_bancos", "egresos_banca", "nomina","empleados","aprobaciones_nomina","historial_nomina"],
-  administrador: ["egresos_caja", "egresos_bancos", "egresos_banca", "nomina","empleados","historial_nomina"],
+  socio: [
+    "caja",
+    "egresos_caja",
+    "egresos_bancos",
+    "egresos_banca",
+    "nomina",
+    "empleados",
+    "aprobaciones_nomina",
+    "historial_nomina",
+    "inversiones_socios",
+  ],
+  contador: [
+    "caja",
+    "egresos_caja",
+    "egresos_bancos",
+    "egresos_banca",
+    "nomina",
+    "aprobaciones_nomina",
+    "historial_nomina",
+    "inversiones_socios",
+  ],
+  gobernador: [
+    "caja",
+    "egresos_caja",
+    "egresos_bancos",
+    "egresos_banca",
+    "nomina",
+    "empleados",
+    "aprobaciones_nomina",
+    "historial_nomina",
+    "inversiones_socios",
+  ],
+  administrador: [
+    "egresos_caja",
+    "egresos_bancos",
+    "egresos_banca",
+    "nomina",
+    "empleados",
+    "historial_nomina",
+  ],
   cajero: ["caja"],
 };
 
@@ -127,6 +163,15 @@ function MenuPrincipal({ usuarioActivo, rol, onSeleccionarFormulario, onLogout }
     style={estiloBotonMenu}
   >
     HISTORIAL NÓMINA
+  </button>
+)}
+
+{puedeVer(rol, "inversiones_socios") && (
+  <button
+    onClick={() => onSeleccionarFormulario("inversiones_socios")}
+    style={estiloBotonMenu}
+  >
+    INVERSIONES SOCIOS
   </button>
 )}
 

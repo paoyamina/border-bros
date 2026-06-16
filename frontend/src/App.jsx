@@ -11,6 +11,7 @@ import Nomina from "./forms/Nomina";
 import AprobacionesNomina from "./forms/AprobacionesNomina";
 import HistorialNomina from "./forms/HistorialNomina";
 import Empleados from "./forms/Empleados";
+import InversionesSocios from "./components/InversionesSocios";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -140,6 +141,16 @@ if (formularioActivo === "historial_nomina") {
   return (
     <HistorialNomina
       usuarioActivo={usuarioActivo}
+      onVolver={volverAlMenu}
+    />
+  );
+}
+
+if (formularioActivo === "inversiones_socios") {
+  return (
+    <InversionesSocios
+      usuarioActivo={usuarioActivo}
+      usuarioId={usuarioId}
       onVolver={volverAlMenu}
     />
   );
