@@ -776,46 +776,52 @@ app.post('/api/empleados', async (req, res) => {
   try {
 
     const {
-      nombre,
-      puesto,
-      fecha_ingreso,
-      cuenta_bancaria,
-      sueldo_diario,
-      sueldo_base,
-      usuario_id
-    } = req.body;
+  nombre,
+  puesto,
+  fecha_ingreso,
+  cuenta_bancaria,
+  sueldo_diario,
+  sueldo_base,
+  tipo_nomina,
+  metodo_pago_nomina,
+  usuario_id
+} = req.body;
 
     const result = await pool.query(
       `
       INSERT INTO empleados (
-        nombre,
-        puesto,
-        fecha_ingreso,
-        cuenta_bancaria,
-        sueldo_diario,
-        sueldo_base,
-        activo,
-        created_at,
-        created_by
-      )
+  nombre,
+  puesto,
+  fecha_ingreso,
+  cuenta_bancaria,
+  sueldo_diario,
+  sueldo_base,
+  tipo_nomina,
+  metodo_pago_nomina,
+  activo,
+  created_at,
+  created_by
+)
       VALUES (
-        $1, $2, $3, $4,
-        $5, $6,
-        true,
-        NOW(),
-        $7
-      )
+  $1, $2, $3, $4,
+  $5, $6, $7, $8,
+  true,
+  NOW(),
+  $9
+)
       RETURNING *
       `,
       [
-        nombre,
-        puesto || null,
-        fecha_ingreso || null,
-        cuenta_bancaria || null,
-        sueldo_diario || 0,
-        sueldo_base || 0,
-        usuario_id || null
-      ]
+  nombre,
+  puesto || null,
+  fecha_ingreso || null,
+  cuenta_bancaria || null,
+  sueldo_diario || 0,
+  sueldo_base || 0,
+  tipo_nomina || "Operativa",
+  metodo_pago_nomina || "Efectivo",
+  usuario_id || null
+]
     );
 
     res.json({
@@ -924,41 +930,47 @@ app.put('/api/empleados/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const {
-      nombre,
-      puesto,
-      fecha_ingreso,
-      cuenta_bancaria,
-      sueldo_diario,
-      sueldo_base,
-      usuario_id
-    } = req.body;
+   const {
+  nombre,
+  puesto,
+  fecha_ingreso,
+  cuenta_bancaria,
+  sueldo_diario,
+  sueldo_base,
+  tipo_nomina,
+  metodo_pago_nomina,
+  usuario_id
+} = req.body;
 
     const result = await pool.query(
       `
       UPDATE empleados
-      SET
-        nombre = $1,
-        puesto = $2,
-        fecha_ingreso = $3,
-        cuenta_bancaria = $4,
-        sueldo_diario = $5,
-        sueldo_base = $6,
-        updated_at = NOW(),
-        updated_by = $7
-      WHERE id = $8
-      RETURNING *
+SET
+  nombre = $1,
+  puesto = $2,
+  fecha_ingreso = $3,
+  cuenta_bancaria = $4,
+  sueldo_diario = $5,
+  sueldo_base = $6,
+  tipo_nomina = $7,
+  metodo_pago_nomina = $8,
+  updated_at = NOW(),
+  updated_by = $9
+WHERE id = $10
+RETURNING *
       `,
       [
-        nombre,
-        puesto || null,
-        fecha_ingreso || null,
-        cuenta_bancaria || null,
-        sueldo_diario || 0,
-        sueldo_base || 0,
-        usuario_id || null,
-        id
-      ]
+  nombre,
+  puesto || null,
+  fecha_ingreso || null,
+  cuenta_bancaria || null,
+  sueldo_diario || 0,
+  sueldo_base || 0,
+  tipo_nomina || "Operativa",
+  metodo_pago_nomina || "Efectivo",
+  usuario_id || null,
+  id
+]
     );
 
     res.json({

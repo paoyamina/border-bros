@@ -15,6 +15,8 @@ const [nuevoEmpleado, setNuevoEmpleado] = useState({
   cuenta_bancaria: "",
   sueldo_diario: "",
   sueldo_base: "",
+  tipo_nomina: "Operativa",
+  metodo_pago_nomina: "Efectivo",
 });
 
   const cargarEmpleados = useCallback(async () => {
@@ -77,6 +79,8 @@ const crearEmpleado = async () => {
   cuenta_bancaria: "",
   sueldo_diario: "",
   sueldo_base: "",
+  tipo_nomina: "Operativa",
+  metodo_pago_nomina: "Efectivo",
 });
 
     setMostrarFormulario(false);
@@ -89,16 +93,18 @@ const crearEmpleado = async () => {
 const empezarEditar = (empleado) => {
   setEmpleadoEditando(empleado);
 
- setNuevoEmpleado({
-  nombre: empleado.nombre || "",
-  puesto: empleado.puesto || "",
-  fecha_ingreso: empleado.fecha_ingreso
-    ? empleado.fecha_ingreso.split("T")[0]
-    : "",
-  cuenta_bancaria: empleado.cuenta_bancaria || "",
-  sueldo_diario: empleado.sueldo_diario || "",
-  sueldo_base: empleado.sueldo_base || "",
-});
+  setNuevoEmpleado({
+    nombre: empleado.nombre || "",
+    puesto: empleado.puesto || "",
+    fecha_ingreso: empleado.fecha_ingreso
+      ? empleado.fecha_ingreso.split("T")[0]
+      : "",
+    cuenta_bancaria: empleado.cuenta_bancaria || "",
+    sueldo_diario: empleado.sueldo_diario || "",
+    sueldo_base: empleado.sueldo_base || "",
+    tipo_nomina: empleado.tipo_nomina || "Operativa",
+    metodo_pago_nomina: empleado.metodo_pago_nomina || "Efectivo",
+  });
 
   setMostrarFormulario(true);
 };
@@ -142,6 +148,8 @@ const actualizarEmpleado = async () => {
   cuenta_bancaria: "",
   sueldo_diario: "",
   sueldo_base: "",
+  tipo_nomina: "Operativa",
+  metodo_pago_nomina: "Efectivo",
 });
 
     cargarEmpleados();
@@ -309,6 +317,34 @@ const reactivarEmpleado = async (empleado) => {
   }
   style={{ marginLeft: "10px" }}
 />
+<select
+  value={nuevoEmpleado.tipo_nomina}
+  onChange={(e) =>
+    setNuevoEmpleado({
+      ...nuevoEmpleado,
+      tipo_nomina: e.target.value,
+    })
+  }
+  style={{ marginLeft: "10px" }}
+>
+  <option value="Operativa">Operativa</option>
+  <option value="Banco">Banco</option>
+  <option value="Administrativa">Administrativa</option>
+</select>
+
+<select
+  value={nuevoEmpleado.metodo_pago_nomina}
+  onChange={(e) =>
+    setNuevoEmpleado({
+      ...nuevoEmpleado,
+      metodo_pago_nomina: e.target.value,
+    })
+  }
+  style={{ marginLeft: "10px" }}
+>
+  <option value="Efectivo">Efectivo</option>
+  <option value="Banco">Banco</option>
+</select>
 
     <button
   onClick={
@@ -362,6 +398,8 @@ const reactivarEmpleado = async (empleado) => {
             <th>Puesto</th>
             <th>Ingreso</th>
             <th>Sueldo Diario</th>
+            <th>Tipo nómina</th>
+            <th>Método pago</th>
             <th>Estatus</th>
             <th>Acciones</th>
           </tr>
