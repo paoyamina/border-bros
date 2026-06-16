@@ -18,6 +18,7 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
   const [fechaFin, setFechaFin] = useState(hoy);
   const [analisis, setAnalisis] = useState(null);
   const [cargando, setCargando] = useState(false);
+  const [vista, setVista] = useState("analisis");
 
   const formatoMoneda = (valor) => {
     return Number(valor || 0).toLocaleString("es-MX", {
@@ -116,6 +117,99 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
     </div>
   );
 
+  const coloresGraficas = [
+  "#111111",
+  "#8B7355",
+  "#B08968",
+  "#6B7280",
+  "#D6CCC2",
+  "#3F3F46",
+];
+
+const graficaBarras = ({
+  titulo,
+  descripcion,
+  datos,
+  etiquetaKey,
+  valorKey,
+  formatoValor = formatoMoneda,
+}) => {
+  const datosLimpios = Array.isArray(datos) ? datos : [];
+
+  const maximo = Math.max(
+    ...datosLimpios.map((item) => Number(item[valorKey]) || 0),
+    1
+  );
+
+  return (
+    <div
+      style={{
+        border: "1px solid #e5e5e5",
+        borderRadius: "14px",
+        padding: "22px",
+        background: "#fff",
+        boxShadow: "0 4px 14px rgba(0,0,0,0.04)",
+      }}
+    >
+      <h3 style={{ marginTop: 0, marginBottom: "4px" }}>{titulo}</h3>
+
+      {descripcion && (
+        <p style={{ marginTop: 0, color: "#777", fontSize: "13px" }}>
+          {descripcion}
+        </p>
+      )}
+
+      {datosLimpios.length === 0 ? (
+        <p style={{ color: "#999" }}>Sin datos para graficar.</p>
+      ) : (
+        datosLimpios.map((item, index) => {
+          const valor = Number(item[valorKey]) || 0;
+          const ancho = maximo > 0 ? (valor / maximo) * 100 : 0;
+          const color = coloresGraficas[index % coloresGraficas.length];
+
+          return (
+            <div key={index} style={{ marginBottom: "16px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  marginBottom: "6px",
+                  fontSize: "13px",
+                }}
+              >
+                <strong>{item[etiquetaKey] || "Sin dato"}</strong>
+                <span>{formatoValor(valor)}</span>
+              </div>
+
+              <div
+                style={{
+                  width: "100%",
+                  height: "14px",
+                  background: "#f1f1f1",
+                  borderRadius: "999px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${ancho}%`,
+                    minWidth: valor > 0 ? "6px" : "0",
+                    height: "100%",
+                    background: color,
+                    borderRadius: "999px",
+                    transition: "width 0.3s ease",
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+};
+
   return (
     <div style={estilos.container}>
       <div style={{ ...estilos.card, maxWidth: "1200px", width: "95%" }}>
@@ -193,14 +287,94 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
 >
   Descargar Excel
 </button>
-          
+          <div
+  style={{
+    display: "flex",
+    gap: "8px",
+    marginTop: "18px",
+  }}
+>
+  <button
+    onClick={() => setVista("analisis")}
+    style={{
+      padding: "12px 20px",
+      background: vista === "analisis" ? "#000" : "#fff",
+      color: vista === "analisis" ? "#fff" : "#000",
+      border: "1px solid #000",
+      borderRadius: "8px",
+      cursor: "pointer",
+    }}
+  >
+    Análisis escrito
+  </button>
+
+  <button
+    onClick={() => setVista("graficas")}
+    style={{
+      padding: "12px 20px",
+      background: vista === "graficas" ? "#000" : "#fff",
+      color: vista === "graficas" ? "#fff" : "#000",
+      border: "1px solid #000",
+      borderRadius: "8px",
+      cursor: "pointer",
+    }}
+  >
+    Gráficas
+  </button>
+</div>
         </div>
 
-        {!analisis ? (
-          <p>Cargando análisis...</p>
-        ) : (
-          <>
-            <h3>Resumen general</h3>
+       {!analisis ? (
+  <p>Cargando análisis...</p>
+) : vista === "graficas" ? (
+  <>
+    <h3>Gráficas financieras</h3>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+        gap: "22px",
+        marginBottom: "30px",
+      }}
+    >
+      {graficaBarras({
+        titulo: "Egresos por categoría",
+        descripcion: "Distribución de gastos agrupados por categoría.",
+        datos: analisis.egresos_por_categoria,
+        etiquetaKey: "categoria",
+        valorKey: "total",
+      })}
+
+      {graficaBarras({
+        titulo: "Egresos por tipo",
+        descripcion: "Comparación entre efectivo, banco y banca.",
+        datos: analisis.egresos_por_tipo,
+        etiquetaKey: "tipo_egreso",
+        valorKey: "total",
+      })}
+
+      {graficaBarras({
+        titulo: "Inversiones por socio",
+        descripcion: "Capital aportado por cada socio en el periodo.",
+        datos: analisis.inversiones_por_socio,
+        etiquetaKey: "socio",
+        valorKey: "total",
+      })}
+
+      {graficaBarras({
+        titulo: "Resultado neto por socio",
+        descripcion:
+          "Utilidad asignada más inversión aportada por cada socio.",
+        datos: analisis.distribucion_socios,
+        etiquetaKey: "socio",
+        valorKey: "resultado_neto",
+      })}
+    </div>
+  </>
+) : (
+  <>
+    <h3>Resumen general</h3>
 
             <div
               style={{
