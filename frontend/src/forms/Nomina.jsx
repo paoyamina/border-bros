@@ -23,20 +23,22 @@ const thBosse = {
 
 function Nomina({ usuarioActivo, usuarioId, onVolver }) {
   const [filas, setFilas] = useState([
-    {
-      id: 1,
-      nombre: "",
-      puesto: "",
-      ingreso: "",
-      cuenta: "",
-      dias: 0,
-      costo: 0,
-      prima: 0,
-      descuento: 0,
-      total: 0,
-      metodo: "Efectivo",
-    },
-  ]);
+  {
+    id: 1,
+    nombre: "",
+    puesto: "",
+    ingreso: "",
+    cuenta: "",
+    dias: 0,
+    costo: 0,
+    prima: 0,
+    descuento: 0,
+    total: 0,
+    tipo_nomina: "Operativa",
+    metodo_pago_nomina: "Efectivo",
+    comentario_pago: "",
+  },
+]);
 
   const [statusNomina, setStatusNomina] = useState("CAPTURA");
   const [empleadosDisponibles, setEmpleadosDisponibles] = useState([]);
@@ -51,18 +53,21 @@ function Nomina({ usuarioActivo, usuarioId, onVolver }) {
         setEmpleadosDisponibles(resultado.empleados);
 
         const filasIniciales = resultado.empleados.map((emp) => ({
-          id: emp.id,
-          empleado_id: emp.id,
-          nombre: emp.nombre,
-          puesto: emp.puesto || "",
-          ingreso: emp.fecha_ingreso || "",
-          cuenta: emp.cuenta_bancaria || "",
-          dias: 0,
-          costo: parseFloat(emp.sueldo_diario) || 0,
-          prima: 0,
-          descuento: 0,
-          total: 0,
-        }));
+            id: emp.id,
+            empleado_id: emp.id,
+            nombre: emp.nombre,
+            puesto: emp.puesto || "",
+            ingreso: emp.fecha_ingreso || "",
+            cuenta: emp.cuenta_bancaria || "",
+            dias: 0,
+            costo: parseFloat(emp.sueldo_diario) || 0,
+            prima: 0,
+            descuento: 0,
+            total: 0,
+            tipo_nomina: emp.tipo_nomina || "Operativa",
+            metodo_pago_nomina: emp.metodo_pago_nomina || "Efectivo",
+            comentario_pago: "",
+          }));
 
         setFilas(filasIniciales);
       }
@@ -164,8 +169,7 @@ Al aceptar, se guardará el registro y se descargará el Excel local.
       if (!resultado.success) {
         throw new Error(resultado.error || "Error desconocido en servidor.");
       }
-
-      const detallePrenomina = filas
+const detallePrenomina = filas
   .filter((fila) => fila.empleado_id && parseFloat(fila.total) > 0)
   .map((fila) => ({
     empleado_id: fila.empleado_id,
@@ -174,6 +178,9 @@ Al aceptar, se guardará el registro y se descargará el Excel local.
     prima: parseFloat(fila.prima) || 0,
     descuento: parseFloat(fila.descuento) || 0,
     total: parseFloat(fila.total) || 0,
+    tipo_nomina: fila.tipo_nomina || "Operativa",
+    metodo_pago_nomina: fila.metodo_pago_nomina || "Efectivo",
+    comentario_pago: fila.comentario_pago || null,
     nota: null,
   }));
 
@@ -250,6 +257,9 @@ if (!resultadoPrenomina.success) {
             <thead>
               <tr style={{ borderBottom: "1px solid #000" }}>
                 <th style={thBosse}>EMPLEADO</th>
+                <th style={thBosse}>TIPO NÓMINA</th>
+                <th style={thBosse}>MÉTODO PAGO</th>
+                <th style={thBosse}>COMENTARIO PAGO</th>
                 <th style={thBosse}>DÍAS</th>
                 <th style={thBosse}>COSTO U.</th>
                 <th style={thBosse}>PRIMA (+)</th>
@@ -282,18 +292,21 @@ if (!resultadoPrenomina.success) {
         const costo = parseFloat(empleado.sueldo_diario) || 0;
 
         return {
-          ...f,
-          empleado_id: empleado.id,
-          nombre: empleado.nombre,
-          puesto: empleado.puesto,
-          ingreso: empleado.fecha_ingreso,
-          cuenta: empleado.cuenta_bancaria,
-          costo,
-          total:
-            (dias * costo) +
-            (parseFloat(f.prima) || 0) -
-            (parseFloat(f.descuento) || 0),
-        };
+  ...f,
+  empleado_id: empleado.id,
+  nombre: empleado.nombre,
+  puesto: empleado.puesto,
+  ingreso: empleado.fecha_ingreso,
+  cuenta: empleado.cuenta_bancaria,
+  costo,
+  tipo_nomina: empleado.tipo_nomina || "Operativa",
+  metodo_pago_nomina: empleado.metodo_pago_nomina || "Efectivo",
+  comentario_pago: f.comentario_pago || "",
+  total:
+    (dias * costo) +
+    (parseFloat(f.prima) || 0) -
+    (parseFloat(f.descuento) || 0),
+};  
       }
 
       return f;
@@ -315,6 +328,56 @@ if (!resultadoPrenomina.success) {
   ))}
 
 </select>
+                    </td>
+
+                                        <td>
+                      <select
+                        value={fila.tipo_nomina || "Operativa"}
+                        onChange={(e) =>
+                          manejarCambioFila(
+                            fila.id,
+                            "tipo_nomina",
+                            e.target.value
+                          )
+                        }
+                        style={estiloInputTabla}
+                      >
+                        <option value="Operativa">Operativa</option>
+                        <option value="Banco">Banco</option>
+                        <option value="Administrativa">Administrativa</option>
+                      </select>
+                    </td>
+
+                    <td>
+                      <select
+                        value={fila.metodo_pago_nomina || "Efectivo"}
+                        onChange={(e) =>
+                          manejarCambioFila(
+                            fila.id,
+                            "metodo_pago_nomina",
+                            e.target.value
+                          )
+                        }
+                        style={estiloInputTabla}
+                      >
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Banco">Banco</option>
+                      </select>
+                    </td>
+
+                    <td>
+                      <input
+                        placeholder="Comentario"
+                        value={fila.comentario_pago || ""}
+                        onChange={(e) =>
+                          manejarCambioFila(
+                            fila.id,
+                            "comentario_pago",
+                            e.target.value
+                          )
+                        }
+                        style={estiloInputTabla}
+                      />
                     </td>
 
                     <td>
@@ -430,15 +493,20 @@ if (!resultadoPrenomina.success) {
             setFilas([
               ...filas,
               {
-                id: Date.now(),
-                nombre: "",
-                puesto: "",
-                dias: 0,
-                costo: 0,
-                prima: 0,
-                descuento: 0,
-                total: 0,
-              },
+  id: Date.now(),
+  nombre: "",
+  puesto: "",
+  ingreso: "",
+  cuenta: "",
+  dias: 0,
+  costo: 0,
+  prima: 0,
+  descuento: 0,
+  total: 0,
+  tipo_nomina: "Operativa",
+  metodo_pago_nomina: "Efectivo",
+  comentario_pago: "",
+},
             ])
           }
           style={{
