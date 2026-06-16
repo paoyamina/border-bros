@@ -1221,10 +1221,17 @@ app.put('/api/prenomina/:id/aprobar', async (req, res) => {
         usuario_aprueba_id = $1,
         fecha_aprobacion = NOW()
       WHERE id = $2
+        AND estatus = 'PENDIENTE'
       RETURNING *
       `,
       [usuario_aprueba_id || null, id]
     );
+
+    if (result.rows.length === 0) {
+      throw new Error('La prenómina no existe o ya fue procesada.');
+    }
+
+    const prenomina = result.rows[0];
 
     await client.query(
       `
@@ -1240,15 +1247,118 @@ app.put('/api/prenomina/:id/aprobar', async (req, res) => {
       [id, usuario_aprueba_id || null, comentario || 'Prenómina aprobada']
     );
 
+    const categoriaResult = await client.query(
+      `
+      SELECT id
+      FROM categorias
+      WHERE LOWER(nombre) = LOWER('Nómina')
+      LIMIT 1
+      `
+    );
+
+    const categoriaId =
+      categoriaResult.rows.length > 0 ? categoriaResult.rows[0].id : null;
+
+    const proveedorResult = await client.query(
+      `
+      SELECT id
+      FROM proveedores
+      WHERE LOWER(nombre) = LOWER('Nómina Boca Negra')
+      LIMIT 1
+      `
+    );
+
+    const proveedorId =
+      proveedorResult.rows.length > 0 ? proveedorResult.rows[0].id : null;
+
+    const resumenResult = await client.query(
+      `
+      SELECT
+        COALESCE(tipo_nomina, 'Operativa') AS tipo_nomina,
+        COALESCE(metodo_pago_nomina, 'Efectivo') AS metodo_pago_nomina,
+        SUM(total) AS total
+      FROM prenomina_detalle
+      WHERE prenomina_id = $1
+      GROUP BY
+        COALESCE(tipo_nomina, 'Operativa'),
+        COALESCE(metodo_pago_nomina, 'Efectivo')
+      `,
+      [id]
+    );
+
+    for (const grupo of resumenResult.rows) {
+      const totalGrupo = Number(grupo.total) || 0;
+
+      if (totalGrupo <= 0) continue;
+
+      const tipoEgreso =
+        grupo.metodo_pago_nomina === 'Banco' ? 'banco' : 'efectivo';
+
+      const referencia = `PRENOMINA-${id}-${grupo.tipo_nomina}-${grupo.metodo_pago_nomina}`;
+
+      const egresoExistente = await client.query(
+        `
+        SELECT id
+        FROM egresos
+        WHERE referencia = $1
+        LIMIT 1
+        `,
+        [referencia]
+      );
+
+      if (egresoExistente.rows.length > 0) continue;
+
+      await client.query(
+        `
+        INSERT INTO egresos (
+          tipo_egreso,
+          fecha,
+          divisa,
+          tipo_cambio,
+          monto_original,
+          monto_mxn,
+          categoria_id,
+          proveedor_id,
+          concepto,
+          cuenta_id,
+          referencia,
+          usuario_crea_id,
+          estatus
+        )
+        VALUES (
+          $1, CURRENT_DATE, 'MXN', 1,
+          $2, $3,
+          $4, $5, $6,
+          NULL,
+          $7,
+          $8,
+          'REGISTRADO'
+        )
+        `,
+        [
+          tipoEgreso,
+          totalGrupo,
+          totalGrupo,
+          categoriaId,
+          proveedorId,
+          `Nómina aprobada #${id} - ${grupo.tipo_nomina} / ${grupo.metodo_pago_nomina}`,
+          referencia,
+          usuario_aprueba_id || null
+        ]
+      );
+    }
+
     await client.query('COMMIT');
 
     res.json({
       success: true,
-      prenomina: result.rows[0]
+      prenomina
     });
 
   } catch (error) {
     await client.query('ROLLBACK');
+
+    console.error('Error aprobando prenómina:', error);
 
     res.status(500).json({
       success: false,
