@@ -676,6 +676,39 @@ app.get('/api/socios', async (req, res) => {
   }
 });
 
+// Obtener inversiones de socios
+app.get('/api/inversiones-socios', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        i.*,
+        s.nombre AS socio,
+        u.nombre AS usuario_crea
+      FROM inversiones_socios i
+      LEFT JOIN socios s
+        ON s.id = i.socio_id
+      LEFT JOIN usuarios u
+        ON u.id = i.usuario_crea_id
+      ORDER BY i.fecha DESC, i.id DESC
+      `
+    );
+
+    res.json({
+      success: true,
+      inversiones: result.rows
+    });
+
+  } catch (error) {
+    console.error('Error cargando inversiones de socios:', error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Guardar inversión de socio
 app.post('/api/inversiones-socios', upload.single('comprobante'), async (req, res) => {
   try {
