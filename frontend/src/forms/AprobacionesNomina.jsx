@@ -134,7 +134,7 @@ const rechazarPrenomina = async (prenomina) => {
 
   return (
   <div style={estilos.container}>
-    <div style={{ ...estilos.card, maxWidth: "900px" }}>
+    <div style={{ ...estilos.card, maxWidth: "1200px", width: "95%" }}>
       <button onClick={onVolver}>← Volver</button>
 
       <h1>Aprobaciones de Nómina</h1>
@@ -199,6 +199,9 @@ const rechazarPrenomina = async (prenomina) => {
                           <thead>
                             <tr>
                               <th>Empleado</th>
+                              <th>Tipo nómina</th>
+                              <th>Método pago</th>
+                              <th>Comentario pago</th>
                               <th>Días</th>
                               <th>Costo</th>
                               <th>Prima</th>
@@ -210,13 +213,40 @@ const rechazarPrenomina = async (prenomina) => {
                           <tbody>
                             {(detallesPrenomina[p.id]?.detalle || []).map((d, index) => (
                               <tr key={index}>
-                                <td>{d.empleado}</td>
-                                <td>{d.dias}</td>
-                                <td>${Number(d.costo_unitario || 0).toLocaleString()}</td>
-                                <td>${Number(d.prima || 0).toLocaleString()}</td>
-                                <td>${Number(d.descuento || 0).toLocaleString()}</td>
-                                <td>${Number(d.total || 0).toLocaleString()}</td>
-                              </tr>
+                                  <td>{d.empleado}</td>
+
+                                  <td>{d.tipo_nomina || "Operativa"}</td>
+
+                                  <td>{d.metodo_pago_nomina || "Efectivo"}</td>
+
+                                  <td>{d.comentario_pago || "-"}</td>
+
+                                  <td>{d.dias}</td>
+
+                                  <td>
+                                    ${Number(d.costo_unitario || 0).toLocaleString("es-MX", {
+                                      minimumFractionDigits: 2,
+                                    })}
+                                  </td>
+
+                                  <td>
+                                    ${Number(d.prima || 0).toLocaleString("es-MX", {
+                                      minimumFractionDigits: 2,
+                                    })}
+                                  </td>
+
+                                  <td>
+                                    ${Number(d.descuento || 0).toLocaleString("es-MX", {
+                                      minimumFractionDigits: 2,
+                                    })}
+                                  </td>
+
+                                  <td>
+                                    ${Number(d.total || 0).toLocaleString("es-MX", {
+                                      minimumFractionDigits: 2,
+                                    })}
+                                  </td>
+                                </tr>
                             ))}
                           </tbody>
                         </table>
