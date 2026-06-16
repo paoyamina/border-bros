@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import estilos from "../styles/estilos";
 import API_BASE_URL from "../config/api";
 
@@ -26,31 +26,31 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
     });
   };
 
-  const cargarAnalisis = async () => {
-    try {
-      setCargando(true);
+  const cargarAnalisis = useCallback(async () => {
+  try {
+    setCargando(true);
 
-      const respuesta = await fetch(
-        `${API_BASE_URL}/api/analisis-financiero?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`
-      );
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/analisis-financiero?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`
+    );
 
-      const resultado = await respuesta.json();
+    const resultado = await respuesta.json();
 
-      if (!resultado.success) {
-        throw new Error(resultado.error || "Error al cargar análisis.");
-      }
-
-      setAnalisis(resultado);
-    } catch (error) {
-      alert("🚨 Error cargando análisis: " + error.message);
-    } finally {
-      setCargando(false);
+    if (!resultado.success) {
+      throw new Error(resultado.error || "Error al cargar análisis.");
     }
-  };
+
+    setAnalisis(resultado);
+  } catch (error) {
+    alert("🚨 Error cargando análisis: " + error.message);
+  } finally {
+    setCargando(false);
+  }
+}, [fechaInicio, fechaFin]);
 
   useEffect(() => {
-    cargarAnalisis();
-  }, []);
+  cargarAnalisis();
+}, [cargarAnalisis]);
 
   const resumen = analisis?.resumen || {};
   const ingresos = analisis?.ingresos || {};
