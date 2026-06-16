@@ -649,6 +649,154 @@ app.get('/api/proveedores', async (req, res) => {
   }
 });
 
+// Obtener socios
+app.get('/api/socios', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT id, nombre, porcentaje_participacion, activo
+      FROM socios
+      WHERE activo = true
+      ORDER BY nombre ASC
+      `
+    );
+
+    res.json({
+      success: true,
+      socios: result.rows
+    });
+
+  } catch (error) {
+    console.error('Error cargando socios:', error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Guardar inversión de socio
+app.post('/api/inversiones-socios', upload.single('comprobante'), async (req, res) => {
+  try {
+    const {
+      socio_id,
+      fecha,
+      metodo_pago,
+      cuenta_origen,
+      monto,
+      comentario,
+      usuario_crea_id
+    } = req.body;
+
+    const comprobante = req.file;
+
+    if (!socio_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Debes seleccionar un socio.'
+      });
+    }
+
+    if (!fecha) {
+      return res.status(400).json({
+        success: false,
+        error: 'La fecha es obligatoria.'
+      });
+    }
+
+    if (!monto || Number(monto) <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'El monto debe ser mayor a cero.'
+      });
+    }
+
+    const socioResult = await pool.query(
+      `
+      SELECT id, nombre
+      FROM socios
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [socio_id]
+    );
+
+    if (socioResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Socio no encontrado.'
+      });
+    }
+
+    const socio = socioResult.rows[0];
+
+    let comprobanteUrl = null;
+
+    if (comprobante) {
+      if (!driveService) {
+        return res.status(500).json({
+          success: false,
+          error: 'Drive aún no está listo, intenta de nuevo.'
+        });
+      }
+
+      const nombreCarpeta = `INVERSION_SOCIO_${fecha}_${socio.nombre}`;
+      const folderId = await crearCarpetaEnDrive(nombreCarpeta);
+      comprobanteUrl = `https://drive.google.com/drive/folders/${folderId}`;
+
+      await subirArchivoADrive(
+        comprobante.path,
+        comprobante.originalname,
+        comprobante.mimetype,
+        folderId
+      );
+    }
+
+    const result = await pool.query(
+      `
+      INSERT INTO inversiones_socios (
+        socio_id,
+        fecha,
+        metodo_pago,
+        cuenta_origen,
+        monto,
+        comentario,
+        comprobante_url,
+        usuario_crea_id,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      RETURNING *
+      `,
+      [
+        socio_id,
+        fecha,
+        metodo_pago || null,
+        cuenta_origen || null,
+        monto,
+        comentario || null,
+        comprobanteUrl,
+        usuario_crea_id || null
+      ]
+    );
+
+    res.json({
+      success: true,
+      inversion: result.rows[0],
+      comprobante_url: comprobanteUrl
+    });
+
+  } catch (error) {
+    console.error('Error guardando inversión de socio:', error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 app.get('/api/categorias', async (req, res) => {
   try {
     const result = await pool.query(
