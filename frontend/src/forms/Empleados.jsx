@@ -6,6 +6,9 @@ function Empleados({ usuarioActivo, usuarioId, onVolver }) {
   const [empleados, setEmpleados] = useState([]);
   const [filtro, setFiltro] = useState("activos");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+const [ordenCampo, setOrdenCampo] = useState("id");
+const [ordenDireccion, setOrdenDireccion] = useState("desc");
 const [empleadoEditando, setEmpleadoEditando] = useState(null);
 
 const [nuevoEmpleado, setNuevoEmpleado] = useState({
@@ -228,7 +231,50 @@ const reactivarEmpleado = async (empleado) => {
   useEffect(() => {
   cargarEmpleados();
 }, [cargarEmpleados]);
+  const empleadosFiltradosOrdenados = empleados
+  .filter((emp) => {
+    const texto = busqueda.toLowerCase().trim();
 
+    if (!texto) return true;
+
+    return [
+      emp.id,
+      emp.nombre,
+      emp.puesto,
+      emp.fecha_ingreso,
+      emp.cuenta_bancaria,
+      emp.sueldo_diario,
+      emp.sueldo_base,
+      emp.tipo_nomina,
+      emp.metodo_pago_nomina,
+      emp.activo ? "Activo" : "Baja",
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(texto);
+  })
+  .sort((a, b) => {
+    let valorA = a[ordenCampo];
+    let valorB = b[ordenCampo];
+
+    if (ordenCampo === "id" || ordenCampo === "sueldo_diario") {
+      valorA = Number(valorA) || 0;
+      valorB = Number(valorB) || 0;
+    } else {
+      valorA = String(valorA || "").toLowerCase();
+      valorB = String(valorB || "").toLowerCase();
+    }
+
+    if (valorA < valorB) {
+      return ordenDireccion === "asc" ? -1 : 1;
+    }
+
+    if (valorA > valorB) {
+      return ordenDireccion === "asc" ? 1 : -1;
+    }
+
+    return 0;
+  });
   return (
     <div style={{ padding: "40px" }}>
 
@@ -359,6 +405,52 @@ const reactivarEmpleado = async (empleado) => {
   </div>
 )}
 
+<div
+  style={{
+    marginBottom: "20px",
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    flexWrap: "wrap",
+  }}
+>
+  <input
+    placeholder="Buscar por nombre, puesto, tipo, método, sueldo, estatus..."
+    value={busqueda}
+    onChange={(e) => setBusqueda(e.target.value)}
+    style={{
+      padding: "8px",
+      minWidth: "360px",
+    }}
+  />
+
+  <select
+    value={ordenCampo}
+    onChange={(e) => setOrdenCampo(e.target.value)}
+    style={{ padding: "8px" }}
+  >
+    <option value="id">Número de empleado</option>
+    <option value="nombre">Nombre</option>
+    <option value="puesto">Puesto</option>
+    <option value="tipo_nomina">Tipo nómina</option>
+    <option value="metodo_pago_nomina">Método pago</option>
+    <option value="sueldo_diario">Sueldo diario</option>
+  </select>
+
+  <select
+    value={ordenDireccion}
+    onChange={(e) => setOrdenDireccion(e.target.value)}
+    style={{ padding: "8px" }}
+  >
+    <option value="asc">Ascendente</option>
+    <option value="desc">Descendente</option>
+  </select>
+
+  <span>
+    Mostrando: <strong>{empleadosFiltradosOrdenados.length}</strong>
+  </span>
+</div>
+
       <div style={{ marginBottom: "20px" }}>
 
         <button onClick={() => setFiltro("activos")}>
@@ -408,7 +500,7 @@ const reactivarEmpleado = async (empleado) => {
 
         <tbody>
 
-          {empleados.map((emp) => (
+          {empleadosFiltradosOrdenados.map((emp) => (
 <tr key={emp.id}>
 
   <td>{emp.id}</td>
