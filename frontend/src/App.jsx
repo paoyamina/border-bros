@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import Login from "./components/Login";
 import MenuPrincipal from "./components/MenuPrincipal";
@@ -20,6 +20,14 @@ function App() {
   const [usuarioActivo, setUsuarioActivo] = useState(null);
   const [usuarioId, setUsuarioId] = useState(null);
   const [rol, setRol] = useState(null);
+  const [mostrandoSplash, setMostrandoSplash] = useState(true);
+  useEffect(() => {
+  const timer = setTimeout(() => {
+    setMostrandoSplash(false);
+  }, 1800);
+
+  return () => clearTimeout(timer);
+}, []);
 
   const manejarLoginExitoso = (usuario) => {
     setIsLoggedIn(true);
@@ -49,6 +57,60 @@ function App() {
 
     setFormularioActivo(null);
   };
+
+  if (mostrandoSplash) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#FAFAF9",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        padding: "30px",
+      }}
+    >
+      <style>
+        {`
+          @keyframes fadeInLogo {
+            from {
+              opacity: 0;
+              transform: scale(0.96);
+            }
+            to {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+        `}
+      </style>
+
+      <img
+        src="/logo-principal.png"
+        alt="Border Brothers"
+        style={{
+          width: "min(520px, 85vw)",
+          height: "auto",
+          animation: "fadeInLogo 1s ease",
+        }}
+      />
+
+      <p
+        style={{
+          marginTop: "22px",
+          fontSize: "14px",
+          letterSpacing: "2px",
+          textTransform: "uppercase",
+          color: "#476F4D",
+          animation: "fadeInLogo 1.2s ease",
+        }}
+      >
+        Sistema administrativo y financiero
+      </p>
+    </div>
+  );
+}
 
 if (!isLoggedIn) {
   return <Login onLogin={manejarLoginExitoso} />;
