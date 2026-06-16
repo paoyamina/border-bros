@@ -11,6 +11,7 @@ const permisosPorRol = {
     "aprobaciones_nomina",
     "historial_nomina",
     "inversiones_socios",
+    "analisis_financiero",
   ],
   contador: [
     "caja",
@@ -21,6 +22,7 @@ const permisosPorRol = {
     "aprobaciones_nomina",
     "historial_nomina",
     "inversiones_socios",
+    "analisis_financiero",
   ],
   gobernador: [
     "caja",
@@ -32,6 +34,7 @@ const permisosPorRol = {
     "aprobaciones_nomina",
     "historial_nomina",
     "inversiones_socios",
+    "analisis_financiero",
   ],
   administrador: [
     "egresos_caja",
@@ -166,12 +169,12 @@ function MenuPrincipal({ usuarioActivo, rol, onSeleccionarFormulario, onLogout }
   </button>
 )}
 
-{puedeVer(rol, "inversiones_socios") && (
+{puedeVer(rol, "analisis_financiero") && (
   <button
-    onClick={() => onSeleccionarFormulario("inversiones_socios")}
+    onClick={() => onSeleccionarFormulario("analisis_financiero")}
     style={estiloBotonMenu}
   >
-    INVERSIONES SOCIOS
+    ANÁLISIS FINANCIERO
   </button>
 )}
 
