@@ -1836,6 +1836,90 @@ const distribucionSocios = sociosDistribucionResult.rows.map((socio) => {
   }
 });
 
+// Desglose de egresos para Análisis Financiero
+app.get('/api/analisis-financiero/egresos-detalle', async (req, res) => {
+  try {
+    const {
+      fecha_inicio,
+      fecha_fin,
+      categoria,
+      tipo_egreso
+    } = req.query;
+
+    if (!fecha_inicio || !fecha_fin) {
+      return res.status(400).json({
+        success: false,
+        error: "Fecha inicio y fecha fin son obligatorias."
+      });
+    }
+
+    const condiciones = [
+      "e.fecha BETWEEN $1 AND $2",
+      "COALESCE(e.estatus, '') <> 'CANCELADO'"
+    ];
+
+    const valores = [fecha_inicio, fecha_fin];
+    let contador = 3;
+
+    if (categoria) {
+      condiciones.push(`c.nombre = $${contador}`);
+      valores.push(categoria);
+      contador++;
+    }
+
+    if (tipo_egreso) {
+      condiciones.push(`e.tipo_egreso = $${contador}`);
+      valores.push(tipo_egreso);
+      contador++;
+    }
+
+    const result = await pool.query(
+      `
+      SELECT
+        e.id,
+        e.fecha,
+        e.tipo_egreso,
+        COALESCE(c.nombre, 'Sin categoría') AS categoria,
+        COALESCE(p.nombre, 'Sin proveedor') AS proveedor,
+        e.concepto,
+        e.monto,
+        e.metodo_pago,
+        e.banco_origen,
+        e.referencia,
+        e.comentarios,
+        e.created_at
+      FROM egresos e
+      LEFT JOIN categorias c
+        ON c.id = e.categoria_id
+      LEFT JOIN proveedores p
+        ON p.id = e.proveedor_id
+      WHERE ${condiciones.join(" AND ")}
+      ORDER BY e.fecha ASC, e.id ASC
+      `,
+      valores
+    );
+
+    const total = result.rows.reduce(
+      (sum, item) => sum + Number(item.monto || 0),
+      0
+    );
+
+    res.json({
+      success: true,
+      total,
+      detalle: result.rows
+    });
+
+  } catch (error) {
+    console.error("Error cargando detalle de egresos:", error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Obtener historial de prenóminas
 app.get('/api/prenomina', async (req, res) => {
 
