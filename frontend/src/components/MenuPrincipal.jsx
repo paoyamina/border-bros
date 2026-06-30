@@ -171,7 +171,7 @@ function MenuPrincipal({ usuarioActivo, rol, onSeleccionarFormulario, onLogout }
     onClick={() => onSeleccionarFormulario("inversiones_socios")}
     style={estiloBotonMenu}
   >
-    INVERSIONES SOCIOS
+    ADELANTOS SOCIOS
   </button>
 )}
 

@@ -10,6 +10,7 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
   const [formulario, setFormulario] = useState({
     socio_id: "",
     fecha: new Date().toISOString().split("T")[0],
+    tipo_movimiento: "Adelanto",
     metodo_pago: "Banco",
     cuenta_origen: "",
     monto: "",
@@ -17,6 +18,14 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
   });
 
   const [comprobante, setComprobante] = useState(null);
+
+  const formatoMoneda = (valor) => {
+    return Number(valor || 0).toLocaleString("es-MX", {
+      style: "currency",
+      currency: "MXN",
+      minimumFractionDigits: 2,
+    });
+  };
 
   const cargarSocios = async () => {
     try {
@@ -40,7 +49,7 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
         setInversiones(resultado.inversiones);
       }
     } catch (error) {
-      alert("Error cargando inversiones: " + error.message);
+      alert("Error cargando adelantos/devoluciones: " + error.message);
     }
   };
 
@@ -66,9 +75,9 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
     }
 
     const confirmar = window.confirm(
-      `¿Guardar inversión por $${Number(formulario.monto).toLocaleString("es-MX", {
-        minimumFractionDigits: 2,
-      })}?`
+      `¿Guardar ${formulario.tipo_movimiento.toLowerCase()} por ${formatoMoneda(
+        formulario.monto
+      )}?`
     );
 
     if (!confirmar) return;
@@ -80,6 +89,7 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
 
       formData.append("socio_id", formulario.socio_id);
       formData.append("fecha", formulario.fecha);
+      formData.append("tipo_movimiento", formulario.tipo_movimiento);
       formData.append("metodo_pago", formulario.metodo_pago);
       formData.append("cuenta_origen", formulario.cuenta_origen);
       formData.append("monto", formulario.monto);
@@ -98,14 +108,17 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
       const resultado = await respuesta.json();
 
       if (!resultado.success) {
-        throw new Error(resultado.error || "Error al guardar inversión.");
+        throw new Error(
+          resultado.error || "Error al guardar adelanto/devolución."
+        );
       }
 
-      alert("✅ Inversión guardada correctamente.");
+      alert("✅ Movimiento guardado correctamente.");
 
       setFormulario({
         socio_id: "",
         fecha: new Date().toISOString().split("T")[0],
+        tipo_movimiento: "Adelanto",
         metodo_pago: "Banco",
         cuenta_origen: "",
         monto: "",
@@ -130,7 +143,7 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
       <div style={{ ...estilos.card, maxWidth: "1100px", width: "95%" }}>
         <button onClick={onVolver}>← Volver</button>
 
-        <h1>Inversiones de Socios</h1>
+        <h1>Adelantos Socios</h1>
 
         <p>Operador: {usuarioActivo}</p>
 
@@ -143,7 +156,19 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
             background: "#fafafa",
           }}
         >
-          <h3>Nueva inversión</h3>
+          <h3>Nuevo movimiento</h3>
+
+          <p
+            style={{
+              marginTop: "-5px",
+              marginBottom: "18px",
+              color: "#666",
+              fontSize: "14px",
+            }}
+          >
+            Registra adelantos entregados a socios o devoluciones realizadas por
+            ellos.
+          </p>
 
           <div
             style={{
@@ -182,6 +207,20 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
               }
               style={estilos.input}
             />
+
+            <select
+              value={formulario.tipo_movimiento}
+              onChange={(e) =>
+                setFormulario({
+                  ...formulario,
+                  tipo_movimiento: e.target.value,
+                })
+              }
+              style={estilos.input}
+            >
+              <option value="Adelanto">Adelanto</option>
+              <option value="Devolución">Devolución</option>
+            </select>
 
             <select
               value={formulario.metodo_pago}
@@ -262,74 +301,98 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
               cursor: guardando ? "not-allowed" : "pointer",
             }}
           >
-            {guardando ? "Guardando..." : "Guardar inversión"}
+            {guardando ? "Guardando..." : "Guardar movimiento"}
           </button>
         </div>
 
-        <h3>Historial de inversiones</h3>
+        <h3>Historial de adelantos y devoluciones</h3>
 
-        <table
-          border="1"
-          cellPadding="8"
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-          }}
-        >
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Fecha</th>
-              <th>Socio</th>
-              <th>Método</th>
-              <th>Cuenta / Ref.</th>
-              <th>Monto</th>
-              <th>Comentario</th>
-              <th>Comprobante</th>
-              <th>Capturó</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {inversiones.length === 0 ? (
+        <div style={{ overflowX: "auto" }}>
+          <table
+            border="1"
+            cellPadding="8"
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              minWidth: "1000px",
+            }}
+          >
+            <thead>
               <tr>
-                <td colSpan="9" style={{ textAlign: "center" }}>
-                  No hay inversiones registradas.
-                </td>
+                <th>ID</th>
+                <th>Fecha</th>
+                <th>Socio</th>
+                <th>Tipo</th>
+                <th>Método</th>
+                <th>Cuenta / Ref.</th>
+                <th>Monto</th>
+                <th>Comentario</th>
+                <th>Comprobante</th>
+                <th>Capturó</th>
               </tr>
-            ) : (
-              inversiones.map((inv) => (
-                <tr key={inv.id}>
-                  <td>{inv.id}</td>
-                  <td>{inv.fecha?.split("T")[0]}</td>
-                  <td>{inv.socio}</td>
-                  <td>{inv.metodo_pago}</td>
-                  <td>{inv.cuenta_origen || "-"}</td>
-                  <td>
-                    ${Number(inv.monto || 0).toLocaleString("es-MX", {
-                      minimumFractionDigits: 2,
-                    })}
+            </thead>
+
+            <tbody>
+              {inversiones.length === 0 ? (
+                <tr>
+                  <td colSpan="10" style={{ textAlign: "center" }}>
+                    No hay adelantos ni devoluciones registradas.
                   </td>
-                  <td>{inv.comentario || "-"}</td>
-                  <td>
-                    {inv.comprobante_url ? (
-                      <a
-                        href={inv.comprobante_url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Ver archivo
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td>{inv.usuario_crea || "-"}</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                inversiones.map((inv) => (
+                  <tr key={inv.id}>
+                    <td>{inv.id}</td>
+                    <td>{inv.fecha?.split("T")[0]}</td>
+                    <td>{inv.socio}</td>
+                    <td>
+                      <span
+                        style={{
+                          padding: "4px 9px",
+                          borderRadius: "999px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          background:
+                            inv.tipo_movimiento === "Devolución"
+                              ? "#f2fff4"
+                              : "#fff7ed",
+                          color:
+                            inv.tipo_movimiento === "Devolución"
+                              ? "#166534"
+                              : "#9a3412",
+                          border:
+                            inv.tipo_movimiento === "Devolución"
+                              ? "1px solid #bbf7d0"
+                              : "1px solid #fed7aa",
+                        }}
+                      >
+                        {inv.tipo_movimiento || "Adelanto"}
+                      </span>
+                    </td>
+                    <td>{inv.metodo_pago}</td>
+                    <td>{inv.cuenta_origen || "-"}</td>
+                    <td>{formatoMoneda(inv.monto)}</td>
+                    <td>{inv.comentario || "-"}</td>
+                    <td>
+                      {inv.comprobante_url ? (
+                        <a
+                          href={inv.comprobante_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Ver archivo
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td>{inv.usuario_crea || "-"}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

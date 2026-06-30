@@ -713,14 +713,15 @@ app.get('/api/inversiones-socios', async (req, res) => {
 app.post('/api/inversiones-socios', upload.single('comprobante'), async (req, res) => {
   try {
     const {
-      socio_id,
-      fecha,
-      metodo_pago,
-      cuenta_origen,
-      monto,
-      comentario,
-      usuario_crea_id
-    } = req.body;
+  socio_id,
+  fecha,
+  tipo_movimiento,
+  metodo_pago,
+  cuenta_origen,
+  monto,
+  comentario,
+  usuario_crea_id
+} = req.body;
 
     const comprobante = req.file;
 
@@ -774,7 +775,8 @@ app.post('/api/inversiones-socios', upload.single('comprobante'), async (req, re
         });
       }
 
-      const nombreCarpeta = `INVERSION_SOCIO_${fecha}_${socio.nombre}`;
+      const tipoMovimientoCarpeta = tipo_movimiento || "Adelanto";
+      const nombreCarpeta = `${tipoMovimientoCarpeta.toUpperCase()}_SOCIO_${fecha}_${socio.nombre}`;
       const folderId = await crearCarpetaEnDrive(nombreCarpeta);
       comprobanteUrl = `https://drive.google.com/drive/folders/${folderId}`;
 
@@ -789,29 +791,31 @@ app.post('/api/inversiones-socios', upload.single('comprobante'), async (req, re
     const result = await pool.query(
       `
       INSERT INTO inversiones_socios (
-        socio_id,
-        fecha,
-        metodo_pago,
-        cuenta_origen,
-        monto,
-        comentario,
-        comprobante_url,
-        usuario_crea_id,
-        created_at
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-      RETURNING *
+  socio_id,
+  fecha,
+  tipo_movimiento,
+  metodo_pago,
+  cuenta_origen,
+  monto,
+  comentario,
+  comprobante_url,
+  usuario_crea_id,
+  created_at
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+RETURNING *
       `,
       [
-        socio_id,
-        fecha,
-        metodo_pago || null,
-        cuenta_origen || null,
-        monto,
-        comentario || null,
-        comprobanteUrl,
-        usuario_crea_id || null
-      ]
+  socio_id,
+  fecha,
+  tipo_movimiento || "Adelanto",
+  metodo_pago || null,
+  cuenta_origen || null,
+  monto,
+  comentario || null,
+  comprobanteUrl,
+  usuario_crea_id || null
+]
     );
 
     res.json({
@@ -1700,15 +1704,52 @@ app.get('/api/analisis-financiero', async (req, res) => {
       [fechaInicio, fechaFin]
     );
 
-    const inversionesResult = await pool.query(
-      `
-      SELECT
-        COALESCE(SUM(monto), 0) AS total_inversiones_socios
-      FROM inversiones_socios
-      WHERE fecha BETWEEN $1 AND $2
-      `,
-      [fechaInicio, fechaFin]
-    );
+const inversionesSociosResult = await pool.query(
+  `
+  SELECT
+    s.nombre AS socio,
+
+    COALESCE(SUM(
+      CASE
+        WHEN COALESCE(i.tipo_movimiento, 'Adelanto') = 'Adelanto'
+        THEN i.monto
+        ELSE 0
+      END
+    ), 0) AS total_adelantos,
+
+    COALESCE(SUM(
+      CASE
+        WHEN i.tipo_movimiento = 'Devolución'
+        THEN i.monto
+        ELSE 0
+      END
+    ), 0) AS total_devoluciones,
+
+    COALESCE(SUM(
+      CASE
+        WHEN i.tipo_movimiento = 'Devolución'
+        THEN -i.monto
+        ELSE i.monto
+      END
+    ), 0) AS saldo_adelantos,
+
+    COALESCE(SUM(
+      CASE
+        WHEN i.tipo_movimiento = 'Devolución'
+        THEN -i.monto
+        ELSE i.monto
+      END
+    ), 0) AS total
+
+  FROM inversiones_socios i
+  LEFT JOIN socios s
+    ON s.id = i.socio_id
+  WHERE i.fecha BETWEEN $1 AND $2
+  GROUP BY s.nombre
+  ORDER BY saldo_adelantos DESC
+  `,
+  [fechaInicio, fechaFin]
+);
 
     const inversionesSociosResult = await pool.query(
       `
@@ -1725,13 +1766,29 @@ app.get('/api/analisis-financiero', async (req, res) => {
       [fechaInicio, fechaFin]
     );
 
-    const sociosDistribucionResult = await pool.query(
+const sociosDistribucionResult = await pool.query(
   `
   SELECT
     s.id,
     s.nombre AS socio,
     COALESCE(s.porcentaje_participacion, 0) AS porcentaje_participacion,
-    COALESCE(SUM(i.monto), 0) AS inversion_aportada
+
+    COALESCE(SUM(
+      CASE
+        WHEN COALESCE(i.tipo_movimiento, 'Adelanto') = 'Adelanto'
+        THEN i.monto
+        ELSE 0
+      END
+    ), 0) AS adelantos,
+
+    COALESCE(SUM(
+      CASE
+        WHEN i.tipo_movimiento = 'Devolución'
+        THEN i.monto
+        ELSE 0
+      END
+    ), 0) AS devoluciones
+
   FROM socios s
   LEFT JOIN inversiones_socios i
     ON i.socio_id = s.id
@@ -1748,15 +1805,24 @@ app.get('/api/analisis-financiero', async (req, res) => {
 
     const ingresos = ingresosResult.rows[0];
     const egresos = egresosResult.rows[0];
-    const inversiones = inversionesResult.rows[0];
+const movimientosSocios = inversionesResult.rows[0];
 
-    const totalIngresos = Number(ingresos.total_ingresos) || 0;
-    const totalEgresos = Number(egresos.total_egresos) || 0;
-    const totalInversionesSocios =
-      Number(inversiones.total_inversiones_socios) || 0;
+const totalIngresos = Number(ingresos.total_ingresos) || 0;
+const totalEgresos = Number(egresos.total_egresos) || 0;
 
-    const utilidadOperativa = totalIngresos - totalEgresos;
-    const flujoConInversiones = utilidadOperativa + totalInversionesSocios;
+const totalAdelantosSocios =
+  Number(movimientosSocios.total_adelantos_socios) || 0;
+
+const totalDevolucionesSocios =
+  Number(movimientosSocios.total_devoluciones_socios) || 0;
+
+const saldoAdelantosSocios =
+  totalAdelantosSocios - totalDevolucionesSocios;
+
+const utilidadOperativa = totalIngresos - totalEgresos;
+
+const flujoConAdelantos =
+  utilidadOperativa - saldoAdelantosSocios;
 
     const porcentajeEgresos =
   totalIngresos > 0 ? (totalEgresos / totalIngresos) * 100 : 0;
@@ -1777,14 +1843,24 @@ const porcentajeEgresosOperativosSobreEgresos =
 const distribucionSocios = sociosDistribucionResult.rows.map((socio) => {
   const porcentaje = Number(socio.porcentaje_participacion) || 0;
   const utilidadAsignada = utilidadOperativa * (porcentaje / 100);
-  const inversionAportada = Number(socio.inversion_aportada) || 0;
+
+  const adelantos = Number(socio.adelantos) || 0;
+  const devoluciones = Number(socio.devoluciones) || 0;
+  const saldoAdelantos = adelantos - devoluciones;
 
   return {
     socio: socio.socio,
     porcentaje_participacion: porcentaje,
     utilidad_asignada: utilidadAsignada,
-    inversion_aportada: inversionAportada,
-    resultado_neto: utilidadAsignada + inversionAportada
+
+    adelantos,
+    devoluciones,
+    saldo_adelantos: saldoAdelantos,
+
+    // Temporal para no romper el frontend mientras cambiamos textos
+    inversion_aportada: saldoAdelantos,
+
+    resultado_neto: utilidadAsignada - saldoAdelantos
   };
 });
 
@@ -1800,9 +1876,19 @@ const distribucionSocios = sociosDistribucionResult.rows.map((socio) => {
           total_nomina: Number(egresos.total_nomina) || 0,
           total_egresos_operativos:
             Number(egresos.total_egresos_operativos) || 0,
-          total_inversiones_socios: totalInversionesSocios,
-          utilidad_operativa: utilidadOperativa,
-          flujo_con_inversiones: flujoConInversiones,
+total_adelantos_socios: totalAdelantosSocios,
+total_devoluciones_socios: totalDevolucionesSocios,
+saldo_adelantos_socios: saldoAdelantosSocios,
+
+// Temporal para no romper el frontend mientras cambiamos textos
+total_inversiones_socios: saldoAdelantosSocios,
+
+utilidad_operativa: utilidadOperativa,
+
+flujo_con_adelantos: flujoConAdelantos,
+
+// Temporal para no romper el frontend mientras cambiamos textos
+flujo_con_inversiones: flujoConAdelantos,
           porcentaje_egresos: porcentajeEgresos,
           margen_ganancia: margenGanancia,
           porcentaje_nomina_sobre_egresos: porcentajeNominaSobreEgresos,

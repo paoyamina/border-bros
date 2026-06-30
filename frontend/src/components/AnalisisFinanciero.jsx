@@ -509,12 +509,12 @@ const graficaBarras = ({
                 "Egresos sin nómina"
               )}
 
-              {tarjeta(
-                "Inversiones socios",
-                resumen.total_inversiones_socios,
-                "Capital ingresado por socios",
-                "#eef7ff"
-              )}
+             {tarjeta(
+  "Saldo adelantos socios",
+  resumen.saldo_adelantos_socios,
+  "Adelantos menos devoluciones",
+  "#fff7ed"
+)}
 
               {tarjeta(
                 "Utilidad operativa",
@@ -524,11 +524,25 @@ const graficaBarras = ({
               )}
 
               {tarjeta(
-                "Flujo con inversiones",
-                resumen.flujo_con_inversiones,
-                "Utilidad operativa + inversiones",
-                "#f6f6ff"
-              )}
+  "Flujo después de adelantos",
+  resumen.flujo_con_adelantos,
+  "Utilidad operativa - adelantos + devoluciones",
+  "#f6f6ff"
+)}
+
+{tarjeta(
+  "Adelantos entregados",
+  resumen.total_adelantos_socios,
+  "Dinero adelantado a socios",
+  "#fff7ed"
+)}
+
+{tarjeta(
+  "Devoluciones socios",
+  resumen.total_devoluciones_socios,
+  "Dinero devuelto por socios",
+  "#f2fff4"
+)}
 
 <div
   style={{
@@ -828,40 +842,45 @@ const graficaBarras = ({
               </div>
 
               <div>
-                <h3>Inversiones por socio</h3>
+                <h3>Adelantos y devoluciones por socio</h3>
 
-                <table
-                  border="1"
-                  cellPadding="8"
-                  style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                  }}
-                >
-                  <thead>
-                    <tr>
-                      <th>Socio</th>
-                      <th>Total</th>
-                    </tr>
-                  </thead>
+<table
+  border="1"
+  cellPadding="8"
+  style={{
+    width: "100%",
+    borderCollapse: "collapse",
+    marginBottom: "25px",
+  }}
+>
+  <thead>
+    <tr>
+      <th>Socio</th>
+      <th>Adelantos</th>
+      <th>Devoluciones</th>
+      <th>Saldo adelantos</th>
+    </tr>
+  </thead>
 
-                  <tbody>
-                    {analisis.inversiones_por_socio.length === 0 ? (
-                      <tr>
-                        <td colSpan="2" style={{ textAlign: "center" }}>
-                          Sin inversiones.
-                        </td>
-                      </tr>
-                    ) : (
-                      analisis.inversiones_por_socio.map((item, index) => (
-                        <tr key={index}>
-                          <td>{item.socio || "Sin socio"}</td>
-                          <td>{formatoMoneda(item.total)}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+  <tbody>
+    {(analisis.inversiones_por_socio || []).length === 0 ? (
+      <tr>
+        <td colSpan="4" style={{ textAlign: "center" }}>
+          Sin adelantos ni devoluciones registradas.
+        </td>
+      </tr>
+    ) : (
+      analisis.inversiones_por_socio.map((item, index) => (
+        <tr key={index}>
+          <td>{item.socio || "Sin socio"}</td>
+          <td>{formatoMoneda(item.total_adelantos || 0)}</td>
+          <td>{formatoMoneda(item.total_devoluciones || 0)}</td>
+          <td>{formatoMoneda(item.saldo_adelantos || item.total || 0)}</td>
+        </tr>
+      ))
+    )}
+  </tbody>
+</table>
                            </div>
 
               <div>
@@ -877,12 +896,14 @@ const graficaBarras = ({
                 >
                   <thead>
                     <tr>
-                      <th>Socio</th>
-                      <th>% Participación</th>
-                      <th>Utilidad asignada</th>
-                      <th>Inversión aportada</th>
-                      <th>Resultado neto</th>
-                    </tr>
+  <th>Socio</th>
+  <th>% Participación</th>
+  <th>Utilidad asignada</th>
+  <th>Adelantos</th>
+  <th>Devoluciones</th>
+  <th>Saldo adelantos</th>
+  <th>Resultado neto</th>
+</tr>
                   </thead>
 
                   <tbody>
@@ -895,12 +916,14 @@ const graficaBarras = ({
                     ) : (
                       (analisis.distribucion_socios || []).map((item, index) => (
                         <tr key={index}>
-                          <td>{item.socio}</td>
-                          <td>{formatoPorcentaje(item.porcentaje_participacion)}</td>
-                          <td>{formatoMoneda(item.utilidad_asignada)}</td>
-                          <td>{formatoMoneda(item.inversion_aportada)}</td>
-                          <td>{formatoMoneda(item.resultado_neto)}</td>
-                        </tr>
+  <td>{item.socio}</td>
+  <td>{Number(item.porcentaje_participacion || 0).toFixed(2)}%</td>
+  <td>{formatoMoneda(item.utilidad_asignada)}</td>
+  <td>{formatoMoneda(item.adelantos || 0)}</td>
+  <td>{formatoMoneda(item.devoluciones || 0)}</td>
+  <td>{formatoMoneda(item.saldo_adelantos || 0)}</td>
+  <td>{formatoMoneda(item.resultado_neto)}</td>
+</tr>
                       ))
                     )}
                   </tbody>
