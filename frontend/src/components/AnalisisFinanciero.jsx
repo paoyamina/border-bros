@@ -19,6 +19,9 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
   const [analisis, setAnalisis] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [vista, setVista] = useState("analisis");
+  const [detalleEgresos, setDetalleEgresos] = useState(null);
+const [tituloDetalleEgresos, setTituloDetalleEgresos] = useState("");
+const [cargandoDetalleEgresos, setCargandoDetalleEgresos] = useState(false);
 
   const formatoMoneda = (valor) => {
     return Number(valor || 0).toLocaleString("es-MX", {
@@ -33,6 +36,16 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}%`;
+};
+
+const formatoFecha = (fecha) => {
+  if (!fecha) return "-";
+
+  return new Date(fecha).toLocaleDateString("es-MX", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 };
 
   const cargarAnalisis = useCallback(async () => {
@@ -70,6 +83,43 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
     fechaInicio,
     fechaFin,
   });
+};
+
+const verDetalleEgresos = async ({ categoria, tipoEgreso }) => {
+  try {
+    setCargandoDetalleEgresos(true);
+
+    const params = new URLSearchParams({
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    });
+
+    if (categoria) {
+      params.append("categoria", categoria);
+      setTituloDetalleEgresos(`Desglose de egresos: ${categoria}`);
+    }
+
+    if (tipoEgreso) {
+      params.append("tipo_egreso", tipoEgreso);
+      setTituloDetalleEgresos(`Desglose de egresos: ${tipoEgreso}`);
+    }
+
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/analisis-financiero/egresos-detalle?${params.toString()}`
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(resultado.error || "Error cargando detalle.");
+    }
+
+    setDetalleEgresos(resultado);
+  } catch (error) {
+    alert("🚨 Error cargando detalle de egresos: " + error.message);
+  } finally {
+    setCargandoDetalleEgresos(false);
+  }
 };
 
   const tarjeta = (titulo, valor, subtitulo, fondo = "#f9f9f9") => (
@@ -637,25 +687,51 @@ const graficaBarras = ({
                   }}
                 >
                   <thead>
-                    <tr>
-                      <th>Categoría</th>
-                      <th>Total</th>
-                    </tr>
-                  </thead>
+                   <tr>
+                    <th>Categoría</th>
+                    <th>Total</th>
+                    <th>% del egreso total</th>
+                    <th>Desglose</th>
+                  </tr>
+                </thead>
 
                   <tbody>
                     {analisis.egresos_por_categoria.length === 0 ? (
                       <tr>
-                        <td colSpan="2" style={{ textAlign: "center" }}>
-                          Sin egresos.
-                        </td>
+                        <td colSpan="4" style={{ textAlign: "center" }}>
+  Sin egresos.
+</td>
                       </tr>
                     ) : (
                       analisis.egresos_por_categoria.map((item, index) => (
                         <tr key={index}>
-                          <td>{item.categoria}</td>
-                          <td>{formatoMoneda(item.total)}</td>
-                        </tr>
+  <td>{item.categoria}</td>
+  <td>{formatoMoneda(item.total)}</td>
+  <td>
+    {formatoPorcentaje(
+      resumen.total_egresos > 0
+        ? (Number(item.total || 0) / Number(resumen.total_egresos || 0)) * 100
+        : 0
+    )}
+  </td>
+  <td>
+    <button
+      type="button"
+      onClick={() => verDetalleEgresos({ categoria: item.categoria })}
+      style={{
+        padding: "7px 12px",
+        background: "#111",
+        color: "#fff",
+        border: "none",
+        borderRadius: "6px",
+        cursor: "pointer",
+        fontSize: "12px",
+      }}
+    >
+      Ver desglose
+    </button>
+  </td>
+</tr>
                       ))
                     )}
                   </tbody>
@@ -777,8 +853,120 @@ const graficaBarras = ({
                     )}
                   </tbody>
                 </table>
-              </div>
+                           </div>
             </div>
+
+            {cargandoDetalleEgresos && (
+              <p style={{ marginTop: "25px" }}>Cargando desglose...</p>
+            )}
+
+            {detalleEgresos && (
+              <div
+                style={{
+                  marginTop: "32px",
+                  border: "1px solid #e5e5e5",
+                  borderRadius: "14px",
+                  padding: "22px",
+                  background: "#fff",
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.04)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "16px",
+                    alignItems: "center",
+                    marginBottom: "16px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <h3 style={{ margin: 0 }}>{tituloDetalleEgresos}</h3>
+
+                    <p
+                      style={{
+                        margin: "6px 0 0",
+                        color: "#777",
+                        fontSize: "13px",
+                      }}
+                    >
+                      Total del desglose: {formatoMoneda(detalleEgresos.total)}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetalleEgresos(null);
+                      setTituloDetalleEgresos("");
+                    }}
+                    style={{
+                      padding: "9px 14px",
+                      background: "#fff",
+                      color: "#111",
+                      border: "1px solid #111",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Cerrar desglose
+                  </button>
+                </div>
+
+                <div style={{ overflowX: "auto" }}>
+                  <table
+                    border="1"
+                    cellPadding="8"
+                    style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      minWidth: "900px",
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Categoría</th>
+                        <th>Proveedor</th>
+                        <th>Concepto</th>
+                        <th>Divisa</th>
+                        <th>Monto original</th>
+                        <th>Monto MXN</th>
+                        <th>Referencia</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {(detalleEgresos.detalle || []).length === 0 ? (
+                        <tr>
+                          <td colSpan="9" style={{ textAlign: "center" }}>
+                            Sin movimientos en este desglose.
+                          </td>
+                        </tr>
+                      ) : (
+                        (detalleEgresos.detalle || []).map((item) => (
+                          <tr key={item.id}>
+                            <td>{formatoFecha(item.fecha)}</td>
+                            <td>{item.tipo_egreso}</td>
+                            <td>{item.categoria}</td>
+                            <td>{item.proveedor}</td>
+                            <td>{item.concepto}</td>
+                            <td>{item.divisa}</td>
+                            <td>{formatoMoneda(item.monto_original)}</td>
+                            <td>{formatoMoneda(item.monto)}</td>
+                            <td>{item.referencia || "-"}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
