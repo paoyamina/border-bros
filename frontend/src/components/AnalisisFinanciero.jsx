@@ -22,6 +22,9 @@ function AnalisisFinanciero({ usuarioActivo, onVolver }) {
   const [detalleEgresos, setDetalleEgresos] = useState(null);
 const [tituloDetalleEgresos, setTituloDetalleEgresos] = useState("");
 const [cargandoDetalleEgresos, setCargandoDetalleEgresos] = useState(false);
+const [detalleNomina, setDetalleNomina] = useState(null);
+const [tituloDetalleNomina, setTituloDetalleNomina] = useState("");
+const [cargandoDetalleNomina, setCargandoDetalleNomina] = useState(false);
 
   const formatoMoneda = (valor) => {
     return Number(valor || 0).toLocaleString("es-MX", {
@@ -175,6 +178,29 @@ const verDetalleEgresos = async ({ categoria, tipoEgreso }) => {
   "#D6CCC2",
   "#3F3F46",
 ];
+
+const verDetalleNomina = async (prenominaId) => {
+  try {
+    setCargandoDetalleNomina(true);
+    setTituloDetalleNomina(`Detalle de nómina #${prenominaId}`);
+
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/prenomina/${prenominaId}/detalle`
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(resultado.error || "Error cargando detalle de nómina.");
+    }
+
+    setDetalleNomina(resultado);
+  } catch (error) {
+    alert("🚨 Error cargando detalle de nómina: " + error.message);
+  } finally {
+    setCargandoDetalleNomina(false);
+  }
+};
 
 const graficaBarras = ({
   titulo,
@@ -963,13 +989,14 @@ const graficaBarras = ({
                         <th>Monto original</th>
                         <th>Monto MXN</th>
                         <th>Referencia</th>
+                        <th>Nómina</th>
                       </tr>
                     </thead>
 
                     <tbody>
                       {(detalleEgresos.detalle || []).length === 0 ? (
                         <tr>
-                          <td colSpan="9" style={{ textAlign: "center" }}>
+                          <td colSpan="10" style={{ textAlign: "center" }}>
                             Sin movimientos en este desglose.
                           </td>
                         </tr>
@@ -985,6 +1012,142 @@ const graficaBarras = ({
                             <td>{formatoMoneda(item.monto_original)}</td>
                             <td>{formatoMoneda(item.monto)}</td>
                             <td>{item.referencia || "-"}</td>
+                            <td>
+  {item.prenomina_id ? (
+    <button
+      type="button"
+      onClick={() => verDetalleNomina(item.prenomina_id)}
+      style={{
+        padding: "7px 12px",
+        background: "#476F4D",
+        color: "#fff",
+        border: "none",
+        borderRadius: "6px",
+        cursor: "pointer",
+        fontSize: "12px",
+      }}
+    >
+      Ver personas
+    </button>
+  ) : (
+    "-"
+  )}
+</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+                        {cargandoDetalleNomina && (
+              <p style={{ marginTop: "25px" }}>Cargando detalle de nómina...</p>
+            )}
+
+            {detalleNomina && (
+              <div
+                style={{
+                  marginTop: "32px",
+                  border: "1px solid #e5e5e5",
+                  borderRadius: "14px",
+                  padding: "22px",
+                  background: "#fff",
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.04)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "16px",
+                    alignItems: "center",
+                    marginBottom: "16px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <h3 style={{ margin: 0 }}>{tituloDetalleNomina}</h3>
+
+                    <p
+                      style={{
+                        margin: "6px 0 0",
+                        color: "#777",
+                        fontSize: "13px",
+                      }}
+                    >
+                      Total nómina:{" "}
+                      {formatoMoneda(detalleNomina.prenomina?.total)}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetalleNomina(null);
+                      setTituloDetalleNomina("");
+                    }}
+                    style={{
+                      padding: "9px 14px",
+                      background: "#fff",
+                      color: "#111",
+                      border: "1px solid #111",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Cerrar nómina
+                  </button>
+                </div>
+
+                <div style={{ overflowX: "auto" }}>
+                  <table
+                    border="1"
+                    cellPadding="8"
+                    style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      minWidth: "1000px",
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        <th>Empleado</th>
+                        <th>Puesto</th>
+                        <th>Tipo nómina</th>
+                        <th>Método pago</th>
+                        <th>Comentario pago</th>
+                        <th>Días</th>
+                        <th>Costo unitario</th>
+                        <th>Prima</th>
+                        <th>Descuento</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {(detalleNomina.detalle || []).length === 0 ? (
+                        <tr>
+                          <td colSpan="10" style={{ textAlign: "center" }}>
+                            Sin detalle de empleados.
+                          </td>
+                        </tr>
+                      ) : (
+                        (detalleNomina.detalle || []).map((item) => (
+                          <tr key={item.id}>
+                            <td>{item.empleado || "Sin empleado"}</td>
+                            <td>{item.puesto || "-"}</td>
+                            <td>{item.tipo_nomina || "-"}</td>
+                            <td>{item.metodo_pago_nomina || "-"}</td>
+                            <td>{item.comentario_pago || "-"}</td>
+                            <td>{item.dias}</td>
+                            <td>{formatoMoneda(item.costo_unitario)}</td>
+                            <td>{formatoMoneda(item.prima)}</td>
+                            <td>{formatoMoneda(item.descuento)}</td>
+                            <td>{formatoMoneda(item.total)}</td>
                           </tr>
                         ))
                       )}

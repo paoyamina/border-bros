@@ -1888,8 +1888,13 @@ app.get('/api/analisis-financiero/egresos-detalle', async (req, res) => {
         e.concepto,
         e.cuenta_id,
         e.referencia,
-        e.estatus,
-        e.fecha_creacion
+e.estatus,
+e.fecha_creacion,
+CASE
+  WHEN e.referencia LIKE 'PRENOMINA-%'
+  THEN NULLIF(split_part(e.referencia, '-', 2), '')::integer
+  ELSE NULL
+END AS prenomina_id
       FROM egresos e
       LEFT JOIN categorias c
         ON c.id = e.categoria_id
