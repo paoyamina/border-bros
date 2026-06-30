@@ -750,25 +750,51 @@ const graficaBarras = ({
                   }}
                 >
                   <thead>
-                    <tr>
-                      <th>Tipo</th>
-                      <th>Total</th>
-                    </tr>
-                  </thead>
+  <tr>
+    <th>Tipo</th>
+    <th>Total</th>
+    <th>% del egreso total</th>
+    <th>Desglose</th>
+  </tr>
+</thead>
 
                   <tbody>
                     {analisis.egresos_por_tipo.length === 0 ? (
                       <tr>
-                        <td colSpan="2" style={{ textAlign: "center" }}>
-                          Sin egresos.
-                        </td>
+                        <td colSpan="4" style={{ textAlign: "center" }}>
+  Sin egresos.
+</td>
                       </tr>
                     ) : (
                       analisis.egresos_por_tipo.map((item, index) => (
                         <tr key={index}>
-                          <td>{item.tipo_egreso}</td>
-                          <td>{formatoMoneda(item.total)}</td>
-                        </tr>
+  <td>{item.tipo_egreso}</td>
+  <td>{formatoMoneda(item.total)}</td>
+  <td>
+    {formatoPorcentaje(
+      resumen.total_egresos > 0
+        ? (Number(item.total || 0) / Number(resumen.total_egresos || 0)) * 100
+        : 0
+    )}
+  </td>
+  <td>
+    <button
+      type="button"
+      onClick={() => verDetalleEgresos({ tipoEgreso: item.tipo_egreso })}
+      style={{
+        padding: "7px 12px",
+        background: "#111",
+        color: "#fff",
+        border: "none",
+        borderRadius: "6px",
+        cursor: "pointer",
+        fontSize: "12px",
+      }}
+    >
+      Ver desglose
+    </button>
+  </td>
+</tr>
                       ))
                     )}
                   </tbody>
