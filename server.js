@@ -1854,7 +1854,7 @@ app.get('/api/analisis-financiero/egresos-detalle', async (req, res) => {
     }
 
     const condiciones = [
-      "e.fecha BETWEEN $1 AND $2",
+      "e.fecha::date BETWEEN $1 AND $2",
       "COALESCE(e.estatus, '') <> 'CANCELADO'"
     ];
 
@@ -1879,15 +1879,17 @@ app.get('/api/analisis-financiero/egresos-detalle', async (req, res) => {
         e.id,
         e.fecha,
         e.tipo_egreso,
+        e.divisa,
+        e.tipo_cambio,
+        e.monto_original,
+        e.monto_mxn AS monto,
         COALESCE(c.nombre, 'Sin categoría') AS categoria,
         COALESCE(p.nombre, 'Sin proveedor') AS proveedor,
         e.concepto,
-        e.monto,
-        e.metodo_pago,
-        e.banco_origen,
+        e.cuenta_id,
         e.referencia,
-        e.comentarios,
-        e.created_at
+        e.estatus,
+        e.fecha_creacion
       FROM egresos e
       LEFT JOIN categorias c
         ON c.id = e.categoria_id
