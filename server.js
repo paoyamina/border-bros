@@ -77,9 +77,12 @@ async function subirArchivoADrive(pathArchivo, nombreArchivo, mimeType, folderId
 
 // Login
 app.post('/api/login', async (req, res) => {
-  const { idCajero, password } = req.body;
+  const { idCajero, usuarioLogin, usuario_login, password } = req.body;
 
-  if (!idCajero || !password) {
+  // Temporalmente aceptamos varios nombres para no romper el frontend todavía
+  const login = usuarioLogin || usuario_login || idCajero;
+
+  if (!login || !password) {
     return res.status(400).json({
       success: false,
       error: 'Debes ingresar usuario y contraseña'
@@ -91,16 +94,21 @@ app.post('/api/login', async (req, res) => {
       `
       SELECT 
         u.id,
+        u.usuario_login,
         u.nombre,
         u.email,
-        r.nombre AS rol
+        COALESCE(r.nombre, u.rol) AS rol,
+        u.rol_id,
+        u.negocio_id
       FROM usuarios u
-      LEFT JOIN roles r ON r.id = u.rol_id
-      WHERE u.id = $1
-      AND u.password_hash = $2
-      AND u.activo = true
+      LEFT JOIN roles r
+        ON r.id = u.rol_id
+      WHERE UPPER(TRIM(u.usuario_login)) = UPPER(TRIM($1))
+        AND u.password_hash = $2
+        AND u.activo = true
+      LIMIT 1
       `,
-      [idCajero, password]
+      [login, password]
     );
 
     if (result.rows.length === 0) {
@@ -115,13 +123,22 @@ app.post('/api/login', async (req, res) => {
     return res.json({
       success: true,
       id: usuario.id,
+      usuario_login: usuario.usuario_login,
       nombre: usuario.nombre,
       email: usuario.email,
-      rol: usuario.rol
+
+      // Normalizado para permisos del frontend
+      rol: String(usuario.rol || "").toLowerCase(),
+
+      // Por si después queremos mostrarlo bonito
+      rol_display: usuario.rol,
+
+      rol_id: usuario.rol_id,
+      negocio_id: usuario.negocio_id
     });
 
   } catch (err) {
-    console.error('Error DB:', err);
+    console.error('Error DB login:', err);
 
     return res.status(500).json({
       success: false,
@@ -1615,6 +1632,7 @@ app.put('/api/prenomina/:id/rechazar', async (req, res) => {
 });
 
 // Análisis financiero
+
 app.get('/api/analisis-financiero', async (req, res) => {
   try {
     const { fecha_inicio, fecha_fin } = req.query;
@@ -1704,165 +1722,185 @@ app.get('/api/analisis-financiero', async (req, res) => {
       [fechaInicio, fechaFin]
     );
 
-const inversionesSociosResult = await pool.query(
-  `
-  SELECT
-    s.nombre AS socio,
-
-    COALESCE(SUM(
-      CASE
-        WHEN COALESCE(i.tipo_movimiento, 'Adelanto') = 'Adelanto'
-        THEN i.monto
-        ELSE 0
-      END
-    ), 0) AS total_adelantos,
-
-    COALESCE(SUM(
-      CASE
-        WHEN i.tipo_movimiento = 'Devolución'
-        THEN i.monto
-        ELSE 0
-      END
-    ), 0) AS total_devoluciones,
-
-    COALESCE(SUM(
-      CASE
-        WHEN i.tipo_movimiento = 'Devolución'
-        THEN -i.monto
-        ELSE i.monto
-      END
-    ), 0) AS saldo_adelantos,
-
-    COALESCE(SUM(
-      CASE
-        WHEN i.tipo_movimiento = 'Devolución'
-        THEN -i.monto
-        ELSE i.monto
-      END
-    ), 0) AS total
-
-  FROM inversiones_socios i
-  LEFT JOIN socios s
-    ON s.id = i.socio_id
-  WHERE i.fecha BETWEEN $1 AND $2
-  GROUP BY s.nombre
-  ORDER BY saldo_adelantos DESC
-  `,
-  [fechaInicio, fechaFin]
-);
-
-    const inversionesSociosResult = await pool.query(
+    const movimientosSociosResult = await pool.query(
       `
       SELECT
-        s.nombre AS socio,
-        COALESCE(SUM(i.monto), 0) AS total
-      FROM inversiones_socios i
-      LEFT JOIN socios s
-        ON s.id = i.socio_id
-      WHERE i.fecha BETWEEN $1 AND $2
-      GROUP BY s.nombre
-      ORDER BY total DESC
+        COALESCE(SUM(
+          CASE
+            WHEN COALESCE(tipo_movimiento, 'Adelanto') = 'Adelanto'
+            THEN monto
+            ELSE 0
+          END
+        ), 0) AS total_adelantos_socios,
+
+        COALESCE(SUM(
+          CASE
+            WHEN tipo_movimiento = 'Devolución'
+            THEN monto
+            ELSE 0
+          END
+        ), 0) AS total_devoluciones_socios
+      FROM inversiones_socios
+      WHERE fecha BETWEEN $1 AND $2
       `,
       [fechaInicio, fechaFin]
     );
 
-const sociosDistribucionResult = await pool.query(
-  `
-  SELECT
-    s.id,
-    s.nombre AS socio,
-    COALESCE(s.porcentaje_participacion, 0) AS porcentaje_participacion,
+    const inversionesSociosResult = await pool.query(
+      `
+      SELECT
+        i.socio_id,
+        COALESCE(s.nombre, 'Sin socio') AS socio,
 
-    COALESCE(SUM(
-      CASE
-        WHEN COALESCE(i.tipo_movimiento, 'Adelanto') = 'Adelanto'
-        THEN i.monto
-        ELSE 0
-      END
-    ), 0) AS adelantos,
+        COALESCE(SUM(
+          CASE
+            WHEN COALESCE(i.tipo_movimiento, 'Adelanto') = 'Adelanto'
+            THEN i.monto
+            ELSE 0
+          END
+        ), 0) AS total_adelantos,
 
-    COALESCE(SUM(
-      CASE
-        WHEN i.tipo_movimiento = 'Devolución'
-        THEN i.monto
-        ELSE 0
-      END
-    ), 0) AS devoluciones
+        COALESCE(SUM(
+          CASE
+            WHEN i.tipo_movimiento = 'Devolución'
+            THEN i.monto
+            ELSE 0
+          END
+        ), 0) AS total_devoluciones,
 
-  FROM socios s
-  LEFT JOIN inversiones_socios i
-    ON i.socio_id = s.id
-    AND i.fecha BETWEEN $1 AND $2
-  WHERE s.activo = true
-  GROUP BY
-    s.id,
-    s.nombre,
-    s.porcentaje_participacion
-  ORDER BY s.nombre ASC
-  `,
-  [fechaInicio, fechaFin]
-);
+        COALESCE(SUM(
+          CASE
+            WHEN i.tipo_movimiento = 'Devolución'
+            THEN -i.monto
+            ELSE i.monto
+          END
+        ), 0) AS saldo_adelantos,
+
+        COALESCE(SUM(
+          CASE
+            WHEN i.tipo_movimiento = 'Devolución'
+            THEN -i.monto
+            ELSE i.monto
+          END
+        ), 0) AS total
+
+      FROM inversiones_socios i
+      LEFT JOIN socios s
+        ON s.id = i.socio_id
+      WHERE i.fecha BETWEEN $1 AND $2
+      GROUP BY
+        i.socio_id,
+        COALESCE(s.nombre, 'Sin socio')
+      ORDER BY saldo_adelantos DESC
+      `,
+      [fechaInicio, fechaFin]
+    );
+
+    const sociosDistribucionResult = await pool.query(
+      `
+      SELECT
+        s.id,
+        s.nombre AS socio,
+        COALESCE(s.porcentaje_participacion, 0) AS porcentaje_participacion,
+
+        COALESCE(mov.adelantos, 0) AS adelantos,
+        COALESCE(mov.devoluciones, 0) AS devoluciones
+
+      FROM socios s
+
+      LEFT JOIN (
+        SELECT
+          socio_id,
+
+          SUM(
+            CASE
+              WHEN COALESCE(tipo_movimiento, 'Adelanto') = 'Adelanto'
+              THEN monto
+              ELSE 0
+            END
+          ) AS adelantos,
+
+          SUM(
+            CASE
+              WHEN tipo_movimiento = 'Devolución'
+              THEN monto
+              ELSE 0
+            END
+          ) AS devoluciones
+
+        FROM inversiones_socios
+        WHERE fecha BETWEEN $1 AND $2
+        GROUP BY socio_id
+      ) mov
+        ON mov.socio_id = s.id
+
+      WHERE s.activo = true
+
+      ORDER BY s.nombre ASC
+      `,
+      [fechaInicio, fechaFin]
+    );
 
     const ingresos = ingresosResult.rows[0];
     const egresos = egresosResult.rows[0];
-const movimientosSocios = inversionesResult.rows[0];
+    const movimientosSocios = movimientosSociosResult.rows[0];
 
-const totalIngresos = Number(ingresos.total_ingresos) || 0;
-const totalEgresos = Number(egresos.total_egresos) || 0;
+    const totalIngresos = Number(ingresos.total_ingresos) || 0;
+    const totalEgresos = Number(egresos.total_egresos) || 0;
 
-const totalAdelantosSocios =
-  Number(movimientosSocios.total_adelantos_socios) || 0;
+    const totalAdelantosSocios =
+      Number(movimientosSocios.total_adelantos_socios) || 0;
 
-const totalDevolucionesSocios =
-  Number(movimientosSocios.total_devoluciones_socios) || 0;
+    const totalDevolucionesSocios =
+      Number(movimientosSocios.total_devoluciones_socios) || 0;
 
-const saldoAdelantosSocios =
-  totalAdelantosSocios - totalDevolucionesSocios;
+    const saldoAdelantosSocios =
+      totalAdelantosSocios - totalDevolucionesSocios;
 
-const utilidadOperativa = totalIngresos - totalEgresos;
+    const utilidadOperativa = totalIngresos - totalEgresos;
 
-const flujoConAdelantos =
-  utilidadOperativa - saldoAdelantosSocios;
+    const flujoConAdelantos =
+      utilidadOperativa - saldoAdelantosSocios;
 
     const porcentajeEgresos =
-  totalIngresos > 0 ? (totalEgresos / totalIngresos) * 100 : 0;
+      totalIngresos > 0 ? (totalEgresos / totalIngresos) * 100 : 0;
 
-const margenGanancia =
-  totalIngresos > 0 ? (utilidadOperativa / totalIngresos) * 100 : 0;
+    const margenGanancia =
+      totalIngresos > 0 ? (utilidadOperativa / totalIngresos) * 100 : 0;
 
-const porcentajeNominaSobreEgresos =
-  totalEgresos > 0
-    ? ((Number(egresos.total_nomina) || 0) / totalEgresos) * 100
-    : 0;
+    const porcentajeNominaSobreEgresos =
+      totalEgresos > 0
+        ? ((Number(egresos.total_nomina) || 0) / totalEgresos) * 100
+        : 0;
 
-const porcentajeEgresosOperativosSobreEgresos =
-  totalEgresos > 0
-    ? ((Number(egresos.total_egresos_operativos) || 0) / totalEgresos) * 100
-    : 0;
+    const porcentajeEgresosOperativosSobreEgresos =
+      totalEgresos > 0
+        ? ((Number(egresos.total_egresos_operativos) || 0) / totalEgresos) * 100
+        : 0;
 
-const distribucionSocios = sociosDistribucionResult.rows.map((socio) => {
-  const porcentaje = Number(socio.porcentaje_participacion) || 0;
-  const utilidadAsignada = utilidadOperativa * (porcentaje / 100);
+    const distribucionSocios = sociosDistribucionResult.rows.map((socio) => {
+      const porcentaje = Number(socio.porcentaje_participacion) || 0;
+      const utilidadAsignada = utilidadOperativa * (porcentaje / 100);
 
-  const adelantos = Number(socio.adelantos) || 0;
-  const devoluciones = Number(socio.devoluciones) || 0;
-  const saldoAdelantos = adelantos - devoluciones;
+      const adelantos = Number(socio.adelantos) || 0;
+      const devoluciones = Number(socio.devoluciones) || 0;
+      const saldoAdelantos = adelantos - devoluciones;
 
-  return {
-    socio: socio.socio,
-    porcentaje_participacion: porcentaje,
-    utilidad_asignada: utilidadAsignada,
+      return {
+        socio: socio.socio,
+        porcentaje_participacion: porcentaje,
+        utilidad_asignada: utilidadAsignada,
 
-    adelantos,
-    devoluciones,
-    saldo_adelantos: saldoAdelantos,
+        adelantos,
+        devoluciones,
+        saldo_adelantos: saldoAdelantos,
 
-    // Temporal para no romper el frontend mientras cambiamos textos
-    inversion_aportada: saldoAdelantos,
+        // Temporal por compatibilidad
+        inversion_aportada: saldoAdelantos,
 
-    resultado_neto: utilidadAsignada - saldoAdelantos
-  };
-});
+        resultado_neto: utilidadAsignada - saldoAdelantos
+      };
+    });
 
     res.json({
       success: true,
@@ -1870,31 +1908,33 @@ const distribucionSocios = sociosDistribucionResult.rows.map((socio) => {
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin
       },
-            resumen: {
-          total_ingresos: totalIngresos,
-          total_egresos: totalEgresos,
-          total_nomina: Number(egresos.total_nomina) || 0,
-          total_egresos_operativos:
-            Number(egresos.total_egresos_operativos) || 0,
-total_adelantos_socios: totalAdelantosSocios,
-total_devoluciones_socios: totalDevolucionesSocios,
-saldo_adelantos_socios: saldoAdelantosSocios,
+      resumen: {
+        total_ingresos: totalIngresos,
+        total_egresos: totalEgresos,
+        total_nomina: Number(egresos.total_nomina) || 0,
+        total_egresos_operativos:
+          Number(egresos.total_egresos_operativos) || 0,
 
-// Temporal para no romper el frontend mientras cambiamos textos
-total_inversiones_socios: saldoAdelantosSocios,
+        total_adelantos_socios: totalAdelantosSocios,
+        total_devoluciones_socios: totalDevolucionesSocios,
+        saldo_adelantos_socios: saldoAdelantosSocios,
 
-utilidad_operativa: utilidadOperativa,
+        // Temporal por compatibilidad
+        total_inversiones_socios: saldoAdelantosSocios,
 
-flujo_con_adelantos: flujoConAdelantos,
+        utilidad_operativa: utilidadOperativa,
 
-// Temporal para no romper el frontend mientras cambiamos textos
-flujo_con_inversiones: flujoConAdelantos,
-          porcentaje_egresos: porcentajeEgresos,
-          margen_ganancia: margenGanancia,
-          porcentaje_nomina_sobre_egresos: porcentajeNominaSobreEgresos,
-          porcentaje_egresos_operativos_sobre_egresos:
-            porcentajeEgresosOperativosSobreEgresos
-        },
+        flujo_con_adelantos: flujoConAdelantos,
+
+        // Temporal por compatibilidad
+        flujo_con_inversiones: flujoConAdelantos,
+
+        porcentaje_egresos: porcentajeEgresos,
+        margen_ganancia: margenGanancia,
+        porcentaje_nomina_sobre_egresos: porcentajeNominaSobreEgresos,
+        porcentaje_egresos_operativos_sobre_egresos:
+          porcentajeEgresosOperativosSobreEgresos
+      },
       ingresos: {
         total_cover: Number(ingresos.total_cover) || 0,
         total_tarjetas: Number(ingresos.total_tarjetas) || 0,
@@ -1914,97 +1954,6 @@ flujo_con_inversiones: flujoConAdelantos,
 
   } catch (error) {
     console.error('Error análisis financiero:', error);
-
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Desglose de egresos para Análisis Financiero
-app.get('/api/analisis-financiero/egresos-detalle', async (req, res) => {
-  try {
-    const {
-      fecha_inicio,
-      fecha_fin,
-      categoria,
-      tipo_egreso
-    } = req.query;
-
-    if (!fecha_inicio || !fecha_fin) {
-      return res.status(400).json({
-        success: false,
-        error: "Fecha inicio y fecha fin son obligatorias."
-      });
-    }
-
-    const condiciones = [
-      "e.fecha::date BETWEEN $1 AND $2",
-      "COALESCE(e.estatus, '') <> 'CANCELADO'"
-    ];
-
-    const valores = [fecha_inicio, fecha_fin];
-    let contador = 3;
-
-    if (categoria) {
-      condiciones.push(`c.nombre = $${contador}`);
-      valores.push(categoria);
-      contador++;
-    }
-
-    if (tipo_egreso) {
-      condiciones.push(`e.tipo_egreso = $${contador}`);
-      valores.push(tipo_egreso);
-      contador++;
-    }
-
-    const result = await pool.query(
-      `
-      SELECT
-        e.id,
-        e.fecha,
-        e.tipo_egreso,
-        e.divisa,
-        e.tipo_cambio,
-        e.monto_original,
-        e.monto_mxn AS monto,
-        COALESCE(c.nombre, 'Sin categoría') AS categoria,
-        COALESCE(p.nombre, 'Sin proveedor') AS proveedor,
-        e.concepto,
-        e.cuenta_id,
-        e.referencia,
-e.estatus,
-e.fecha_creacion,
-CASE
-  WHEN e.referencia LIKE 'PRENOMINA-%'
-  THEN NULLIF(split_part(e.referencia, '-', 2), '')::integer
-  ELSE NULL
-END AS prenomina_id
-      FROM egresos e
-      LEFT JOIN categorias c
-        ON c.id = e.categoria_id
-      LEFT JOIN proveedores p
-        ON p.id = e.proveedor_id
-      WHERE ${condiciones.join(" AND ")}
-      ORDER BY e.fecha ASC, e.id ASC
-      `,
-      valores
-    );
-
-    const total = result.rows.reduce(
-      (sum, item) => sum + Number(item.monto || 0),
-      0
-    );
-
-    res.json({
-      success: true,
-      total,
-      detalle: result.rows
-    });
-
-  } catch (error) {
-    console.error("Error cargando detalle de egresos:", error);
 
     res.status(500).json({
       success: false,
