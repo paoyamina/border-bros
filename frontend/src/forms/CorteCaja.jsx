@@ -18,7 +18,7 @@ function CorteCaja({ usuarioActivo, onVolver }) {
 });
 
   const [cantidades, setCantidades] = useState({});
-  const [tc, setTc] = useState(18.5);
+  const [tc, setTc] = useState(17.5);
   const [fechaReporte, setFechaReporte] = useState(
     new Date().toISOString().split("T")[0]
   );
