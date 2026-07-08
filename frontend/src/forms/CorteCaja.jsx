@@ -346,7 +346,7 @@ Al aceptar, se descargará el Excel local y se enviarán las fotos a Drive.
     if (!confirmar) return;
 
     try {
-      descargarExcel();
+  const formData = new FormData();
 
       const formData = new FormData();
 
@@ -396,11 +396,14 @@ totalTarjetas,
       const resultado = await respuesta.json();
 
       if (!resultado.success) {
-        throw new Error(resultado.error || "Error desconocido en servidor.");
-      }
+  throw new Error(resultado.error || "Error desconocido en servidor.");
+}
 
-      alert("✅ Corte guardado correctamente.");
-      onVolver();
+descargarExcel();
+
+alert("✅ Corte guardado correctamente y Excel descargado.");
+onVolver();
+
     } catch (error) {
       console.error("Error al guardar corte:", error);
       alert("🚨 Error al guardar corte: " + error.message);
