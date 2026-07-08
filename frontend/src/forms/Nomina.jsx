@@ -133,10 +133,7 @@ Al aceptar, se guardará el registro y se descargará el Excel local.
     if (!confirmar) return;
 
     try {
-      exportarExcelNomina({
-        filas,
-        totalGlobal,
-      });
+  const formData = new FormData();
 
       const formData = new FormData();
 
@@ -208,10 +205,15 @@ if (!resultadoPrenomina.success) {
   );
 }
 
-      setStatusNomina("PENDIENTE");
+exportarExcelNomina({
+  filas,
+  totalGlobal,
+});
 
-      alert("✅ Prenómina enviada a aprobación correctamente.");
-      onVolver();
+setStatusNomina("PENDIENTE");
+
+alert("✅ Prenómina enviada a aprobación correctamente y Excel descargado.");
+onVolver();
     } catch (error) {
       console.error("Error en nómina:", error);
       alert("🚨 Error al guardar nómina: " + error.message);
