@@ -346,7 +346,6 @@ Al aceptar, se descargará el Excel local y se enviarán las fotos a Drive.
     if (!confirmar) return;
 
     try {
-  const formData = new FormData();
 
       const formData = new FormData();
 
