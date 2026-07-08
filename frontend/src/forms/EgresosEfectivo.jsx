@@ -152,9 +152,7 @@ Monto: ${
 `);
 
     if (!confirmar) return;
-    try {
-  descargarExcelEgreso();
-
+   try {
   const formData = new FormData();
 
   formData.append(
@@ -245,8 +243,10 @@ if (!resultadoBD.success) {
   throw new Error(resultadoBD.error || "Error al guardar en base de datos.");
 }
 
-  alert("✅ Egreso efectivo registrado correctamente.");
-  onVolver();
+descargarExcelEgreso();
+
+alert("✅ Egreso efectivo registrado correctamente y Excel descargado.");
+onVolver();
 } catch (error) {
   console.error("Error al registrar egreso efectivo:", error);
   alert("🚨 Error al registrar egreso efectivo: " + error.message);
