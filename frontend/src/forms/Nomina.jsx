@@ -135,8 +135,6 @@ Al aceptar, se guardará el registro y se descargará el Excel local.
     try {
   const formData = new FormData();
 
-      const formData = new FormData();
-
       formData.append(
         "nombreCarpeta",
         `NOMINA_${new Date().toISOString().split("T")[0]}`
