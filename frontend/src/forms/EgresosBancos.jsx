@@ -171,8 +171,6 @@ Monto: $${parseFloat(montoEgreso).toLocaleString()}
     if (!confirmar) return;
     try {
 
-  descargarExcelBanco();
-
   const formData = new FormData();
 
   formData.append(
@@ -281,9 +279,10 @@ if (!resultadoBD.success) {
   );
 }
 
-  alert("✅ Egreso bancario registrado correctamente.");
+descargarExcelBanco();
 
-  onVolver();
+alert("✅ Egreso bancario registrado correctamente y Excel descargado.");
+onVolver();
 
 } catch (error) {
 
