@@ -11,7 +11,7 @@ function EgresosBancos({ usuarioActivo, usuarioId, rol, onVolver }) {
   );
 
   const [montoEgreso, setMontoEgreso] = useState("");
-  const [categoriaEgreso, setCategoriaEgreso] = useState("Proveedores");
+  const [categoriaEgreso, setCategoriaEgreso] = useState("");
   const [conceptoEgreso, setConceptoEgreso] = useState("");
   const [beneficiarioEgreso, setBeneficiarioEgreso] = useState("");
   const [bancoOrigen, setBancoOrigen] = useState("BBVA");
@@ -83,17 +83,55 @@ useEffect(() => {
 
 }, []);
 
-  const agregarProveedor = () => {
-    const nuevo = prompt("Nombre del nuevo proveedor:");
+const agregarProveedor = async () => {
+  const nuevo = prompt("Nombre del nuevo proveedor:");
 
-    if (!nuevo?.trim()) return;
+  if (!nuevo?.trim()) return;
 
-    if (!listaProveedores.includes(nuevo.trim())) {
-      setListaProveedores([...listaProveedores, nuevo.trim()]);
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/proveedores/buscar-o-crear`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: nuevo.trim(),
+          usuario_id: usuarioId,
+        }),
+      }
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(
+        resultado.error || "No se pudo guardar el proveedor."
+      );
     }
 
-    setBeneficiarioEgreso(nuevo.trim());
-  };
+    const proveedorGuardado = resultado.proveedor;
+
+    setProveedoresExistentes((prev) => {
+      const yaExiste = prev.some(
+        (proveedor) => proveedor.id === proveedorGuardado.id
+      );
+
+      if (yaExiste) return prev;
+
+      return [...prev, proveedorGuardado].sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, "es")
+      );
+    });
+
+    setBeneficiarioEgreso(proveedorGuardado.nombre);
+
+    alert("✅ Proveedor agregado correctamente.");
+  } catch (error) {
+    alert("🚨 Error al agregar proveedor: " + error.message);
+  }
+};
 
   const agregarCategoria = () => {
     const nueva = prompt("Nombre de la nueva categoría:");
@@ -145,11 +183,6 @@ const descargarExcelBanco = () => {
     alert(`⚠️ ${errorValidacion}`);
     return;
   }
-
-  if (!referencia.trim()) {
-  alert("⚠️ El folio bancario es obligatorio.");
-  return;
-}
 
   if (fotosEgreso.length === 0) {
 
@@ -292,6 +325,13 @@ onVolver();
 }
   };
 
+  const formularioIncompleto =
+    !categoriaEgreso ||
+    !conceptoEgreso.trim() ||
+    !beneficiarioEgreso.trim() ||
+    !montoEgreso ||
+    Number(montoEgreso) <= 0;
+
   return (
     <div style={estilos.container}>
       <div style={estilos.card}>
@@ -433,22 +473,23 @@ onVolver();
 
             <div style={{ display: "flex", gap: "5px" }}>
 
-              <input
-                list="proveedores-data"
-                placeholder="Proveedor / Beneficiario"
-                value={beneficiarioEgreso}
-                onChange={(e) => setBeneficiarioEgreso(e.target.value)}
-                style={{
-                  ...estilos.input,
-                  flex: 1,
-                }}
-              />
+              <select
+  value={beneficiarioEgreso}
+  onChange={(e) => setBeneficiarioEgreso(e.target.value)}
+  style={{
+    ...estilos.input,
+    flex: 1,
+    height: "42px",
+  }}
+>
+  <option value="">-- Selecciona proveedor --</option>
 
-             <datalist id="proveedores-data">
   {proveedoresExistentes.map((proveedor) => (
-    <option key={proveedor.id} value={proveedor.nombre} />
+    <option key={proveedor.id} value={proveedor.nombre}>
+      {proveedor.nombre}
+    </option>
   ))}
-</datalist>
+</select>
 
               <button
                 type="button"
@@ -564,20 +605,18 @@ onVolver();
 
           </div>
 
-          <button
-            onClick={registrarEgreso}
-            disabled={!montoEgreso || !conceptoEgreso || !referencia.trim()}
-            style={{
-              ...estilos.btnSubmit,
-              marginTop: "10px",
-              background:
-                !montoEgreso || !conceptoEgreso || !referencia.trim()
-  ? "#ccc"
-  : "#000",
-            }}
-          >
-            REGISTRAR EGRESO BANCARIO
-          </button>
+         <button
+  onClick={registrarEgreso}
+  disabled={formularioIncompleto}
+  style={{
+    ...estilos.btnSubmit,
+    marginTop: "10px",
+    background: formularioIncompleto ? "#ccc" : "#000",
+    cursor: formularioIncompleto ? "not-allowed" : "pointer",
+  }}
+>
+  REGISTRAR EGRESO BANCARIO
+</button>
 
         </div>
 

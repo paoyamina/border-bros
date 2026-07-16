@@ -11,7 +11,7 @@ function EgresosBanca({ usuarioActivo, usuarioId, rol, onVolver }) {
   );
 
   const [montoEgreso, setMontoEgreso] = useState("");
-  const [categoriaEgreso, setCategoriaEgreso] = useState("Proveedores");
+  const [categoriaEgreso, setCategoriaEgreso] = useState("");
   const [conceptoEgreso, setConceptoEgreso] = useState("");
   const [beneficiarioEgreso, setBeneficiarioEgreso] = useState("");
   const [bancoOrigen, setBancoOrigen] = useState("BBVA");
@@ -144,11 +144,6 @@ const descargarExcelBanca = () => {
     return;
   }
 
-  if (!referencia.trim()) {
-  alert("⚠️ El folio bancario es obligatorio.");
-  return;
-}
-
   if (fotosEgreso.length === 0) {
 
       const continuar = window.confirm(
@@ -168,8 +163,6 @@ Monto: $${parseFloat(montoEgreso).toLocaleString()}
 
     if (!confirmar) return;
     try {
-
-  descargarExcelBanca();
 
   const formData = new FormData();
 
@@ -270,6 +263,11 @@ const resultadoBD = await respuestaBD.json();
 if (!resultadoBD.success) {
   throw new Error(resultadoBD.error || "Error al guardar en base de datos.");
 }
+
+descargarExcelBanca();
+
+alert("✅ Egreso banca registrado correctamente y Excel descargado.");
+onVolver();
 
   alert("✅ Egreso banca registrado correctamente.");
 
@@ -557,14 +555,14 @@ if (!resultadoBD.success) {
 
           <button
             onClick={registrarEgreso}
-            disabled={!montoEgreso || !conceptoEgreso || !referencia.trim()}
+            disabled={!montoEgreso || !conceptoEgreso || !categoriaEgreso}
             style={{
               ...estilos.btnSubmit,
               marginTop: "10px",
               background:
-                !montoEgreso || !conceptoEgreso || !referencia.trim()
-              ? "#ccc"
-              : "#000",
+  !montoEgreso || !conceptoEgreso || !categoriaEgreso
+    ? "#ccc"
+    : "#000",
             }}
           >
             REGISTRAR EGRESO BANCARIO
