@@ -541,6 +541,35 @@ app.post('/api/egresos', async (req, res) => {
   }
 });
 
+// Obtener conceptos únicos usados en egresos
+app.get('/api/egresos/conceptos', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT DISTINCT TRIM(concepto) AS concepto
+      FROM egresos
+      WHERE concepto IS NOT NULL
+        AND TRIM(concepto) <> ''
+        AND COALESCE(estatus, 'REGISTRADO') <> 'CANCELADO'
+      ORDER BY concepto ASC
+      `
+    );
+
+    res.json({
+      success: true,
+      conceptos: result.rows.map((fila) => fila.concepto)
+    });
+
+  } catch (error) {
+    console.error('Error cargando conceptos de egresos:', error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 app.get('/api/probar-egreso', async (req, res) => {
   try {
     const result = await pool.query(
