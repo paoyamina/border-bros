@@ -23,12 +23,6 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
   String(rol || "").trim().toLowerCase()
 );
 
-  const [listaProveedores, setListaProveedores] = useState([
-    "Coca-Cola",
-    "Papelería El Centro",
-    "Insumos Locales",
-  ]);
-
   const [listaCategorias, setListaCategorias] = useState([
     "Proveedores",
     "Nómina / Anticipos",

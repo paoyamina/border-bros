@@ -18,12 +18,6 @@ function EgresosBancos({ usuarioActivo, usuarioId, rol, onVolver }) {
   const [referencia, setReferencia] = useState("");
   const [fotosEgreso, setFotosEgreso] = useState([]);
 
-  const [listaProveedores, setListaProveedores] = useState([
-    "Coca-Cola",
-    "Papelería El Centro",
-    "Insumos Locales",
-  ]);
-
   const [listaCategorias, setListaCategorias] = useState([
     "Proveedores",
     "Nómina / Anticipos",
