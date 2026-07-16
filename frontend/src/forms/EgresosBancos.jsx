@@ -18,13 +18,6 @@ function EgresosBancos({ usuarioActivo, usuarioId, rol, onVolver }) {
   const [referencia, setReferencia] = useState("");
   const [fotosEgreso, setFotosEgreso] = useState([]);
 
-  const [listaCategorias, setListaCategorias] = useState([
-    "Proveedores",
-    "Nómina / Anticipos",
-    "Gastos Operativos",
-    "Mantenimiento",
-  ]);
-
 const [proveedoresExistentes, setProveedoresExistentes] = useState([]);
 const [categoriasExistentes, setCategoriasExistentes] = useState([]);
 const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
@@ -127,17 +120,54 @@ const agregarProveedor = async () => {
   }
 };
 
-  const agregarCategoria = () => {
-    const nueva = prompt("Nombre de la nueva categoría:");
+ const agregarCategoria = async () => {
+  const nueva = prompt("Nombre de la nueva categoría:");
 
-    if (!nueva?.trim()) return;
+  if (!nueva?.trim()) return;
 
-    if (!listaCategorias.includes(nueva.trim())) {
-      setListaCategorias([...listaCategorias, nueva.trim()]);
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/categorias/buscar-o-crear`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: nueva.trim(),
+        }),
+      }
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(
+        resultado.error || "No se pudo guardar la categoría."
+      );
     }
 
-    setCategoriaEgreso(nueva.trim());
-  };
+    const categoriaGuardada = resultado.categoria;
+
+    setCategoriasExistentes((prev) => {
+      const yaExiste = prev.some(
+        (categoria) => categoria.id === categoriaGuardada.id
+      );
+
+      if (yaExiste) return prev;
+
+      return [...prev, categoriaGuardada].sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, "es")
+      );
+    });
+
+    setCategoriaEgreso(categoriaGuardada.nombre);
+
+    alert("✅ Categoría agregada correctamente.");
+  } catch (error) {
+    alert("🚨 Error al agregar categoría: " + error.message);
+  }
+};
 
 const descargarExcelBanco = () => {
   const filas = [
