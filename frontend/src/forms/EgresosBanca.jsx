@@ -75,17 +75,55 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
 
 }, []);
 
-  const agregarProveedor = () => {
-    const nuevo = prompt("Nombre del nuevo proveedor:");
+ const agregarProveedor = async () => {
+  const nuevo = prompt("Nombre del nuevo proveedor:");
 
-    if (!nuevo?.trim()) return;
+  if (!nuevo?.trim()) return;
 
-    if (!listaProveedores.includes(nuevo.trim())) {
-      setListaProveedores([...listaProveedores, nuevo.trim()]);
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/proveedores/buscar-o-crear`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: nuevo.trim(),
+          usuario_id: usuarioId,
+        }),
+      }
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(
+        resultado.error || "No se pudo guardar el proveedor."
+      );
     }
 
-    setBeneficiarioEgreso(nuevo.trim());
-  };
+    const proveedorGuardado = resultado.proveedor;
+
+    setProveedoresExistentes((prev) => {
+      const yaExiste = prev.some(
+        (proveedor) => proveedor.id === proveedorGuardado.id
+      );
+
+      if (yaExiste) return prev;
+
+      return [...prev, proveedorGuardado].sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, "es")
+      );
+    });
+
+    setBeneficiarioEgreso(proveedorGuardado.nombre);
+
+    alert("✅ Proveedor agregado correctamente.");
+  } catch (error) {
+    alert("🚨 Error al agregar proveedor: " + error.message);
+  }
+};
 
   const agregarCategoria = () => {
     const nueva = prompt("Nombre de la nueva categoría:");
