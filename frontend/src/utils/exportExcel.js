@@ -14,47 +14,113 @@ export function exportarExcelCorte({
   totalCover,
   totalTarjetas,
   totalVales,
+  totalGastosCorte,
+  totalReglamentos,
   totalCxC,
   totalGlobalMXN,
+  totalIngresos,
   montoVentaMeta,
   diferencia,
-  valesRows,
-  cxcRows,
+  valesRows = [],
+  gastosCorteRows = [],
+  reglamentosRows = [],
+  cxcRows = [],
 }) {
+  const calcularMontoMXNMovimiento = (row) => {
+    const monto = parseFloat(row.monto) || 0;
+    const tipoCambio =
+      row.divisa === "USD" ? parseFloat(row.tipo_cambio) || tc || 1 : 1;
+
+    if (row.divisa === "USD") {
+      return monto * tipoCambio;
+    }
+
+    return monto;
+  };
+
   const filas = [
-    ["CORTE DE CAJA DIARIO - BOSSE"],
+    ["CORTE DE CAJA DIARIO - BORDER BROTHERS"],
     [],
     ["Fecha:", fechaReporte],
     ["Folio:", nombreReporte],
     ["Cajero:", usuarioActivo],
     ["Responsable Firma:", iniciales],
     [],
+    ["VENTAS NORMALES"],
     ["Efectivo MXN:", calcularMXN()],
     ["Efectivo USD:", calcularUSD()],
+    ["Efectivo USD en MXN:", calcularUSD() * tc],
     ["TC Aplicado:", tc],
+    ["Total Tarjetas:", totalTarjetas],
+    ["Gastos de corte:", totalGastosCorte],
+    ["Cuentas por cobrar:", totalCxC],
+    ["TOTAL GENERAL SIN COVER:", totalGlobalMXN],
     [],
+    ["COVER"],
     ["Cover efectivo MXN:", calcularCoverMXN()],
     ["Cover USD:", calcularCoverUSD()],
     ["Cover USD en MXN:", calcularCoverUSD() * tc],
     ["Cover TPV:", coverTPV],
-    ["Total Cover:", totalCover],
+    ["Reglamentos / Interventor:", totalReglamentos],
+    ["TOTAL COVER:", totalCover],
     [],
-    ["Total Tarjetas:", totalTarjetas],
-    ["Total Vales:", totalVales],
-    ["Total CxC:", totalCxC],
-    ["TOTAL EN CAJA (MXN):", totalGlobalMXN],
+    ["RESUMEN"],
+    ["TOTAL INGRESOS:", totalIngresos],
     ["VENTA TICKET:", montoVentaMeta],
-    ["DIFERENCIA:", diferencia],
+    ["DIFERENCIA TICKET VS TOTAL GENERAL:", diferencia],
     [],
-    ["DESGLOSE DE VALES"],
-    ["Concepto", "Monto"],
+    ["DESGLOSE DE GASTOS DE CORTE"],
+    [
+      "Categoría",
+      "Proveedor",
+      "Concepto",
+      "Divisa",
+      "Tipo de cambio",
+      "Monto original",
+      "Monto MXN",
+    ],
   ];
 
-  valesRows.forEach((vale) => {
-    if (vale.concepto || vale.monto) {
+  gastosCorteRows.forEach((gasto) => {
+    const montoMXN = calcularMontoMXNMovimiento(gasto);
+
+    if (montoMXN > 0) {
       filas.push([
-        vale.concepto || "Sin concepto",
-        parseFloat(vale.monto) || 0,
+        gasto.categoria || "Sin categoría",
+        gasto.proveedor || "Sin proveedor",
+        gasto.concepto || "Sin concepto",
+        gasto.divisa || "MXN",
+        gasto.divisa === "USD" ? gasto.tipo_cambio || tc : 1,
+        parseFloat(gasto.monto) || 0,
+        montoMXN,
+      ]);
+    }
+  });
+
+  filas.push([]);
+  filas.push(["DESGLOSE DE REGLAMENTOS / INTERVENTOR"]);
+  filas.push([
+    "Categoría",
+    "Proveedor",
+    "Concepto",
+    "Divisa",
+    "Tipo de cambio",
+    "Monto original",
+    "Monto MXN",
+  ]);
+
+  reglamentosRows.forEach((reglamento) => {
+    const montoMXN = calcularMontoMXNMovimiento(reglamento);
+
+    if (montoMXN > 0) {
+      filas.push([
+        reglamento.categoria || "Reglamentos",
+        reglamento.proveedor || "Interventor",
+        reglamento.concepto || "Reglamentos / Interventor",
+        reglamento.divisa || "MXN",
+        reglamento.divisa === "USD" ? reglamento.tipo_cambio || tc : 1,
+        parseFloat(reglamento.monto) || 0,
+        montoMXN,
       ]);
     }
   });
@@ -72,6 +138,21 @@ export function exportarExcelCorte({
     }
   });
 
+  if (valesRows.length > 0 && totalVales > 0) {
+    filas.push([]);
+    filas.push(["DESGLOSE LEGACY DE VALES"]);
+    filas.push(["Concepto", "Monto"]);
+
+    valesRows.forEach((vale) => {
+      if (vale.concepto || vale.monto) {
+        filas.push([
+          vale.concepto || "Sin concepto",
+          parseFloat(vale.monto) || 0,
+        ]);
+      }
+    });
+  }
+
   const hoja = XLSX.utils.aoa_to_sheet(filas);
   const libro = XLSX.utils.book_new();
 
@@ -79,7 +160,7 @@ export function exportarExcelCorte({
 
   XLSX.writeFile(
     libro,
-    `Corte_BOSSE_${fechaReporte}_${nombreReporte}.xlsx`
+    `Corte_Border_Brothers_${fechaReporte}_${nombreReporte}.xlsx`
   );
 }
 
@@ -177,17 +258,25 @@ export const exportarExcelAnalisisFinanciero = ({
     ],
     [],
     ["DETALLE DE INGRESOS"],
-    ["Cover", formatoNumero(analisis.ingresos.total_cover)],
-    ["Tarjetas", formatoNumero(analisis.ingresos.total_tarjetas)],
-    ["Vales", formatoNumero(analisis.ingresos.total_vales)],
-    ["CxC", formatoNumero(analisis.ingresos.total_cxc)],
-    ["Efectivo MXN", formatoNumero(analisis.ingresos.total_efectivo_mxn)],
-    [
-      "USD convertido a MXN",
-      formatoNumero(analisis.ingresos.total_efectivo_usd_mxn),
-    ],
-    ["Venta ticket", formatoNumero(analisis.ingresos.total_venta_ticket)],
-    ["Diferencia", formatoNumero(analisis.ingresos.total_diferencia)],
+        [
+          "Total general sin cover",
+          formatoNumero(analisis.ingresos.total_general_sin_cover),
+        ],
+        ["Cover", formatoNumero(analisis.ingresos.total_cover)],
+        ["Gastos de corte", formatoNumero(analisis.ingresos.total_gastos_corte)],
+        [
+          "Reglamentos / Interventor",
+          formatoNumero(analisis.ingresos.total_reglamentos),
+        ],
+        ["Tarjetas", formatoNumero(analisis.ingresos.total_tarjetas)],
+        ["CxC", formatoNumero(analisis.ingresos.total_cxc)],
+        ["Efectivo MXN", formatoNumero(analisis.ingresos.total_efectivo_mxn)],
+        [
+          "USD convertido a MXN",
+          formatoNumero(analisis.ingresos.total_efectivo_usd_mxn),
+        ],
+        ["Venta ticket", formatoNumero(analisis.ingresos.total_venta_ticket)],
+        ["Diferencia", formatoNumero(analisis.ingresos.total_diferencia)],
   ];
 
   const hojaResumen = XLSX.utils.aoa_to_sheet(resumenRows);

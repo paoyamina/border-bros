@@ -206,6 +206,157 @@ app.post('/api/guardar-reporte', upload.array('fotos'), async (req, res) => {
       try {
         await client.query("BEGIN");
 
+        const buscarOCrearCategoria = async (nombreCategoria) => {
+  const nombreLimpio = String(nombreCategoria || "").trim();
+
+  if (!nombreLimpio) return null;
+
+  const existente = await client.query(
+    `
+    SELECT id
+    FROM categorias
+    WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1))
+    LIMIT 1
+    `,
+    [nombreLimpio]
+  );
+
+  if (existente.rows.length > 0) {
+    return existente.rows[0].id;
+  }
+
+  const nueva = await client.query(
+    `
+    INSERT INTO categorias (nombre)
+    VALUES ($1)
+    RETURNING id
+    `,
+    [nombreLimpio]
+  );
+
+  return nueva.rows[0].id;
+};
+
+const buscarOCrearProveedor = async (nombreProveedor, usuarioId) => {
+  const nombreLimpio = String(nombreProveedor || "").trim();
+
+  if (!nombreLimpio) return null;
+
+  const existente = await client.query(
+    `
+    SELECT id
+    FROM proveedores
+    WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1))
+    LIMIT 1
+    `,
+    [nombreLimpio]
+  );
+
+  if (existente.rows.length > 0) {
+    return existente.rows[0].id;
+  }
+
+  const nuevo = await client.query(
+    `
+    INSERT INTO proveedores (nombre, created_by, activo)
+    VALUES ($1, $2, true)
+    RETURNING id
+    `,
+    [nombreLimpio, usuarioId || null]
+  );
+
+  return nuevo.rows[0].id;
+};
+
+const crearEgresoDesdeCorte = async ({
+  movimiento,
+  tipoMovimiento,
+  numero,
+  corteId,
+  folio,
+  fecha,
+  usuarioId,
+  folderId,
+  folderUrl,
+}) => {
+  const montoMxn = toNumber(movimiento.monto_mxn);
+
+  if (montoMxn <= 0) return;
+
+  const categoriaId = await buscarOCrearCategoria(movimiento.categoria);
+  const proveedorId = await buscarOCrearProveedor(
+    movimiento.proveedor,
+    usuarioId
+  );
+
+  const referencia = `CORTE-${folio}-${tipoMovimiento}-${numero}`;
+
+  const existente = await client.query(
+    `
+    SELECT id
+    FROM egresos
+    WHERE referencia = $1
+    LIMIT 1
+    `,
+    [referencia]
+  );
+
+  if (existente.rows.length > 0) return;
+
+  await client.query(
+    `
+    INSERT INTO egresos (
+      tipo_egreso,
+      fecha,
+      divisa,
+      tipo_cambio,
+      monto_original,
+      monto_mxn,
+      categoria_id,
+      proveedor_id,
+      concepto,
+      cuenta_id,
+      referencia,
+      usuario_crea_id,
+      drive_folder_id,
+      drive_folder_url,
+      estatus
+    )
+    VALUES (
+      'efectivo',
+      $1,
+      $2,
+      $3,
+      $4,
+      $5,
+      $6,
+      $7,
+      $8,
+      NULL,
+      $9,
+      $10,
+      $11,
+      $12,
+      'REGISTRADO'
+    )
+    `,
+    [
+      fecha || null,
+      movimiento.divisa || "MXN",
+      toNumber(movimiento.tipo_cambio) || 1,
+      toNumber(movimiento.monto_original),
+      montoMxn,
+      categoriaId,
+      proveedorId,
+      movimiento.concepto || `${tipoMovimiento} de corte`,
+      referencia,
+      usuarioId || null,
+      folderId || null,
+      folderUrl || null,
+    ]
+  );
+};
+
         let usuarioId = null;
 
         if (usuario) {
@@ -244,6 +395,8 @@ app.post('/api/guardar-reporte', upload.array('fotos'), async (req, res) => {
             venta_ticket,
             diferencia,
             total_vales,
+            gastos_corte,
+            reglamentos,
             total_cxc,
             responsable_iniciales,
             drive_folder_id,
@@ -257,7 +410,7 @@ app.post('/api/guardar-reporte', upload.array('fotos'), async (req, res) => {
             $6, $7, $8, $9, $10,
             $11, $12, $13, $14, $15,
             $16, $17, $18, $19, $20,
-            $21, NOW(), NOW(), $22
+            $21, $22, $23, NOW(), NOW(), $24
           )
           RETURNING *
           `,
@@ -279,6 +432,8 @@ app.post('/api/guardar-reporte', upload.array('fotos'), async (req, res) => {
             toNumber(detalles.ventaTicket),
             toNumber(detalles.diferencia),
             toNumber(detalles.totalVales),
+            toNumber(detalles.gastosCorte),
+            toNumber(detalles.reglamentos),
             toNumber(detalles.totalCxC),
             detalles.responsable || null,
             folderId,
@@ -427,6 +582,44 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
             ]
           );
         }
+        
+        // 7. Crear egresos automáticos por gastos de corte
+const gastosCorteDetalle = Array.isArray(detalles.gastosCorteDetalle)
+  ? detalles.gastosCorteDetalle
+  : [];
+
+for (const movimiento of gastosCorteDetalle) {
+  await crearEgresoDesdeCorte({
+    movimiento,
+    tipoMovimiento: "GASTO",
+    numero: movimiento.numero || 1,
+    corteId: corteGuardado.id,
+    folio: corteGuardado.folio,
+    fecha: corteGuardado.fecha,
+    usuarioId,
+    folderId,
+    folderUrl,
+  });
+}
+
+// 8. Crear egresos automáticos por reglamentos / interventor
+const reglamentosDetalle = Array.isArray(detalles.reglamentosDetalle)
+  ? detalles.reglamentosDetalle
+  : [];
+
+for (const movimiento of reglamentosDetalle) {
+  await crearEgresoDesdeCorte({
+    movimiento,
+    tipoMovimiento: "REGLAMENTO",
+    numero: movimiento.numero || 1,
+    corteId: corteGuardado.id,
+    folio: corteGuardado.folio,
+    fecha: corteGuardado.fecha,
+    usuarioId,
+    folderId,
+    folderUrl,
+  });
+}
 
         await client.query("COMMIT");
 
@@ -1677,17 +1870,20 @@ app.get('/api/analisis-financiero', async (req, res) => {
     const ingresosResult = await pool.query(
       `
       SELECT
-        COALESCE(SUM(total_general), 0) AS total_ingresos,
-        COALESCE(SUM(total_cover), 0) AS total_cover,
-        COALESCE(SUM(total_tarjetas), 0) AS total_tarjetas,
-        COALESCE(SUM(total_vales), 0) AS total_vales,
-        COALESCE(SUM(total_cxc), 0) AS total_cxc,
-        COALESCE(SUM(total_efectivo_mxn), 0) AS total_efectivo_mxn,
-        COALESCE(SUM(total_efectivo_usd * tipo_cambio), 0) AS total_efectivo_usd_mxn,
-        COALESCE(SUM(venta_ticket), 0) AS total_venta_ticket,
-        COALESCE(SUM(diferencia), 0) AS total_diferencia
-      FROM corte_caja
-      WHERE fecha BETWEEN $1 AND $2
+  COALESCE(SUM(total_general + total_cover), 0) AS total_ingresos,
+  COALESCE(SUM(total_general), 0) AS total_general_sin_cover,
+  COALESCE(SUM(total_cover), 0) AS total_cover,
+  COALESCE(SUM(total_tarjetas), 0) AS total_tarjetas,
+  COALESCE(SUM(total_vales), 0) AS total_vales,
+  COALESCE(SUM(gastos_corte), 0) AS total_gastos_corte,
+  COALESCE(SUM(reglamentos), 0) AS total_reglamentos,
+  COALESCE(SUM(total_cxc), 0) AS total_cxc,
+  COALESCE(SUM(total_efectivo_mxn), 0) AS total_efectivo_mxn,
+  COALESCE(SUM(total_efectivo_usd * tipo_cambio), 0) AS total_efectivo_usd_mxn,
+  COALESCE(SUM(venta_ticket), 0) AS total_venta_ticket,
+  COALESCE(SUM(diferencia), 0) AS total_diferencia
+FROM corte_caja
+WHERE fecha BETWEEN $1 AND $2
       `,
       [fechaInicio, fechaFin]
     );

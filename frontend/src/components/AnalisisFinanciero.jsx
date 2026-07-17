@@ -691,22 +691,24 @@ const graficaBarras = ({
             <h3>Detalle de ingresos</h3>
 
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: "12px",
-                marginBottom: "30px",
-              }}
-            >
-              {tarjeta("Cover", ingresos.total_cover)}
-              {tarjeta("Tarjetas", ingresos.total_tarjetas)}
-              {tarjeta("Vales", ingresos.total_vales)}
-              {tarjeta("CxC", ingresos.total_cxc)}
-              {tarjeta("Efectivo MXN", ingresos.total_efectivo_mxn)}
-              {tarjeta("USD convertido a MXN", ingresos.total_efectivo_usd_mxn)}
-              {tarjeta("Venta ticket", ingresos.total_venta_ticket)}
-              {tarjeta("Diferencia", ingresos.total_diferencia)}
-            </div>
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: "12px",
+              marginBottom: "30px",
+            }}
+          >
+            {tarjeta("Total general sin cover", ingresos.total_general_sin_cover)}
+            {tarjeta("Cover", ingresos.total_cover)}
+            {tarjeta("Gastos de corte", ingresos.total_gastos_corte)}
+            {tarjeta("Reglamentos / Interventor", ingresos.total_reglamentos)}
+            {tarjeta("Tarjetas", ingresos.total_tarjetas)}
+            {tarjeta("CxC", ingresos.total_cxc)}
+            {tarjeta("Efectivo MXN", ingresos.total_efectivo_mxn)}
+            {tarjeta("USD convertido a MXN", ingresos.total_efectivo_usd_mxn)}
+            {tarjeta("Venta ticket", ingresos.total_venta_ticket)}
+            {tarjeta("Diferencia", ingresos.total_diferencia)}
+          </div>
 
             <div
               style={{

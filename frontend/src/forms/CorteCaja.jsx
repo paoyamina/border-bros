@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import estilos from "../styles/estilos";
-import { API_ENDPOINTS } from "../config/api";
+import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 import { generarFolio } from "../utils/folios";
 import { exportarExcelCorte } from "../utils/exportExcel";
 
@@ -8,11 +8,13 @@ function CorteCaja({ usuarioActivo, onVolver }) {
   const denomMXN = [1000, 500, 200, 100, 50, 20, 10, 5];
   const denomUSD = [100, 50, 20, 10, 5, 2, 1, 0.5, 0.25];
 
-  const [secciones, setSecciones] = useState({
+ const [secciones, setSecciones] = useState({
   mxn: false,
   usd: false,
   cover_mxn: false,
   cover_usd: false,
+  gastos_corte: false,
+  reglamentos: false,
   vales: false,
   cxc: false,
 });
@@ -32,6 +34,79 @@ function CorteCaja({ usuarioActivo, onVolver }) {
   const [cxcRows, setCxcRows] = useState([
     { id: Date.now(), nombre: "", monto: "" },
   ]);
+
+  const [proveedoresExistentes, setProveedoresExistentes] = useState([]);
+const [categoriasExistentes, setCategoriasExistentes] = useState([]);
+const [conceptosExistentes, setConceptosExistentes] = useState([]);
+
+const [gastosCorteRows, setGastosCorteRows] = useState([
+  {
+    id: Date.now(),
+    categoria: "",
+    proveedor: "",
+    concepto: "",
+    divisa: "MXN",
+    tipo_cambio: tc,
+    monto: "",
+  },
+]);
+
+const [reglamentosRows, setReglamentosRows] = useState([
+  {
+    id: Date.now() + 1,
+    categoria: "Reglamentos",
+    proveedor: "Interventor",
+    concepto: "Reglamentos / Interventor",
+    divisa: "MXN",
+    tipo_cambio: tc,
+    monto: "",
+  },
+]);
+
+useEffect(() => {
+  const cargarProveedores = async () => {
+    try {
+      const respuesta = await fetch(`${API_BASE_URL}/api/proveedores`);
+      const resultado = await respuesta.json();
+
+      if (resultado.success) {
+        setProveedoresExistentes(resultado.proveedores || []);
+      }
+    } catch (error) {
+      console.error("Error cargando proveedores:", error);
+    }
+  };
+
+  const cargarCategorias = async () => {
+    try {
+      const respuesta = await fetch(`${API_BASE_URL}/api/categorias`);
+      const resultado = await respuesta.json();
+
+      if (resultado.success) {
+        setCategoriasExistentes(resultado.categorias || []);
+      }
+    } catch (error) {
+      console.error("Error cargando categorías:", error);
+    }
+  };
+
+  const cargarConceptos = async () => {
+    try {
+      const respuesta = await fetch(`${API_BASE_URL}/api/egresos/conceptos`);
+      const resultado = await respuesta.json();
+
+      if (resultado.success) {
+        setConceptosExistentes(resultado.conceptos || []);
+      }
+    } catch (error) {
+      console.error("Error cargando conceptos:", error);
+    }
+  };
+
+  cargarProveedores();
+  cargarCategorias();
+  cargarConceptos();
+}, []);
 
   const [fotosTicket, setFotosTicket] = useState([]);
   const [fotosOtros, setFotosOtros] = useState([]);
@@ -216,6 +291,68 @@ const obtenerDenominacionesCorte = () => {
     0
   );
 
+  const calcularMontoMXNMovimiento = (row) => {
+  const monto = parseFloat(row.monto) || 0;
+  const tipoCambio = parseFloat(row.tipo_cambio) || tc || 1;
+
+  if (row.divisa === "USD") {
+    return monto * tipoCambio;
+  }
+
+  return monto;
+};
+
+const totalGastosCorte = gastosCorteRows.reduce(
+  (acc, row) => acc + calcularMontoMXNMovimiento(row),
+  0
+);
+
+const totalReglamentos = reglamentosRows.reduce(
+  (acc, row) => acc + calcularMontoMXNMovimiento(row),
+  0
+);
+
+const prepararMovimientosCorte = (rows) => {
+  return rows
+    .map((row, index) => {
+      const montoOriginal = parseFloat(row.monto) || 0;
+      const tipoCambio =
+        row.divisa === "USD" ? parseFloat(row.tipo_cambio) || tc || 1 : 1;
+
+      return {
+        numero: index + 1,
+        categoria: String(row.categoria || "").trim(),
+        proveedor: String(row.proveedor || "").trim(),
+        concepto: String(row.concepto || "").trim(),
+        divisa: row.divisa || "MXN",
+        tipo_cambio: tipoCambio,
+        monto_original: montoOriginal,
+        monto_mxn: calcularMontoMXNMovimiento(row),
+      };
+    })
+    .filter((row) => row.monto_mxn > 0);
+};
+
+const validarMovimientosCorte = (rows, nombreModulo) => {
+  const movimientoIncompleto = rows.find((row) => {
+    const monto = calcularMontoMXNMovimiento(row);
+
+    if (monto <= 0) return false;
+
+    return (
+      !String(row.categoria || "").trim() ||
+      !String(row.proveedor || "").trim() ||
+      !String(row.concepto || "").trim()
+    );
+  });
+
+  if (movimientoIncompleto) {
+    return `Hay un registro incompleto en ${nombreModulo}. Si capturas monto, también debes seleccionar categoría, proveedor y concepto.`;
+  }
+
+  return null;
+};
+
 const totalTarjetas = parseFloat(cantidades.tarjetas) || 0;
 const coverTPV = parseFloat(cantidades.cover_tpv) || 0;
 const montoVentaMeta = parseFloat(cantidades.monto_meta) || 0;
@@ -224,19 +361,25 @@ const usdEnMxn = calcularUSD() * tc;
 const coverUsdEnMxn = calcularCoverUSD() * tc;
 
 const totalCover =
-  calcularCoverMXN() + coverUsdEnMxn + coverTPV;
+  calcularCoverMXN() +
+  coverUsdEnMxn +
+  coverTPV +
+  totalReglamentos;
 
 const totalGlobalMXN =
   calcularMXN() +
   usdEnMxn +
-  calcularCoverMXN() +
-  coverUsdEnMxn +
-  coverTPV +
   totalTarjetas +
-  totalVales +
+  totalGastosCorte +
   totalCxC;
 
-const diferencia = totalGlobalMXN - montoVentaMeta;
+const totalIngresos =
+  totalGlobalMXN +
+  totalCover;
+
+const diferencia =
+  montoVentaMeta -
+  totalGlobalMXN;
 
   const addRow = (tipo) => {
     const newRow = {
@@ -268,6 +411,308 @@ const diferencia = totalGlobalMXN - montoVentaMeta;
     }
   };
 
+  const agregarMovimientoCorte = (tipo) => {
+  const nuevoMovimiento = {
+    id: Date.now(),
+    categoria: tipo === "reglamentos" ? "Reglamentos" : "",
+    proveedor: tipo === "reglamentos" ? "Interventor" : "",
+    concepto:
+      tipo === "reglamentos" ? "Reglamentos / Interventor" : "",
+    divisa: "MXN",
+    tipo_cambio: 1,
+    monto: "",
+  };
+
+  if (tipo === "gastos_corte") {
+    setGastosCorteRows([...gastosCorteRows, nuevoMovimiento]);
+  } else {
+    setReglamentosRows([...reglamentosRows, nuevoMovimiento]);
+  }
+};
+
+const actualizarMovimientoCorte = (tipo, id, campo, valor) => {
+  const actualizarRows = (rows) =>
+    rows.map((row) => {
+      if (row.id !== id) return row;
+
+      const rowActualizado = {
+        ...row,
+        [campo]: valor,
+      };
+
+      if (campo === "divisa" && valor === "MXN") {
+        rowActualizado.tipo_cambio = 1;
+      }
+
+      if (campo === "divisa" && valor === "USD") {
+        rowActualizado.tipo_cambio = tc;
+      }
+
+      return rowActualizado;
+    });
+
+  if (tipo === "gastos_corte") {
+    setGastosCorteRows(actualizarRows(gastosCorteRows));
+  } else {
+    setReglamentosRows(actualizarRows(reglamentosRows));
+  }
+};
+
+const eliminarMovimientoCorte = (tipo, id) => {
+  if (tipo === "gastos_corte") {
+    if (gastosCorteRows.length === 1) return;
+    setGastosCorteRows(gastosCorteRows.filter((row) => row.id !== id));
+  } else {
+    if (reglamentosRows.length === 1) return;
+    setReglamentosRows(reglamentosRows.filter((row) => row.id !== id));
+  }
+};
+
+const renderMovimientoCorte = ({
+  tipo,
+  rows,
+  total,
+  textoAgregar,
+}) => {
+  return (
+    <div
+      style={{
+        marginTop: "15px",
+        padding: "15px",
+        background: "#fafafa",
+        borderRadius: "8px",
+      }}
+    >
+      {rows.map((row, index) => (
+        <div
+          key={row.id}
+          style={{
+            background: "#fff",
+            border: "1px solid #eee",
+            borderRadius: "10px",
+            padding: "15px",
+            marginBottom: "14px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "10px",
+              alignItems: "center",
+              marginBottom: "12px",
+            }}
+          >
+            <strong style={{ fontSize: "13px" }}>
+              {tipo === "gastos_corte"
+                ? `Gasto de corte #${index + 1}`
+                : `Reglamento / Interventor #${index + 1}`}
+            </strong>
+
+            {rows.length > 1 && (
+              <button
+                type="button"
+                onClick={() => eliminarMovimientoCorte(tipo, row.id)}
+                style={{
+                  background: "#fff1f1",
+                  color: "#b91c1c",
+                  border: "1px solid #fecaca",
+                  borderRadius: "8px",
+                  padding: "6px 10px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                Eliminar
+              </button>
+            )}
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "12px",
+            }}
+          >
+            <div>
+              <label style={estilos.panelLabel}>CATEGORÍA</label>
+              <select
+                value={row.categoria}
+                onChange={(e) =>
+                  actualizarMovimientoCorte(
+                    tipo,
+                    row.id,
+                    "categoria",
+                    e.target.value
+                  )
+                }
+                style={{ ...estilos.input, width: "100%" }}
+              >
+                <option value="">-- Selecciona --</option>
+
+                {categoriasExistentes.map((cat) => (
+                  <option key={cat.id} value={cat.nombre}>
+                    {cat.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={estilos.panelLabel}>PROVEEDOR</label>
+              <select
+                value={row.proveedor}
+                onChange={(e) =>
+                  actualizarMovimientoCorte(
+                    tipo,
+                    row.id,
+                    "proveedor",
+                    e.target.value
+                  )
+                }
+                style={{ ...estilos.input, width: "100%" }}
+              >
+                <option value="">-- Selecciona proveedor --</option>
+
+                {proveedoresExistentes.map((proveedor) => (
+                  <option key={proveedor.id} value={proveedor.nombre}>
+                    {proveedor.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={estilos.panelLabel}>DIVISA</label>
+              <select
+                value={row.divisa}
+                onChange={(e) =>
+                  actualizarMovimientoCorte(
+                    tipo,
+                    row.id,
+                    "divisa",
+                    e.target.value
+                  )
+                }
+                style={{ ...estilos.input, width: "100%" }}
+              >
+                <option value="MXN">MXN</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+
+            {row.divisa === "USD" && (
+              <div>
+                <label style={estilos.panelLabel}>TIPO DE CAMBIO</label>
+                <input
+                  type="number"
+                  value={row.tipo_cambio}
+                  onChange={(e) =>
+                    actualizarMovimientoCorte(
+                      tipo,
+                      row.id,
+                      "tipo_cambio",
+                      e.target.value
+                    )
+                  }
+                  style={{ ...estilos.input, width: "100%" }}
+                />
+              </div>
+            )}
+
+            <div>
+              <label style={estilos.panelLabel}>MONTO</label>
+              <input
+                type="number"
+                placeholder="$ 0.00"
+                value={row.monto}
+                onChange={(e) =>
+                  actualizarMovimientoCorte(
+                    tipo,
+                    row.id,
+                    "monto",
+                    e.target.value
+                  )
+                }
+                style={{ ...estilos.input, width: "100%" }}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginTop: "12px" }}>
+            <label style={estilos.panelLabel}>CONCEPTO</label>
+            <input
+              list={`conceptos-${tipo}`}
+              type="text"
+              placeholder="Concepto"
+              value={row.concepto}
+              onChange={(e) =>
+                actualizarMovimientoCorte(
+                  tipo,
+                  row.id,
+                  "concepto",
+                  e.target.value
+                )
+              }
+              style={{ ...estilos.input, width: "100%" }}
+            />
+
+            <datalist id={`conceptos-${tipo}`}>
+              {conceptosExistentes.map((concepto) => (
+                <option key={concepto} value={concepto} />
+              ))}
+            </datalist>
+          </div>
+
+          <div
+            style={{
+              marginTop: "10px",
+              fontSize: "13px",
+              color: "#555",
+              textAlign: "right",
+            }}
+          >
+            Monto MXN:{" "}
+            <strong>
+              $
+              {calcularMontoMXNMovimiento(row).toLocaleString("es-MX", {
+                minimumFractionDigits: 2,
+              })}
+            </strong>
+          </div>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={() => agregarMovimientoCorte(tipo)}
+        style={estilos.btnAdd}
+      >
+        {textoAgregar}
+      </button>
+
+      <div
+        style={{
+          marginTop: "15px",
+          padding: "12px",
+          background: "#111",
+          color: "#fff",
+          borderRadius: "8px",
+          textAlign: "right",
+          fontWeight: "700",
+        }}
+      >
+        Total:{" "}
+        {total.toLocaleString("es-MX", {
+          style: "currency",
+          currency: "MXN",
+        })}
+      </div>
+    </div>
+  );
+};
+
   const handlePhotoUpload = (e, tipo) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -281,29 +726,34 @@ const diferencia = totalGlobalMXN - montoVentaMeta;
 
   const descargarExcel = () => {
   exportarExcelCorte({
-    fechaReporte,
-    nombreReporte,
-    usuarioActivo,
-    iniciales: iniciales.toUpperCase(),
+  fechaReporte,
+  nombreReporte,
+  usuarioActivo,
+  iniciales: iniciales.toUpperCase(),
 
-    calcularMXN,
-    calcularUSD,
-    calcularCoverMXN,
-    calcularCoverUSD,
+  calcularMXN,
+  calcularUSD,
+  calcularCoverMXN,
+  calcularCoverUSD,
 
-    tc,
-    coverTPV,
-    totalCover,
+  tc,
+  coverTPV,
+  totalCover,
 
-    totalTarjetas,
-    totalVales,
-    totalCxC,
-    totalGlobalMXN,
-    montoVentaMeta,
-    diferencia,
-    valesRows,
-    cxcRows,
-  });
+  totalTarjetas,
+  totalVales,
+  totalGastosCorte,
+  totalReglamentos,
+  totalCxC,
+  totalGlobalMXN,
+  totalIngresos,
+  montoVentaMeta,
+  diferencia,
+  valesRows: [],
+  gastosCorteRows,
+  reglamentosRows,
+  cxcRows,
+});
 };
 
   const enviarADriveYExcel = async () => {
@@ -316,6 +766,32 @@ const diferencia = totalGlobalMXN - montoVentaMeta;
       alert("⚠️ Debes confirmar la diferencia con tus iniciales.");
       return;
     }
+
+    const errorGastosCorte = validarMovimientosCorte(
+  gastosCorteRows,
+  "Gastos de corte"
+);
+
+if (errorGastosCorte) {
+  alert(`⚠️ ${errorGastosCorte}`);
+  return;
+}
+
+const errorReglamentos = validarMovimientosCorte(
+  reglamentosRows,
+  "Reglamentos / Interventor"
+);
+
+if (errorReglamentos) {
+  alert(`⚠️ ${errorReglamentos}`);
+  return;
+}
+
+const gastosCorteParaGuardar =
+  prepararMovimientosCorte(gastosCorteRows);
+
+const reglamentosParaGuardar =
+  prepararMovimientosCorte(reglamentosRows);
 
     if (fotosTicket.length === 0) {
       const continuarSinTicket = window.confirm(
@@ -330,13 +806,25 @@ const diferencia = totalGlobalMXN - montoVentaMeta;
 
 Folio: ${nombreReporte}
 Operador: ${usuarioActivo}
-Total en caja: $${totalGlobalMXN.toLocaleString("es-MX", {
+Total general sin cover: $${totalGlobalMXN.toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+    })}
+Gastos de corte: $${totalGastosCorte.toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+    })}
+Total cover: $${totalCover.toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+    })}
+Reglamentos / Interventor: $${totalReglamentos.toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+    })}
+Total ingresos: $${totalIngresos.toLocaleString("es-MX", {
       minimumFractionDigits: 2,
     })}
 Venta ticket: $${montoVentaMeta.toLocaleString("es-MX", {
       minimumFractionDigits: 2,
     })}
-Diferencia: $${diferencia.toLocaleString("es-MX", {
+Diferencia ticket vs total general: $${diferencia.toLocaleString("es-MX", {
       minimumFractionDigits: 2,
     })}
 
@@ -370,13 +858,18 @@ coverTPV,
 totalCover,
 
 totalTarjetas,
-          totalVales,
+          totalVales: 0,
+          gastosCorte: totalGastosCorte,
+          reglamentos: totalReglamentos,
           totalCxC,
           totalGlobalMXN,
+          totalIngresos,
           ventaTicket: montoVentaMeta,
           diferencia,
           denominaciones: obtenerDenominacionesCorte(),
-          vales: valesRows,
+          vales: [],
+          gastosCorteDetalle: gastosCorteParaGuardar,
+          reglamentosDetalle: reglamentosParaGuardar,
           cxc: cxcRows,
         })
       );
@@ -642,6 +1135,36 @@ onVolver();
   <span style={{ ...estilos.panelLabel, color: "#2980b9" }}>
     TOTAL COVER
   </span>
+
+<div
+  style={{
+    ...estilos.panelItem,
+    border: "1px solid #111",
+    background: "#f7f7f7",
+    gridColumn: "span 2",
+  }}
+>
+  <span style={{ ...estilos.panelLabel, color: "#111" }}>
+    TOTAL INGRESOS
+  </span>
+  <div
+    style={{
+      ...estilos.panelMonto,
+      color: "#111",
+      fontSize: "24px",
+    }}
+  >
+    $
+    {totalIngresos.toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+    })}
+  </div>
+
+  <div style={{ fontSize: "11px", color: "#666", marginTop: "6px" }}>
+    Total general + total cover
+  </div>
+</div>
+
   <div
     style={{
       ...estilos.panelMonto,
@@ -665,7 +1188,7 @@ onVolver();
             }}
           >
             <span style={{ ...estilos.panelLabel, color: "#aaa" }}>
-              TOTAL TICKET {nombreReporte.toUpperCase()}
+              VENTA TICKET {nombreReporte.toUpperCase()}
             </span>
 
             <div style={{ fontSize: "24px", fontWeight: "700", color: "#fff" }}>
@@ -693,7 +1216,7 @@ onVolver();
                 color: "#888",
               }}
             >
-              DIFERENCIA FINAL
+              DIFERENCIA TICKET VS TOTAL GENERAL
             </span>
             <br />
             <strong
@@ -1053,57 +1576,47 @@ onVolver();
     <input
       type="checkbox"
       onChange={() =>
-        setSecciones({ ...secciones, vales: !secciones.vales })
+        setSecciones({
+          ...secciones,
+          reglamentos: !secciones.reglamentos,
+        })
       }
     />{" "}
-    6. VALES DE GASTOS
+    6. REGLAMENTOS / INTERVENTOR
   </label>
 
-  {secciones.vales && (
-    <div
-      style={{
-        marginTop: "15px",
-        padding: "15px",
-        background: "#fafafa",
-        borderRadius: "8px",
-      }}
-    >
-      {valesRows.map((row) => (
-        <div
-          key={row.id}
-          style={{ display: "flex", gap: "8px", marginBottom: "8px" }}
-        >
-          <input
-            type="text"
-            placeholder="Concepto"
-            value={row.concepto}
-            onChange={(e) =>
-              updateRow(row.id, "vales", "concepto", e.target.value)
-            }
-            style={{ ...estilos.input, flex: 2 }}
-          />
-          <input
-            type="number"
-            placeholder="$"
-            value={row.monto}
-            onChange={(e) =>
-              updateRow(row.id, "vales", "monto", e.target.value)
-            }
-            style={{ ...estilos.input, flex: 1 }}
-          />
-        </div>
-      ))}
-
-      <button
-        type="button"
-        onClick={() => addRow("vales")}
-        style={estilos.btnAdd}
-      >
-        + Añadir vale
-      </button>
-    </div>
-  )}
+  {secciones.reglamentos &&
+    renderMovimientoCorte({
+      tipo: "reglamentos",
+      rows: reglamentosRows,
+      total: totalReglamentos,
+      textoAgregar: "+ Añadir reglamento",
+    })}
 </div>
+
+<div style={estilos.section}>
+  <label style={estilos.labelCheck}>
+    <input
+      type="checkbox"
+      onChange={() =>
+        setSecciones({
+          ...secciones,
+          gastos_corte: !secciones.gastos_corte,
+        })
+      }
+    />{" "}
+    7. GASTOS DE CORTE
+  </label>
+
+  {secciones.gastos_corte &&
+    renderMovimientoCorte({
+      tipo: "gastos_corte",
+      rows: gastosCorteRows,
+      total: totalGastosCorte,
+      textoAgregar: "+ Añadir gasto de corte",
+    })}
+</div>
+
           <div style={estilos.section}>
             <label style={estilos.labelCheck}>
               <input
@@ -1113,7 +1626,7 @@ onVolver();
                 }
               />{" "}
 
-              7. CUENTAS POR COBRAR
+              8. CUENTAS POR COBRAR
             </label>
 
             {secciones.cxc && (
