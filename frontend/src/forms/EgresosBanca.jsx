@@ -19,6 +19,7 @@ function EgresosBanca({ usuarioActivo, usuarioId, rol, onVolver }) {
   const [fotosEgreso, setFotosEgreso] = useState([]);
   const [proveedoresExistentes, setProveedoresExistentes] = useState([]);
 const [categoriasExistentes, setCategoriasExistentes] = useState([]);
+const [conceptosExistentes, setConceptosExistentes] = useState([]);
 const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
   String(rol || "").trim().toLowerCase()
 );
@@ -70,8 +71,25 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
     }
   };
 
+  const cargarConceptos = async () => {
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/egresos/conceptos`
+    );
+
+    const resultado = await respuesta.json();
+
+    if (resultado.success) {
+      setConceptosExistentes(resultado.conceptos || []);
+    }
+  } catch (error) {
+    console.error("Error cargando conceptos:", error);
+  }
+};
+
   cargarProveedores();
   cargarCategorias();
+  cargarConceptos();
 
 }, []);
 
@@ -442,15 +460,22 @@ onVolver();
             </label>
 
             <input
-              placeholder="Concepto del egreso"
-              value={conceptoEgreso}
-              onChange={(e) => setConceptoEgreso(e.target.value)}
-              style={{
-                ...estilos.input,
-                width: "100%",
-                marginBottom: "10px",
-              }}
-            />
+  list="conceptos-egresos-banca"
+  placeholder="Concepto del egreso"
+  value={conceptoEgreso}
+  onChange={(e) => setConceptoEgreso(e.target.value)}
+  style={{
+    ...estilos.input,
+    width: "100%",
+    marginBottom: "10px",
+  }}
+/>
+
+<datalist id="conceptos-egresos-banca">
+  {conceptosExistentes.map((concepto) => (
+    <option key={concepto} value={concepto} />
+  ))}
+</datalist>
 
             <div style={{ display: "flex", gap: "5px" }}>
 
