@@ -41,7 +41,12 @@ const permisosPorRol = {
     "empleados",
     "historial_nomina",
   ],
-  cajero: ["caja"],
+  cajero: [
+    "egresos_caja",
+    "egresos_bancos",
+    "egresos_banca",
+    "caja",
+  ],
 };
 
 function normalizarRol(rol) {
