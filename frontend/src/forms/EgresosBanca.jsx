@@ -479,22 +479,22 @@ onVolver();
 
             <div style={{ display: "flex", gap: "5px" }}>
 
-              <input
-                list="proveedores-data"
-                placeholder="Proveedor / Beneficiario"
-                value={beneficiarioEgreso}
-                onChange={(e) => setBeneficiarioEgreso(e.target.value)}
-                style={{
-                  ...estilos.input,
-                  flex: 1,
-                }}
-              />
+              <select
+  value={beneficiarioEgreso}
+  onChange={(e) => setBeneficiarioEgreso(e.target.value)}
+  style={{
+    ...estilos.input,
+    width: "100%",
+  }}
+>
+  <option value="">-- Selecciona proveedor --</option>
 
-              <datalist id="proveedores-data">
   {proveedoresExistentes.map((proveedor) => (
-    <option key={proveedor.id} value={proveedor.nombre} />
+    <option key={proveedor.id} value={proveedor.nombre}>
+      {proveedor.nombre}
+    </option>
   ))}
-</datalist>
+</select>
 
               <button
                 type="button"
