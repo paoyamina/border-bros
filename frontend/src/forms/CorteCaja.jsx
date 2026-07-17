@@ -1136,35 +1136,6 @@ onVolver();
     TOTAL COVER
   </span>
 
-<div
-  style={{
-    ...estilos.panelItem,
-    border: "1px solid #111",
-    background: "#f7f7f7",
-    gridColumn: "span 2",
-  }}
->
-  <span style={{ ...estilos.panelLabel, color: "#111" }}>
-    TOTAL INGRESOS
-  </span>
-  <div
-    style={{
-      ...estilos.panelMonto,
-      color: "#111",
-      fontSize: "24px",
-    }}
-  >
-    $
-    {totalIngresos.toLocaleString("es-MX", {
-      minimumFractionDigits: 2,
-    })}
-  </div>
-
-  <div style={{ fontSize: "11px", color: "#666", marginTop: "6px" }}>
-    Total general + total cover
-  </div>
-</div>
-
   <div
     style={{
       ...estilos.panelMonto,
@@ -1176,6 +1147,42 @@ onVolver();
     {totalCover.toLocaleString("es-MX", {
       minimumFractionDigits: 2,
     })}
+  </div>
+</div>
+
+<div
+  style={{
+    ...estilos.panelItem,
+    background: "#123d27",
+    color: "white",
+    gridColumn: "span 2",
+  }}
+>
+  <span style={{ ...estilos.panelLabel, color: "#d7e8dc" }}>
+    TOTAL INGRESOS
+  </span>
+
+  <div
+    style={{
+      fontSize: "26px",
+      fontWeight: "700",
+      color: "#fff",
+    }}
+  >
+    $
+    {totalIngresos.toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+    })}
+  </div>
+
+  <div
+    style={{
+      fontSize: "11px",
+      color: "#d7e8dc",
+      marginTop: "6px",
+    }}
+  >
+    Total general sin cover + total cover
   </div>
 </div>
 
