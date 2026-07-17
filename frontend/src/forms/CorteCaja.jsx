@@ -1044,6 +1044,75 @@ onVolver();
             </div>
           </div>
 
+                    <div
+            style={{
+              ...estilos.panelItem,
+              background: "#1a1a1a",
+              color: "white",
+              gridColumn: "span 2",
+            }}
+          >
+            <span style={{ ...estilos.panelLabel, color: "#aaa" }}>
+              VENTA TICKET {nombreReporte.toUpperCase()}
+            </span>
+
+            <div style={{ fontSize: "24px", fontWeight: "700", color: "#fff" }}>
+              ${montoVentaMeta.toLocaleString()}
+            </div>
+          </div>
+
+          <div
+  style={{
+    gridColumn: "span 2",
+    background:
+      Math.abs(diferencia) < 0.1 && montoVentaMeta > 0
+        ? "#f0fff4"
+        : "#fff1f1",
+    border:
+      Math.abs(diferencia) < 0.1 && montoVentaMeta > 0
+        ? "1px solid #2ecc71"
+        : "1px solid #f5c2c2",
+    padding: "15px",
+    borderRadius: "8px",
+    textAlign: "center",
+  }}
+>
+  <span
+    style={{
+      fontSize: "10px",
+      textTransform: "uppercase",
+      color: "#888",
+    }}
+  >
+    {Math.abs(diferencia) < 0.1 && montoVentaMeta > 0
+      ? "CORTE CUADRADO"
+      : diferencia > 0
+      ? "FALTANTE TICKET VS TOTAL GENERAL"
+      : "SOBRANTE TICKET VS TOTAL GENERAL"}
+  </span>
+
+  <br />
+
+  <strong
+    style={{
+      fontSize: "28px",
+      color:
+        Math.abs(diferencia) < 0.1 && montoVentaMeta > 0
+          ? "#2ecc71"
+          : "#e74c3c",
+    }}
+  >
+    $
+    {Math.abs(diferencia).toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+    })}
+  </strong>
+
+  <div style={{ fontSize: "11px", color: "#777", marginTop: "6px" }}>
+    Venta ticket - total general sin cover
+  </div>
+</div>
+
           <div
   style={{
     ...estilos.panelItem,
@@ -1186,55 +1255,6 @@ onVolver();
   </div>
 </div>
 
-          <div
-            style={{
-              ...estilos.panelItem,
-              background: "#1a1a1a",
-              color: "white",
-              gridColumn: "span 2",
-            }}
-          >
-            <span style={{ ...estilos.panelLabel, color: "#aaa" }}>
-              VENTA TICKET {nombreReporte.toUpperCase()}
-            </span>
-
-            <div style={{ fontSize: "24px", fontWeight: "700", color: "#fff" }}>
-              ${montoVentaMeta.toLocaleString()}
-            </div>
-          </div>
-
-          <div
-            style={{
-              gridColumn: "span 2",
-              background:
-                Math.abs(diferencia) < 0.1 && montoVentaMeta > 0
-                  ? "#fafafa"
-                  : "#fff1f1",
-              border: "1px solid #eee",
-              padding: "15px",
-              borderRadius: "8px",
-              textAlign: "center",
-            }}
-          >
-            <span
-              style={{
-                fontSize: "10px",
-                textTransform: "uppercase",
-                color: "#888",
-              }}
-            >
-              DIFERENCIA TICKET VS TOTAL GENERAL
-            </span>
-            <br />
-            <strong
-              style={{
-                fontSize: "28px",
-                color: Math.abs(diferencia) < 0.1 ? "#2ecc71" : "#e74c3c",
-              }}
-            >
-              ${diferencia.toLocaleString("es-MX")}
-            </strong>
-          </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
@@ -1803,10 +1823,10 @@ onVolver();
               }}
             >
               <strong style={{ color: "#e74c3c" }}>
-                {diferencia < 0
-                  ? `🚨 Faltante: $${Math.abs(diferencia).toLocaleString()}`
-                  : `⚠️ Sobrante: $${diferencia.toLocaleString()}`}
-              </strong>
+              {diferencia > 0
+                ? `🚨 Faltante: $${Math.abs(diferencia).toLocaleString("es-MX")}`
+                : `⚠️ Sobrante: $${Math.abs(diferencia).toLocaleString("es-MX")}`}
+            </strong>
               <br />
 
               <p
