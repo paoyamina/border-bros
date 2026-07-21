@@ -744,6 +744,135 @@ app.post('/api/egresos', async (req, res) => {
   }
 });
 
+// Obtener egresos registrados por negocio
+app.get('/api/egresos', async (req, res) => {
+  try {
+    const {
+      negocio_id,
+      fecha_inicio,
+      fecha_fin,
+      tipo_egreso,
+      categoria_id,
+      proveedor_id,
+      concepto,
+      referencia,
+      estatus
+    } = req.query;
+
+    const negocioId = Number(negocio_id);
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'El negocio_id es obligatorio'
+      });
+    }
+
+    const condiciones = ['e.negocio_id = $1'];
+    const valores = [negocioId];
+
+    const agregarCondicion = (condicion, valor) => {
+      valores.push(valor);
+      condiciones.push(
+        condicion.replace('?', `$${valores.length}`)
+      );
+    };
+
+    if (fecha_inicio) {
+      agregarCondicion('e.fecha >= ?', fecha_inicio);
+    }
+
+    if (fecha_fin) {
+      agregarCondicion('e.fecha <= ?', fecha_fin);
+    }
+
+    if (tipo_egreso) {
+      agregarCondicion('e.tipo_egreso = ?', tipo_egreso);
+    }
+
+    if (categoria_id) {
+      agregarCondicion('e.categoria_id = ?', Number(categoria_id));
+    }
+
+    if (proveedor_id) {
+      agregarCondicion('e.proveedor_id = ?', Number(proveedor_id));
+    }
+
+    if (concepto && concepto.trim()) {
+      agregarCondicion(
+        `LOWER(COALESCE(e.concepto, '')) LIKE LOWER(?)`,
+        `%${concepto.trim()}%`
+      );
+    }
+
+    if (referencia && referencia.trim()) {
+      agregarCondicion(
+        `LOWER(COALESCE(e.referencia, '')) LIKE LOWER(?)`,
+        `%${referencia.trim()}%`
+      );
+    }
+
+    if (estatus) {
+      agregarCondicion(
+        `COALESCE(e.estatus, 'REGISTRADO') = ?`,
+        estatus
+      );
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          e.id,
+          e.tipo_egreso,
+          e.fecha,
+          e.divisa,
+          e.tipo_cambio,
+          e.monto_original,
+          e.monto_mxn,
+          e.negocio_id,
+          e.categoria_id,
+          c.nombre AS categoria,
+          e.proveedor_id,
+          p.nombre AS proveedor,
+          e.concepto,
+          e.cuenta_id,
+          e.referencia,
+          e.usuario_crea_id,
+          u.nombre AS usuario_crea,
+          e.drive_folder_id,
+          e.drive_folder_url,
+          COALESCE(e.estatus, 'REGISTRADO') AS estatus,
+          e.created_at,
+          e.updated_at
+        FROM egresos e
+        LEFT JOIN categorias c
+          ON c.id = e.categoria_id
+        LEFT JOIN proveedores p
+          ON p.id = e.proveedor_id
+        LEFT JOIN usuarios u
+          ON u.id = e.usuario_crea_id
+        WHERE ${condiciones.join(' AND ')}
+        ORDER BY e.fecha DESC, e.id DESC
+      `,
+      valores
+    );
+
+    return res.json({
+      success: true,
+      egresos: result.rows
+    });
+
+  } catch (error) {
+    console.error('Error cargando egresos:', error);
+
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+
 // Obtener conceptos únicos usados en egresos
 app.get('/api/egresos/conceptos', async (req, res) => {
   try {
