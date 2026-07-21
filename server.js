@@ -842,7 +842,7 @@ app.get('/api/egresos', async (req, res) => {
           e.drive_folder_id,
           e.drive_folder_url,
           COALESCE(e.estatus, 'REGISTRADO') AS estatus,
-          e.created_at,
+          e.fecha_creacion AS created_at,
           e.updated_at
         FROM egresos e
         LEFT JOIN categorias c
