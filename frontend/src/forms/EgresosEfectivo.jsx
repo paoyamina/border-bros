@@ -21,6 +21,7 @@ function EgresosEfectivo({
   const [proveedoresExistentes, setProveedoresExistentes] = useState([]);
 const [categoriasExistentes, setCategoriasExistentes] = useState([]);
 const [conceptosExistentes, setConceptosExistentes] = useState([]);
+const [guardando, setGuardando] = useState(false);
 const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
   String(rol || "").trim().toLowerCase()
 );
@@ -108,6 +109,18 @@ const cargarConceptos = async () => {
 
   setCategoriaEgreso(nueva.trim());
 };
+
+const limpiarFormulario = () => {
+  // Conservamos la fecha para capturar varios egresos del mismo día.
+  setMontoEgreso("");
+  setDivisaEgreso("MXN");
+  setTcEgreso(18.5);
+  setCategoriaEgreso("");
+  setConceptoEgreso("");
+  setBeneficiarioEgreso("");
+  setFotosEgreso([]);
+};
+
 const descargarExcelEgreso = () => {
 
   const filas = [
@@ -169,8 +182,13 @@ Monto: ${
     }
 `);
 
-    if (!confirmar) return;
-   try {
+  if (!confirmar) return;
+
+if (guardando) return;
+
+setGuardando(true);
+
+try {
   const formData = new FormData();
 
   formData.append(
@@ -261,13 +279,20 @@ if (!resultadoBD.success) {
   throw new Error(resultadoBD.error || "Error al guardar en base de datos.");
 }
 
+// Safari: la descarga ocurre solamente después de confirmar
+// que la base de datos guardó correctamente.
 descargarExcelEgreso();
 
-alert("✅ Egreso efectivo registrado correctamente y Excel descargado.");
-onVolver();
+limpiarFormulario();
+
+alert(
+  "✅ Egreso efectivo registrado correctamente. Ya puedes capturar otro gasto."
+);
 } catch (error) {
   console.error("Error al registrar egreso efectivo:", error);
   alert("🚨 Error al registrar egreso efectivo: " + error.message);
+} finally {
+  setGuardando(false);
 }
   };
 

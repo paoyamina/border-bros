@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import Login from "./components/Login";
 import MenuPrincipal from "./components/MenuPrincipal";
-
+import GestionEgresos from "./components/GestionEgresos";
 import CorteCaja from "./forms/CorteCaja";
 import EgresosEfectivo from "./forms/EgresosEfectivo";
 import EgresosBancos from "./forms/EgresosBancos";
@@ -365,6 +365,17 @@ if (!isLoggedIn) {
     );
   }
 
+  if (formularioActivo === "egresos") {
+  return (
+    <GestionEgresos
+      usuarioActivo={usuarioActivo}
+      rol={rol}
+      onSeleccionarTipo={setFormularioActivo}
+      onVolver={volverAlMenu}
+    />
+  );
+}
+
   if (formularioActivo === "egresos_caja") {
     return (
       <EgresosEfectivo
@@ -397,6 +408,13 @@ if (!isLoggedIn) {
 />
     );
   }
+
+  if (formularioActivo === "egresos") {
+   return <GestionEgresos usuarioActivo={usuarioActivo}
+  usuarioId={usuarioId}
+  rol={rol}
+  onVolver={volverAlMenu} />
+}
 
   if (formularioActivo === "nomina") {
     return (

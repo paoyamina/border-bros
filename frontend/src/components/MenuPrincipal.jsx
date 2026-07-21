@@ -64,6 +64,14 @@ function puedeVer(rol, formulario) {
   return permisosPorRol[rolNormalizado]?.includes(formulario);
 }
 
+function puedeVerEgresos(rol) {
+  return (
+    puedeVer(rol, "egresos_caja") ||
+    puedeVer(rol, "egresos_bancos") ||
+    puedeVer(rol, "egresos_banca")
+  );
+}
+
 function MenuPrincipal({ usuarioActivo, rol, onSeleccionarFormulario, onLogout }) {
   const estiloBotonMenu = {
   width: "100%",
@@ -129,35 +137,26 @@ function MenuPrincipal({ usuarioActivo, rol, onSeleccionarFormulario, onLogout }
           </button>
         )}
 
-        {puedeVer(rol, "egresos_caja") && (
-          <button onClick={() => onSeleccionarFormulario("egresos_caja")} style={estiloBotonMenu}>
-            EGRESOS CAJA (EFECTIVO)
-          </button>
-        )}
+        {puedeVerEgresos(rol) && (
+            <button
+              onClick={() => onSeleccionarFormulario("egresos")}
+              style={estiloBotonMenu}
+            >
+              GESTIÓN DE EGRESOS
+            </button>
+          )}
 
-        {puedeVer(rol, "egresos_bancos") && (
-          <button onClick={() => onSeleccionarFormulario("egresos_bancos")} style={estiloBotonMenu}>
-            EGRESOS BANCOS
-          </button>
-        )}
+                  {puedeVer(rol, "nomina") && (
+                    <button onClick={() => onSeleccionarFormulario("nomina")} style={estiloBotonMenu}>
+                      RESUMEN NÓMINA
+                    </button>
+                  )}
 
-        {puedeVer(rol, "egresos_banca") && (
-          <button onClick={() => onSeleccionarFormulario("egresos_banca")} style={estiloBotonMenu}>
-            EGRESOS BANCA
-          </button>
-        )}
-
-        {puedeVer(rol, "nomina") && (
-          <button onClick={() => onSeleccionarFormulario("nomina")} style={estiloBotonMenu}>
-            RESUMEN NÓMINA
-          </button>
-        )}
-
-        {puedeVer(rol, "aprobaciones_nomina") && (
-  <button
-    onClick={() => onSeleccionarFormulario("aprobaciones_nomina")}
-    style={estiloBotonMenu}
-  >
+                  {puedeVer(rol, "aprobaciones_nomina") && (
+            <button
+              onClick={() => onSeleccionarFormulario("aprobaciones_nomina")}
+              style={estiloBotonMenu}
+            >
     APROBACIONES NÓMINA
   </button>
 )}
