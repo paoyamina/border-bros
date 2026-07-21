@@ -145,6 +145,8 @@ const [egresoSeleccionado, setEgresoSeleccionado] = useState(null);
       actualizarTabla
     );
   };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [negocioId]);
 
   const cambiarFiltro = (evento) => {

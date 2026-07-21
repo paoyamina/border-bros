@@ -21,7 +21,7 @@ function App() {
   const [usuarioId, setUsuarioId] = useState(null);
   const [rol, setRol] = useState(null);
   const [negocioId, setNegocioId] = useState(null);
-  const [usuario, setUsuario] = useState(null);
+  const [, setUsuario] = useState(null);
   const [mostrandoSplash, setMostrandoSplash] = useState(true);
   const [seccionSeleccionada, setSeccionSeleccionada] = useState(null);
   const puedeEntrarAnalisis = (rolUsuario) => {
