@@ -7,6 +7,7 @@ import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 function EgresosEfectivo({
   usuarioActivo,
   usuarioId,
+  negocioId,
   rol,
   onVolver
 }) {
@@ -32,7 +33,7 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
     try {
 
       const respuesta = await fetch(
-        `${API_BASE_URL}/api/proveedores`
+        `${API_BASE_URL}/api/proveedores?negocio_id=${negocioId}`
       );
 
       const resultado = await respuesta.json();
@@ -52,7 +53,7 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
   try {
 
     const respuesta = await fetch(
-      `${API_BASE_URL}/api/categorias`
+      `${API_BASE_URL}/api/categorias?negocio_id=${negocioId}`
     );
 
     const resultado = await respuesta.json();
@@ -88,26 +89,111 @@ const cargarConceptos = async () => {
 
 
   
-}, []);
+}, [negocioId]);
  
 
   const montoNumerico = parseFloat(montoEgreso) || 0;
   const montoMXN = divisaEgreso === "USD" ? montoNumerico * tcEgreso : montoNumerico;
 
-  const agregarProveedor = () => {
+  const agregarProveedor = async () => {
   const nuevo = prompt("Nombre del nuevo proveedor:");
 
   if (!nuevo?.trim()) return;
 
-  setBeneficiarioEgreso(nuevo.trim());
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/proveedores/buscar-o-crear`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: nuevo.trim(),
+          usuario_id: usuarioId,
+          negocio_id: negocioId,
+        }),
+      }
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(
+        resultado.error || "No se pudo guardar el proveedor."
+      );
+    }
+
+    const proveedorGuardado = resultado.proveedor;
+
+    setProveedoresExistentes((prev) => {
+      const yaExiste = prev.some(
+        (proveedor) => proveedor.id === proveedorGuardado.id
+      );
+
+      if (yaExiste) return prev;
+
+      return [...prev, proveedorGuardado].sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, "es")
+      );
+    });
+
+    setBeneficiarioEgreso(proveedorGuardado.nombre);
+
+    alert("✅ Proveedor agregado correctamente.");
+  } catch (error) {
+    alert("🚨 Error al agregar proveedor: " + error.message);
+  }
 };
 
-   const agregarCategoria = () => {
+   const agregarCategoria = async () => {
   const nueva = prompt("Nombre de la nueva categoría:");
 
   if (!nueva?.trim()) return;
 
-  setCategoriaEgreso(nueva.trim());
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/categorias/buscar-o-crear`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: nueva.trim(),
+          negocio_id: negocioId,
+        }),
+      }
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(
+        resultado.error || "No se pudo guardar la categoría."
+      );
+    }
+
+    const categoriaGuardada = resultado.categoria;
+
+    setCategoriasExistentes((prev) => {
+      const yaExiste = prev.some(
+        (categoria) => categoria.id === categoriaGuardada.id
+      );
+
+      if (yaExiste) return prev;
+
+      return [...prev, categoriaGuardada].sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, "es")
+      );
+    });
+
+    setCategoriaEgreso(categoriaGuardada.nombre);
+
+    alert("✅ Categoría agregada correctamente.");
+  } catch (error) {
+    alert("🚨 Error al agregar categoría: " + error.message);
+  }
 };
 
 const limpiarFormulario = () => {
@@ -237,9 +323,10 @@ try {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    nombre: beneficiarioEgreso,
-    usuario_id: usuarioId,
-  }),
+  nombre: beneficiarioEgreso,
+  usuario_id: usuarioId,
+  negocio_id: negocioId,
+}),
 });
 
 const resultadoProveedor = await respuestaProveedor.json();
@@ -249,6 +336,29 @@ if (!resultadoProveedor.success) {
 }
 
 const proveedorId = resultadoProveedor.proveedor.id;
+const respuestaCategoria = await fetch(
+  `${API_BASE_URL}/api/categorias/buscar-o-crear`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      nombre: categoriaEgreso,
+      negocio_id: negocioId,
+    }),
+  }
+);
+
+const resultadoCategoria = await respuestaCategoria.json();
+
+if (!resultadoCategoria.success) {
+  throw new Error(
+    resultadoCategoria.error || "Error al guardar categoría."
+  );
+}
+
+const categoriaId = resultadoCategoria.categoria.id;
   const respuestaBD = await fetch(`${API_BASE_URL}/api/egresos`, {
   method: "POST",
   headers: {
@@ -261,6 +371,8 @@ const proveedorId = resultadoProveedor.proveedor.id;
   tipo_cambio: divisaEgreso === "USD" ? tcEgreso : 1,
   monto_original: montoNumerico,
   monto_mxn: montoMXN,
+   negocio_id: negocioId,
+  categoria_id: categoriaId,
   proveedor_id: proveedorId,
   concepto: conceptoEgreso,
   referencia: null,
@@ -284,6 +396,8 @@ if (!resultadoBD.success) {
 descargarExcelEgreso();
 
 limpiarFormulario();
+
+window.dispatchEvent(new Event("egresoActualizado"));
 
 alert(
   "✅ Egreso efectivo registrado correctamente. Ya puedes capturar otro gasto."
@@ -516,16 +630,23 @@ alert(
           </div>
 
           <button
-            onClick={enviarEgresoADrive}
-            disabled={!montoEgreso || !conceptoEgreso}
-            style={{
-              ...estilos.btnSubmit,
-              marginTop: "10px",
-              background: !montoEgreso || !conceptoEgreso ? "#ccc" : "#000",
-            }}
-          >
-            REGISTRAR EGRESO DE CAJA
-          </button>
+          onClick={enviarEgresoADrive}
+          disabled={guardando || !montoEgreso || !conceptoEgreso}
+          style={{
+            ...estilos.btnSubmit,
+            marginTop: "10px",
+            background:
+              guardando || !montoEgreso || !conceptoEgreso
+                ? "#ccc"
+                : "#000",
+            cursor:
+              guardando || !montoEgreso || !conceptoEgreso
+                ? "not-allowed"
+                : "pointer",
+          }}
+        >
+          {guardando ? "GUARDANDO..." : "REGISTRAR EGRESO DE CAJA"}
+        </button>
         </div>
       </div>
     </div>

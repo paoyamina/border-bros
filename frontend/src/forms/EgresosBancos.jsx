@@ -4,7 +4,13 @@ import estilos from "../styles/estilos";
 import { validarEgreso } from "../utils/validaciones";
 import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 
-function EgresosBancos({ usuarioActivo, usuarioId, rol, onVolver }) {
+function EgresosBancos({
+  usuarioActivo,
+  usuarioId,
+  negocioId,
+  rol,
+  onVolver
+}) {
 
   const [fechaEgreso, setFechaEgreso] = useState(
     new Date().toISOString().split("T")[0]
@@ -33,7 +39,7 @@ useEffect(() => {
     try {
 
       const respuesta = await fetch(
-        `${API_BASE_URL}/api/proveedores`
+        `${API_BASE_URL}/api/proveedores?negocio_id=${negocioId}`
       );
 
       const resultado = await respuesta.json();
@@ -52,7 +58,7 @@ useEffect(() => {
     try {
 
       const respuesta = await fetch(
-        `${API_BASE_URL}/api/categorias`
+        `${API_BASE_URL}/api/categorias?negocio_id=${negocioId}`
       );
 
       const resultado = await respuesta.json();
@@ -86,7 +92,7 @@ useEffect(() => {
   cargarCategorias();
   cargarConceptos();
 
-}, []);
+}, [negocioId]);
 
 const agregarProveedor = async () => {
   const nuevo = prompt("Nombre del nuevo proveedor:");
@@ -102,8 +108,9 @@ const agregarProveedor = async () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          nombre: nuevo.trim(),
-          usuario_id: usuarioId,
+        nombre: nuevo.trim(),
+        usuario_id: usuarioId,
+        negocio_id: negocioId,
         }),
       }
     );
@@ -152,8 +159,9 @@ const agregarProveedor = async () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          nombre: nueva.trim(),
-        }),
+  nombre: nueva.trim(),
+  negocio_id: negocioId,
+}),
       }
     );
 
@@ -185,6 +193,17 @@ const agregarProveedor = async () => {
   } catch (error) {
     alert("🚨 Error al agregar categoría: " + error.message);
   }
+};
+
+const limpiarFormulario = () => {
+  setFechaEgreso(new Date().toISOString().split("T")[0]);
+  setMontoEgreso("");
+  setCategoriaEgreso("");
+  setConceptoEgreso("");
+  setBeneficiarioEgreso("");
+  setBancoOrigen("BBVA");
+  setReferencia("");
+  setFotosEgreso([]);
 };
 
 const descargarExcelBanco = () => {
@@ -290,9 +309,10 @@ Monto: $${parseFloat(montoEgreso).toLocaleString()}
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    nombre: beneficiarioEgreso,
-    usuario_id: usuarioId,
-  }),
+  nombre: beneficiarioEgreso,
+  usuario_id: usuarioId,
+  negocio_id: negocioId,
+}),
 });
 
 const resultadoProveedor = await respuestaProveedor.json();
@@ -309,8 +329,9 @@ const respuestaCategoria = await fetch(`${API_BASE_URL}/api/categorias/buscar-o-
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    nombre: categoriaEgreso,
-  }),
+  nombre: categoriaEgreso,
+  negocio_id: negocioId,
+}),
 });
 
 const resultadoCategoria = await respuestaCategoria.json();
@@ -335,6 +356,7 @@ const respuestaBD = await fetch(`${API_BASE_URL}/api/egresos`, {
     tipo_cambio: 1,
     monto_original: montoNumerico,
     monto_mxn: montoNumerico,
+    negocio_id: negocioId,
     categoria_id: categoriaId,
     proveedor_id: proveedorId,
     concepto: conceptoEgreso,
@@ -356,8 +378,10 @@ if (!resultadoBD.success) {
 
 descargarExcelBanco();
 
-alert("✅ Egreso bancario registrado correctamente y Excel descargado.");
-onVolver();
+alert("✅ Egreso banco registrado correctamente y Excel descargado.");
+limpiarFormulario();
+
+window.dispatchEvent(new Event("egresoActualizado"));
 
 } catch (error) {
 

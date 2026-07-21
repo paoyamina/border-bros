@@ -40,11 +40,12 @@ function Login({ onLogin }) {
       }
 
       onLogin({
-        id: datos.id,
-        nombre: datos.nombre,
-        rol: datos.rol,
-        idCajero: userCredentials.idCajero,
-      });
+  id: datos.id,
+  nombre: datos.nombre,
+  rol: datos.rol,
+  negocio_id: datos.negocio_id,
+  idCajero: userCredentials.idCajero,
+});
     } catch (error) {
       console.error("Error en login:", error);
       alert("🚨 Error de conexión. El servidor no responde.");

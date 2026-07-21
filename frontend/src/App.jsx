@@ -20,6 +20,8 @@ function App() {
   const [usuarioActivo, setUsuarioActivo] = useState(null);
   const [usuarioId, setUsuarioId] = useState(null);
   const [rol, setRol] = useState(null);
+  const [negocioId, setNegocioId] = useState(null);
+  const [usuario, setUsuario] = useState(null);
   const [mostrandoSplash, setMostrandoSplash] = useState(true);
   const [seccionSeleccionada, setSeccionSeleccionada] = useState(null);
   const puedeEntrarAnalisis = (rolUsuario) => {
@@ -36,6 +38,7 @@ function App() {
 }, []);
 
 const manejarLoginExitoso = (usuario) => {
+  
   if (
     seccionSeleccionada === "analisis" &&
     !puedeEntrarAnalisis(usuario.rol)
@@ -47,17 +50,23 @@ const manejarLoginExitoso = (usuario) => {
     setIsLoggedIn(false);
     setFormularioActivo(null);
     setUsuarioActivo(null);
+    setUsuario(null);
     setUsuarioId(null);
     setRol(null);
+    setNegocioId(null);
     setSeccionSeleccionada(null);
 
     return;
   }
 
   setIsLoggedIn(true);
+  setUsuario(usuario);
   setUsuarioActivo(usuario.nombre);
   setUsuarioId(usuario.id);
   setRol(usuario.rol);
+  setNegocioId(usuario.negocio_id);
+  console.log("LOGIN:", usuario);
+console.log("negocio_id:", usuario.negocio_id);
 
   if (seccionSeleccionada === "analisis") {
     setFormularioActivo("analisis_financiero");
@@ -74,8 +83,10 @@ const manejarLoginExitoso = (usuario) => {
   setIsLoggedIn(false);
   setFormularioActivo(null);
   setUsuarioActivo(null);
+  setUsuario(null);
   setUsuarioId(null);
   setRol(null);
+  setNegocioId(null);
   setSeccionSeleccionada(null);
 };
 
@@ -370,6 +381,7 @@ if (!isLoggedIn) {
     <GestionEgresos
       usuarioActivo={usuarioActivo}
       rol={rol}
+      negocioId={negocioId}
       onSeleccionarTipo={setFormularioActivo}
       onVolver={volverAlMenu}
     />
@@ -381,20 +393,22 @@ if (!isLoggedIn) {
       <EgresosEfectivo
   usuarioActivo={usuarioActivo}
   usuarioId={usuarioId}
+  negocioId={negocioId}
   rol={rol}
   onVolver={volverAlMenu}
-        />
+/>
     );
   }
 
   if (formularioActivo === "egresos_bancos") {
     return (
       <EgresosBancos
-        usuarioActivo={usuarioActivo}
-       usuarioId={usuarioId}
-        rol={rol}
-       onVolver={volverAlMenu}
-      />
+  usuarioActivo={usuarioActivo}
+  usuarioId={usuarioId}
+  negocioId={negocioId}
+  rol={rol}
+  onVolver={volverAlMenu}
+/>
     );
   }
 
@@ -403,18 +417,12 @@ if (!isLoggedIn) {
      <EgresosBanca
   usuarioActivo={usuarioActivo}
   usuarioId={usuarioId}
+  negocioId={negocioId}
   rol={rol}
   onVolver={volverAlMenu}
 />
     );
   }
-
-  if (formularioActivo === "egresos") {
-   return <GestionEgresos usuarioActivo={usuarioActivo}
-  usuarioId={usuarioId}
-  rol={rol}
-  onVolver={volverAlMenu} />
-}
 
   if (formularioActivo === "nomina") {
     return (

@@ -4,7 +4,13 @@ import estilos from "../styles/estilos";
 import { validarEgreso } from "../utils/validaciones";
 import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 
-function EgresosBanca({ usuarioActivo, usuarioId, rol, onVolver }) {
+function EgresosBanca({
+  usuarioActivo,
+  usuarioId,
+  negocioId,
+  rol,
+  onVolver
+}) {
 
   const [fechaEgreso, setFechaEgreso] = useState(
     new Date().toISOString().split("T")[0]
@@ -14,7 +20,7 @@ function EgresosBanca({ usuarioActivo, usuarioId, rol, onVolver }) {
   const [categoriaEgreso, setCategoriaEgreso] = useState("");
   const [conceptoEgreso, setConceptoEgreso] = useState("");
   const [beneficiarioEgreso, setBeneficiarioEgreso] = useState("");
-  const [bancoOrigen, setBancoOrigen] = useState("BBVA");
+  const [bancoOrigen, setBancoOrigen] = useState("Kueski");
   const [referencia, setReferencia] = useState("");
   const [fotosEgreso, setFotosEgreso] = useState([]);
   const [proveedoresExistentes, setProveedoresExistentes] = useState([]);
@@ -24,13 +30,6 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
   String(rol || "").trim().toLowerCase()
 );
 
-  const [listaCategorias, setListaCategorias] = useState([
-    "Proveedores",
-    "Nómina / Anticipos",
-    "Gastos Operativos",
-    "Mantenimiento",
-  ]);
-
   useEffect(() => {
 
   const cargarProveedores = async () => {
@@ -38,7 +37,7 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
     try {
 
       const respuesta = await fetch(
-  `${API_BASE_URL}/api/proveedores`
+  `${API_BASE_URL}/api/proveedores?negocio_id=${negocioId}`
 );
 
       const resultado = await respuesta.json();
@@ -57,7 +56,7 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
     try {
 
       const respuesta = await fetch(
-        `${API_BASE_URL}/api/categorias`
+        `${API_BASE_URL}/api/categorias?negocio_id=${negocioId}`
       );
 
       const resultado = await respuesta.json();
@@ -91,7 +90,7 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
   cargarCategorias();
   cargarConceptos();
 
-}, []);
+}, [negocioId]);
 
  const agregarProveedor = async () => {
   const nuevo = prompt("Nombre del nuevo proveedor:");
@@ -107,9 +106,10 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          nombre: nuevo.trim(),
-          usuario_id: usuarioId,
-        }),
+  nombre: nuevo.trim(),
+  usuario_id: usuarioId,
+  negocio_id: negocioId,
+}),
       }
     );
 
@@ -143,17 +143,65 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
   }
 };
 
-  const agregarCategoria = () => {
-    const nueva = prompt("Nombre de la nueva categoría:");
+  const agregarCategoria = async () => {
+  const nueva = prompt("Nombre de la nueva categoría:");
 
-    if (!nueva?.trim()) return;
+  if (!nueva?.trim()) return;
 
-    if (!listaCategorias.includes(nueva.trim())) {
-      setListaCategorias([...listaCategorias, nueva.trim()]);
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/categorias/buscar-o-crear`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: nueva.trim(),
+          negocio_id: negocioId,
+        }),
+      }
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(
+        resultado.error || "No se pudo guardar la categoría."
+      );
     }
 
-    setCategoriaEgreso(nueva.trim());
-  };
+    const categoriaGuardada = resultado.categoria;
+
+    setCategoriasExistentes((prev) => {
+      const yaExiste = prev.some(
+        (categoria) => categoria.id === categoriaGuardada.id
+      );
+
+      if (yaExiste) return prev;
+
+      return [...prev, categoriaGuardada].sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, "es")
+      );
+    });
+
+    setCategoriaEgreso(categoriaGuardada.nombre);
+
+    alert("✅ Categoría agregada correctamente.");
+  } catch (error) {
+    alert("🚨 Error al agregar categoría: " + error.message);
+  }
+};
+
+const limpiarFormulario = () => {
+  setMontoEgreso("");
+  setCategoriaEgreso("");
+  setConceptoEgreso("");
+  setBeneficiarioEgreso("");
+  setBancoOrigen("Kueski");
+  setReferencia("");
+  setFotosEgreso([]);
+};
 
 const descargarExcelBanca = () => {
   const filas = [
@@ -258,6 +306,7 @@ Monto: $${parseFloat(montoEgreso).toLocaleString()}
   body: JSON.stringify({
     nombre: beneficiarioEgreso,
     usuario_id: usuarioId,
+    negocio_id: negocioId,
   }),
 });
 
@@ -273,8 +322,9 @@ const respuestaCategoria = await fetch(`${API_BASE_URL}/api/categorias/buscar-o-
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    nombre: categoriaEgreso,
-  }),
+  nombre: categoriaEgreso,
+  negocio_id: negocioId,
+}),
 });
 
 const resultadoCategoria = await respuestaCategoria.json();
@@ -297,6 +347,7 @@ const respuestaBD = await fetch(`${API_BASE_URL}/api/egresos`, {
     tipo_cambio: 1,
     monto_original: montoNumerico,
     monto_mxn: montoNumerico,
+    negocio_id: negocioId,
     categoria_id: categoriaId,
     proveedor_id: proveedorId,
     concepto: conceptoEgreso,
@@ -317,11 +368,9 @@ if (!resultadoBD.success) {
 descargarExcelBanca();
 
 alert("✅ Egreso banca registrado correctamente y Excel descargado.");
-onVolver();
+limpiarFormulario();
 
-  alert("✅ Egreso banca registrado correctamente.");
-
-  onVolver();
+window.dispatchEvent(new Event("egresoActualizado"));
 
 } catch (error) {
 
