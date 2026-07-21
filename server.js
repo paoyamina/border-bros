@@ -872,6 +872,115 @@ app.get('/api/egresos', async (req, res) => {
   }
 });
 
+// Editar un egreso
+app.put('/api/egresos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      fecha,
+      tipo_egreso,
+      divisa,
+      tipo_cambio,
+      monto_original,
+      monto_mxn,
+      categoria_id,
+      proveedor_id,
+      concepto,
+      referencia,
+      estatus,
+      usuario_edita_id,
+    } = req.body;
+
+    const egresoId = Number(id);
+
+    if (!Number.isInteger(egresoId) || egresoId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El id del egreso no es válido.",
+      });
+    }
+
+    if (!fecha) {
+      return res.status(400).json({
+        success: false,
+        error: "La fecha es obligatoria.",
+      });
+    }
+
+    if (!concepto || !concepto.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "El concepto es obligatorio.",
+      });
+    }
+
+    if (!monto_mxn || Number(monto_mxn) <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El monto debe ser mayor a cero.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE egresos
+        SET
+          fecha = $1,
+          tipo_egreso = $2,
+          divisa = $3,
+          tipo_cambio = $4,
+          monto_original = $5,
+          monto_mxn = $6,
+          categoria_id = $7,
+          proveedor_id = $8,
+          concepto = $9,
+          referencia = $10,
+          estatus = $11,
+          fecha_edicion = NOW(),
+          updated_at = NOW(),
+          updated_by = $12
+        WHERE id = $13
+        RETURNING *
+      `,
+      [
+        fecha,
+        tipo_egreso || "efectivo",
+        divisa || "MXN",
+        Number(tipo_cambio) || 1,
+        Number(monto_original) || Number(monto_mxn),
+        Number(monto_mxn),
+        categoria_id || null,
+        proveedor_id || null,
+        concepto.trim(),
+        referencia?.trim() || null,
+        estatus || "REGISTRADO",
+        usuario_edita_id || null,
+        egresoId,
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "No se encontró el egreso.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      egreso: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Error editando egreso:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 
 // Obtener conceptos únicos usados en egresos
 app.get('/api/egresos/conceptos', async (req, res) => {
