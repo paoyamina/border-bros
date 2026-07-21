@@ -652,9 +652,7 @@ for (const movimiento of reglamentosDetalle) {
 
 // Guardar egreso en PostgreSQL
 app.post('/api/egresos', async (req, res) => {
-
   try {
-
     const {
       tipo_egreso,
       fecha,
@@ -662,6 +660,7 @@ app.post('/api/egresos', async (req, res) => {
       tipo_cambio,
       monto_original,
       monto_mxn,
+      negocio_id,
       categoria_id,
       proveedor_id,
       concepto,
@@ -673,31 +672,42 @@ app.post('/api/egresos', async (req, res) => {
       estatus
     } = req.body;
 
+    const negocioId = Number(negocio_id);
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El negocio_id es obligatorio."
+      });
+    }
+
     const result = await pool.query(
       `
-      INSERT INTO egresos (
-        tipo_egreso,
-        fecha,
-        divisa,
-        tipo_cambio,
-        monto_original,
-        monto_mxn,
-        categoria_id,
-        proveedor_id,
-        concepto,
-        cuenta_id,
-        referencia,
-        usuario_crea_id,
-        drive_folder_id,
-        drive_folder_url,
-        estatus
-      )
-      VALUES (
-        $1, $2, $3, $4, $5,
-        $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15
-      )
-      RETURNING *
+        INSERT INTO egresos (
+          tipo_egreso,
+          fecha,
+          divisa,
+          tipo_cambio,
+          monto_original,
+          monto_mxn,
+          negocio_id,
+          categoria_id,
+          proveedor_id,
+          concepto,
+          cuenta_id,
+          referencia,
+          usuario_crea_id,
+          drive_folder_id,
+          drive_folder_url,
+          estatus
+        )
+        VALUES (
+          $1, $2, $3, $4,
+          $5, $6, $7, $8,
+          $9, $10, $11, $12,
+          $13, $14, $15, $16
+        )
+        RETURNING *
       `,
       [
         tipo_egreso,
@@ -706,6 +716,7 @@ app.post('/api/egresos', async (req, res) => {
         tipo_cambio,
         monto_original,
         monto_mxn,
+        negocioId,
         categoria_id || null,
         proveedor_id || null,
         concepto,
@@ -714,7 +725,7 @@ app.post('/api/egresos', async (req, res) => {
         usuario_crea_id || null,
         drive_folder_id || null,
         drive_folder_url || null,
-        estatus || 'REGISTRADO'
+        estatus || "REGISTRADO"
       ]
     );
 
@@ -724,7 +735,6 @@ app.post('/api/egresos', async (req, res) => {
     });
 
   } catch (error) {
-
     console.error('Error guardando egreso:', error);
 
     res.status(500).json({
@@ -808,7 +818,13 @@ app.get('/api/probar-egreso', async (req, res) => {
 
 app.post('/api/proveedores/buscar-o-crear', async (req, res) => {
   try {
-    const { nombre, usuario_id } = req.body;
+    const {
+      nombre,
+      usuario_id,
+      negocio_id
+    } = req.body;
+
+    const negocioId = Number(negocio_id);
 
     if (!nombre || !nombre.trim()) {
       return res.status(400).json({
@@ -817,16 +833,24 @@ app.post('/api/proveedores/buscar-o-crear', async (req, res) => {
       });
     }
 
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'El negocio_id es obligatorio'
+      });
+    }
+
     const nombreLimpio = nombre.trim();
 
     const existente = await pool.query(
       `
-      SELECT id, nombre
-      FROM proveedores
-      WHERE LOWER(nombre) = LOWER($1)
-      LIMIT 1
+        SELECT id, nombre
+        FROM proveedores
+        WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1))
+          AND negocio_id = $2
+        LIMIT 1
       `,
-      [nombreLimpio]
+      [nombreLimpio, negocioId]
     );
 
     if (existente.rows.length > 0) {
@@ -839,11 +863,20 @@ app.post('/api/proveedores/buscar-o-crear', async (req, res) => {
 
     const nuevo = await pool.query(
       `
-      INSERT INTO proveedores (nombre, created_by, activo)
-      VALUES ($1, $2, true)
-      RETURNING id, nombre
+        INSERT INTO proveedores (
+          nombre,
+          created_by,
+          activo,
+          negocio_id
+        )
+        VALUES ($1, $2, true, $3)
+        RETURNING id, nombre
       `,
-      [nombreLimpio, usuario_id || null]
+      [
+        nombreLimpio,
+        usuario_id || null,
+        negocioId
+      ]
     );
 
     res.json({
@@ -864,13 +897,24 @@ app.post('/api/proveedores/buscar-o-crear', async (req, res) => {
 
 app.get('/api/proveedores', async (req, res) => {
   try {
+    const negocioId = Number(req.query.negocio_id);
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'El negocio_id es obligatorio'
+      });
+    }
+
     const result = await pool.query(
       `
-      SELECT id, nombre
-      FROM proveedores
-      WHERE activo = true OR activo IS NULL
-      ORDER BY nombre ASC
-      `
+        SELECT id, nombre
+        FROM proveedores
+        WHERE negocio_id = $1
+          AND (activo = true OR activo IS NULL)
+        ORDER BY nombre ASC
+      `,
+      [negocioId]
     );
 
     res.json({
@@ -1075,12 +1119,23 @@ RETURNING *
 
 app.get('/api/categorias', async (req, res) => {
   try {
+    const negocioId = Number(req.query.negocio_id);
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'El negocio_id es obligatorio'
+      });
+    }
+
     const result = await pool.query(
       `
-      SELECT id, nombre
-      FROM categorias
-      ORDER BY nombre ASC
-      `
+        SELECT id, nombre
+        FROM categorias
+        WHERE negocio_id = $1
+        ORDER BY nombre ASC
+      `,
+      [negocioId]
     );
 
     res.json({
@@ -1089,7 +1144,7 @@ app.get('/api/categorias', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error cargando categorias:', error);
+    console.error('Error cargando categorías:', error);
 
     res.status(500).json({
       success: false,
@@ -1100,7 +1155,8 @@ app.get('/api/categorias', async (req, res) => {
 
 app.post('/api/categorias/buscar-o-crear', async (req, res) => {
   try {
-    const { nombre } = req.body;
+    const { nombre, negocio_id } = req.body;
+    const negocioId = Number(negocio_id);
 
     if (!nombre || !nombre.trim()) {
       return res.status(400).json({
@@ -1109,16 +1165,24 @@ app.post('/api/categorias/buscar-o-crear', async (req, res) => {
       });
     }
 
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'El negocio_id es obligatorio'
+      });
+    }
+
     const nombreLimpio = nombre.trim();
 
     const existente = await pool.query(
       `
-      SELECT id, nombre
-      FROM categorias
-      WHERE LOWER(nombre) = LOWER($1)
-      LIMIT 1
+        SELECT id, nombre
+        FROM categorias
+        WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1))
+          AND negocio_id = $2
+        LIMIT 1
       `,
-      [nombreLimpio]
+      [nombreLimpio, negocioId]
     );
 
     if (existente.rows.length > 0) {
@@ -1131,11 +1195,14 @@ app.post('/api/categorias/buscar-o-crear', async (req, res) => {
 
     const nueva = await pool.query(
       `
-      INSERT INTO categorias (nombre)
-      VALUES ($1)
-      RETURNING id, nombre
+        INSERT INTO categorias (
+          nombre,
+          negocio_id
+        )
+        VALUES ($1, $2)
+        RETURNING id, nombre
       `,
-      [nombreLimpio]
+      [nombreLimpio, negocioId]
     );
 
     res.json({
