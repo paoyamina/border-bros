@@ -2,8 +2,13 @@ import React, { useEffect, useState } from "react";
 import API_BASE_URL from "../config/api";
 import FiltrosEgresos from "./egresos/FiltrosEgresos";
 import TablaEgresos from "./egresos/TablaEgresos";
-import { obtenerEgresos } from "../services/egresosService.js";
+import {
+  obtenerEgresos,
+  editarEgreso,
+} from "../services/egresosService.js";
 import ModalDetalleEgreso from "./egresos/ModalDetalleEgreso";
+import ModalEditarEgreso from "./egresos/ModalEditarEgreso";
+
 
 const filtrosIniciales = {
   fecha_inicio: "",
@@ -38,6 +43,7 @@ function GestionEgresos({
   const [error, setError] = useState("");
   const [detalleAbierto, setDetalleAbierto] = useState(false);
 const [egresoSeleccionado, setEgresoSeleccionado] = useState(null);
+const [edicionAbierta, setEdicionAbierta] = useState(false);
 
   const estiloBotonPrincipal = {
     padding: "14px 22px",
@@ -437,14 +443,18 @@ const [egresoSeleccionado, setEgresoSeleccionado] = useState(null);
             </div>
           )}
 
-          <TablaEgresos
-  egresos={egresos}
-  cargando={cargando}
-  onVer={(egreso) => {
-    setEgresoSeleccionado(egreso);
-    setDetalleAbierto(true);
-  }}
-/>
+         <TablaEgresos
+            egresos={egresos}
+            cargando={cargando}
+            onVer={(egreso) => {
+                setEgresoSeleccionado(egreso);
+                setDetalleAbierto(true);
+            }}
+            onEditar={(egreso) => {
+                setEgresoSeleccionado(egreso);
+                setEdicionAbierta(true);
+                }}
+            />
         </div>
       </div>
 
@@ -454,6 +464,32 @@ const [egresoSeleccionado, setEgresoSeleccionado] = useState(null);
   onCerrar={() => {
     setDetalleAbierto(false);
     setEgresoSeleccionado(null);
+  }}
+/>
+
+<ModalEditarEgreso
+  abierto={edicionAbierta}
+  egreso={egresoSeleccionado}
+  categorias={categorias}
+  proveedores={proveedores}
+  onCerrar={() => {
+    setEdicionAbierta(false);
+    setEgresoSeleccionado(null);
+  }}
+  onGuardar={async (datosActualizados) => {
+    if (!egresoSeleccionado?.id) {
+      throw new Error("No se encontró el egreso seleccionado.");
+    }
+
+    await editarEgreso(
+      egresoSeleccionado.id,
+      datosActualizados
+    );
+
+    setEdicionAbierta(false);
+    setEgresoSeleccionado(null);
+
+    await cargarEgresos(filtros);
   }}
 />
     </div>

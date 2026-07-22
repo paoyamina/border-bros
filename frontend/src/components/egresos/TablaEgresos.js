@@ -4,6 +4,7 @@ function TablaEgresos({
   egresos,
   cargando,
   onVer,
+  onEditar,
 }) {
   const formatearFecha = (fecha) => {
     if (!fecha) return "—";
@@ -228,14 +229,17 @@ function TablaEgresos({
     </button>
 
     <button
-      title="Editar"
-      style={botonAccion}
-      onClick={() => {
-        console.log("Editar", egreso);
-      }}
-    >
-      ✏
-    </button>
+  title={cancelado ? "No se puede editar un egreso cancelado" : "Editar"}
+  style={{
+    ...botonAccion,
+    cursor: cancelado ? "not-allowed" : "pointer",
+    opacity: cancelado ? 0.4 : 1,
+  }}
+  disabled={cancelado}
+  onClick={() => onEditar?.(egreso)}
+>
+  ✏
+</button>
 
     <button
       title="Cancelar"
