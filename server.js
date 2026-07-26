@@ -1201,6 +1201,53 @@ if (!Number.isInteger(egresoId) || egresoId <= 0) {
   }
 });
 
+// Obtener historial de un egreso
+app.get('/api/egresos/:id/historial', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const egresoId = Number(id);
+
+    if (!Number.isInteger(egresoId) || egresoId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El id del egreso no es válido.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          h.id,
+          h.egreso_id,
+          h.accion,
+          h.usuario_id,
+          u.nombre AS usuario,
+          h.fecha,
+          h.datos_anteriores,
+          h.datos_nuevos
+        FROM egresos_historial h
+        LEFT JOIN usuarios u
+          ON u.id = h.usuario_id
+        WHERE h.egreso_id = $1
+        ORDER BY h.fecha DESC, h.id DESC
+      `,
+      [egresoId]
+    );
+
+    return res.json({
+      success: true,
+      historial: result.rows,
+    });
+
+  } catch (error) {
+    console.error("Error cargando historial de egreso:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
 
 // Obtener conceptos únicos usados en egresos
 app.get('/api/egresos/conceptos', async (req, res) => {
