@@ -6,6 +6,7 @@ import {
   obtenerEgresos,
   editarEgreso,
   cancelarEgreso,
+  reactivarEgreso,
 } from "../services/egresosService.js";
 import ModalDetalleEgreso from "./egresos/ModalDetalleEgreso";
 import ModalEditarEgreso from "./egresos/ModalEditarEgreso";
@@ -492,6 +493,41 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
                 setCargando(false);
                 }
             }}
+                onReactivar={async (egreso) => {
+                    const confirmado = window.confirm(
+                        `¿Deseas reactivar el egreso #${egreso.id}?\n\n` +
+                        "El registro volverá al estatus REGISTRADO y podrá editarse nuevamente."
+                    );
+
+                    if (!confirmado) return;
+
+                    try {
+                        setCargando(true);
+                        setError("");
+
+                        await reactivarEgreso(
+                        egreso.id,
+                        usuarioId || null
+                        );
+
+                        await cargarEgresos(filtros);
+
+                        window.alert("El egreso fue reactivado correctamente.");
+                    } catch (errorReactivacion) {
+                        console.error(
+                        "Error reactivando egreso:",
+                        errorReactivacion
+                        );
+
+                        setError(
+                        errorReactivacion.message ||
+                        "No fue posible reactivar el egreso."
+                        );
+                    } finally {
+                        setCargando(false);
+                    }
+                    }}
+
             />
         </div>
       </div>

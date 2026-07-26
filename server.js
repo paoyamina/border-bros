@@ -1073,6 +1073,58 @@ app.put('/api/egresos/:id/cancelar', async (req, res) => {
   }
 });
 
+// Reactivar un egreso
+
+app.put("/api/egresos/:id/reactivar", async (req, res) => {
+  const { id } = req.params;
+const { usuario_id } = req.body;
+
+const egresoId = Number(id);
+
+if (!Number.isInteger(egresoId) || egresoId <= 0) {
+  return res.status(400).json({
+    success: false,
+    error: "El id del egreso no es válido.",
+  });
+}
+
+  try {
+    const resultado = await pool.query(
+      `
+      UPDATE egresos
+      SET
+        estatus = 'REGISTRADO',
+        fecha_edicion = NOW(),
+        updated_at = NOW(),
+        updated_by = $2
+      WHERE id = $1
+        AND estatus = 'CANCELADO'
+      RETURNING *;
+      `,
+      [egresoId, usuario_id || null]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "El egreso no existe o ya está registrado.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      egreso: resultado.rows[0],
+    });
+  } catch (error) {
+    console.error("Error reactivando egreso:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "No fue posible reactivar el egreso.",
+    });
+  }
+});
+
 
 // Obtener conceptos únicos usados en egresos
 app.get('/api/egresos/conceptos', async (req, res) => {

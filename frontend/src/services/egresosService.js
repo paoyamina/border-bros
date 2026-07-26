@@ -97,3 +97,36 @@ export async function cancelarEgreso(id, usuarioId) {
 
   return resultado.egreso;
 }
+
+export async function reactivarEgreso(id, usuarioId) {
+  const respuesta = await fetch(
+    `${API_BASE_URL}/api/egresos/${id}/reactivar`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        usuario_id: usuarioId || null,
+      }),
+    }
+  );
+
+  let resultado;
+
+  try {
+    resultado = await respuesta.json();
+  } catch {
+    throw new Error(
+      "El servidor devolvió una respuesta que no se pudo interpretar."
+    );
+  }
+
+  if (!respuesta.ok || !resultado.success) {
+    throw new Error(
+      resultado.error || "No fue posible reactivar el egreso."
+    );
+  }
+
+  return resultado.egreso;
+}

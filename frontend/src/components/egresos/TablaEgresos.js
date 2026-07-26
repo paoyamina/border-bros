@@ -6,6 +6,7 @@ function TablaEgresos({
   onVer,
   onEditar,
   onCancelar,
+  onReactivar,
 }) {
   const formatearFecha = (fecha) => {
     if (!fecha) return "—";
@@ -213,7 +214,7 @@ function TablaEgresos({
                   </span>
                 </td>
 
-                <td style={estiloCelda}>
+               <td style={estiloCelda}>
   <div
     style={{
       display: "flex",
@@ -230,41 +231,53 @@ function TablaEgresos({
     </button>
 
     <button
-  title={cancelado ? "No se puede editar un egreso cancelado" : "Editar"}
-  style={{
-    ...botonAccion,
-    cursor: cancelado ? "not-allowed" : "pointer",
-    opacity: cancelado ? 0.4 : 1,
-  }}
-  disabled={cancelado}
-  onClick={() => onEditar?.(egreso)}
->
-  ✏
-</button>
+      title={
+        cancelado
+          ? "No se puede editar un egreso cancelado"
+          : "Editar"
+      }
+      style={{
+        ...botonAccion,
+        cursor: cancelado ? "not-allowed" : "pointer",
+        opacity: cancelado ? 0.4 : 1,
+      }}
+      disabled={cancelado}
+      onClick={() => onEditar?.(egreso)}
+    >
+      ✏
+    </button>
 
     <button
-  title={
-    cancelado
-      ? "Este egreso ya está cancelado"
-      : "Cancelar egreso"
-  }
-  style={{
-    ...botonAccion,
-    cursor: cancelado ? "not-allowed" : "pointer",
-    opacity: cancelado ? 0.4 : 1,
-  }}
-  disabled={cancelado}
-  onClick={() => onCancelar?.(egreso)}
->
-  🚫
-</button>
+      title={
+        cancelado
+          ? "Reactivar egreso"
+          : "Cancelar egreso"
+      }
+      style={{
+        ...botonAccion,
+        cursor: "pointer",
+      }}
+      onClick={() => {
+        if (cancelado) {
+          onReactivar?.(egreso);
+        } else {
+          onCancelar?.(egreso);
+        }
+      }}
+    >
+      {cancelado ? "↩️" : "🚫"}
+    </button>
 
     {egreso.drive_folder_url && (
       <button
         title="Abrir Drive"
         style={botonAccion}
         onClick={() =>
-          window.open(egreso.drive_folder_url, "_blank")
+          window.open(
+            egreso.drive_folder_url,
+            "_blank",
+            "noopener,noreferrer"
+          )
         }
       >
         📂
