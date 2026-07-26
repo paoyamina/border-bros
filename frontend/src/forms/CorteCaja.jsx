@@ -4,7 +4,12 @@ import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 import { generarFolio } from "../utils/folios";
 import { exportarExcelCorte } from "../utils/exportExcel";
 
-function CorteCaja({ usuarioActivo, onVolver }) {
+function CorteCaja({
+  usuarioActivo,
+  usuarioId,
+  negocioId,
+  onVolver,
+}) {
   const denomMXN = [1000, 500, 200, 100, 50, 20, 10, 5];
   const denomUSD = [100, 50, 20, 10, 5, 2, 1, 0.5, 0.25];
 
@@ -848,6 +853,8 @@ Al aceptar, se descargará el Excel local y se enviarán las fotos a Drive.
           folio: nombreReporte,
           cajero: usuarioActivo,
           responsable: iniciales.toUpperCase(),
+          negocio_id: negocioId,
+          usuario_id: usuarioId,
           efectivoMXN: calcularMXN(),
 efectivoUSD: calcularUSD(),
 tipoCambio: tc,

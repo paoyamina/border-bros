@@ -64,3 +64,36 @@ export const editarEgreso = async (egresoId, datosEgreso) => {
 
   return resultado.egreso;
 };
+
+export async function cancelarEgreso(id, usuarioId) {
+  const respuesta = await fetch(
+    `${API_BASE_URL}/api/egresos/${id}/cancelar`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        usuario_id: usuarioId || null,
+      }),
+    }
+  );
+
+  let resultado;
+
+  try {
+    resultado = await respuesta.json();
+  } catch {
+    throw new Error(
+      "El servidor devolvió una respuesta que no se pudo interpretar."
+    );
+  }
+
+  if (!respuesta.ok || !resultado.success) {
+    throw new Error(
+      resultado.error || "No fue posible cancelar el egreso."
+    );
+  }
+
+  return resultado.egreso;
+}

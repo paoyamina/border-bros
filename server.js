@@ -205,6 +205,13 @@ app.post('/api/guardar-reporte', upload.array('fotos'), async (req, res) => {
 
       try {
         await client.query("BEGIN");
+        const negocioId = Number(detalles.negocio_id);
+
+if (!Number.isInteger(negocioId) || negocioId <= 0) {
+  throw new Error(
+    "No se recibió un negocio_id válido para guardar el corte."
+  );
+}
 
         const buscarOCrearCategoria = async (nombreCategoria) => {
   const nombreLimpio = String(nombreCategoria || "").trim();
@@ -276,6 +283,7 @@ const crearEgresoDesdeCorte = async ({
   folio,
   fecha,
   usuarioId,
+  negocioId,
   folderId,
   folderUrl,
 }) => {
@@ -306,54 +314,57 @@ const crearEgresoDesdeCorte = async ({
   await client.query(
     `
     INSERT INTO egresos (
-      tipo_egreso,
-      fecha,
-      divisa,
-      tipo_cambio,
-      monto_original,
-      monto_mxn,
-      categoria_id,
-      proveedor_id,
-      concepto,
-      cuenta_id,
-      referencia,
-      usuario_crea_id,
-      drive_folder_id,
-      drive_folder_url,
-      estatus
-    )
-    VALUES (
-      'efectivo',
-      $1,
-      $2,
-      $3,
-      $4,
-      $5,
-      $6,
-      $7,
-      $8,
-      NULL,
-      $9,
-      $10,
-      $11,
-      $12,
-      'REGISTRADO'
-    )
+          tipo_egreso,
+          fecha,
+          divisa,
+          tipo_cambio,
+          monto_original,
+          monto_mxn,
+          negocio_id,
+          categoria_id,
+          proveedor_id,
+          concepto,
+          cuenta_id,
+          referencia,
+          usuario_crea_id,
+          drive_folder_id,
+          drive_folder_url,
+          estatus
+        )
+        VALUES (
+          'efectivo',
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          $9,
+          NULL,
+          $10,
+          $11,
+          $12,
+          $13,
+          'REGISTRADO'
+        )
     `,
-    [
-      fecha || null,
-      movimiento.divisa || "MXN",
-      toNumber(movimiento.tipo_cambio) || 1,
-      toNumber(movimiento.monto_original),
-      montoMxn,
-      categoriaId,
-      proveedorId,
-      movimiento.concepto || `${tipoMovimiento} de corte`,
-      referencia,
-      usuarioId || null,
-      folderId || null,
-      folderUrl || null,
-    ]
+          [
+          fecha || null,
+          movimiento.divisa || "MXN",
+          toNumber(movimiento.tipo_cambio) || 1,
+          toNumber(movimiento.monto_original),
+          montoMxn,
+          negocioId,
+          categoriaId,
+          proveedorId,
+          movimiento.concepto || `${tipoMovimiento} de corte`,
+          referencia,
+          usuarioId || null,
+          folderId || null,
+          folderUrl || null,
+        ]
   );
 };
 
@@ -381,6 +392,7 @@ const crearEgresoDesdeCorte = async ({
             fecha,
             folio,
             usuario_id,
+            negocio_id,
             tipo_cambio,
             total_tarjetas,
             total_efectivo_mxn,
@@ -406,18 +418,21 @@ const crearEgresoDesdeCorte = async ({
             updated_by
           )
           VALUES (
-            $1, $2, $3, $4, $5,
-            $6, $7, $8, $9, $10,
-            $11, $12, $13, $14, $15,
-            $16, $17, $18, $19, $20,
-            $21, $22, $23, NOW(), NOW(), $24
-          )
+              $1, $2, $3, $4, $5,
+              $6, $7, $8, $9, $10,
+              $11, $12, $13, $14, $15,
+              $16, $17, $18, $19, $20,
+              $21, $22, $23, $24,
+              NOW(), NOW(), $25
+            )
+            RETURNING *
           RETURNING *
           `,
           [
             detalles.fecha || null,
             detalles.folio || nombreCarpeta || null,
             usuarioId,
+            negocioId,
             toNumber(detalles.tipoCambio),
             toNumber(detalles.totalTarjetas),
             toNumber(detalles.efectivoMXN),
@@ -597,6 +612,7 @@ for (const movimiento of gastosCorteDetalle) {
     folio: corteGuardado.folio,
     fecha: corteGuardado.fecha,
     usuarioId,
+    negocioId,
     folderId,
     folderUrl,
   });
@@ -616,6 +632,7 @@ for (const movimiento of reglamentosDetalle) {
     folio: corteGuardado.folio,
     fecha: corteGuardado.fecha,
     usuarioId,
+    negocioId,
     folderId,
     folderUrl,
   });
@@ -973,6 +990,61 @@ app.put('/api/egresos/:id', async (req, res) => {
     });
   } catch (error) {
     console.error("Error editando egreso:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Cancelar un egreso
+app.put('/api/egresos/:id/cancelar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { usuario_id } = req.body;
+
+    const egresoId = Number(id);
+
+    if (!Number.isInteger(egresoId) || egresoId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El id del egreso no es válido.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE egresos
+        SET
+          estatus = 'CANCELADO',
+          fecha_edicion = NOW(),
+          updated_at = NOW(),
+          updated_by = $1
+        WHERE id = $2
+          AND COALESCE(estatus, 'REGISTRADO') <> 'CANCELADO'
+        RETURNING *
+      `,
+      [
+        usuario_id || null,
+        egresoId,
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "El egreso no existe o ya estaba cancelado.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      egreso: result.rows[0],
+    });
+
+  } catch (error) {
+    console.error("Error cancelando egreso:", error);
 
     return res.status(500).json({
       success: false,

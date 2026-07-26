@@ -371,6 +371,7 @@ if (!isLoggedIn) {
       <CorteCaja
         usuarioActivo={usuarioActivo}
         usuarioId={usuarioId}
+        negocioId={negocioId}
         onVolver={volverAlMenu}
       />
     );
@@ -380,11 +381,12 @@ if (!isLoggedIn) {
   return (
     <GestionEgresos
       usuarioActivo={usuarioActivo}
+      usuarioId={usuarioId}
       rol={rol}
       negocioId={negocioId}
       onSeleccionarTipo={setFormularioActivo}
       onVolver={volverAlMenu}
-    />
+/>
   );
 }
 

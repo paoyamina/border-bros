@@ -5,6 +5,7 @@ import TablaEgresos from "./egresos/TablaEgresos";
 import {
   obtenerEgresos,
   editarEgreso,
+  cancelarEgreso,
 } from "../services/egresosService.js";
 import ModalDetalleEgreso from "./egresos/ModalDetalleEgreso";
 import ModalEditarEgreso from "./egresos/ModalEditarEgreso";
@@ -23,6 +24,7 @@ const filtrosIniciales = {
 
 function GestionEgresos({
   usuarioActivo,
+  usuarioId,
   rol,
   negocioId,
   onSeleccionarTipo,
@@ -31,6 +33,7 @@ function GestionEgresos({
 
     console.log("DATOS GESTION EGRESOS:", {
   negocioId,
+  usuarioId,
   usuarioActivo,
   rol,
 });
@@ -453,7 +456,42 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
             onEditar={(egreso) => {
                 setEgresoSeleccionado(egreso);
                 setEdicionAbierta(true);
-                }}
+            }}
+            onCancelar={async (egreso) => {
+                const confirmado = window.confirm(
+                `¿Deseas cancelar el egreso #${egreso.id}?\n\n` +
+                "Esta acción no eliminará el registro. " +
+                "Únicamente cambiará su estatus a CANCELADO."
+                );
+
+                if (!confirmado) return;
+
+                try {
+                setCargando(true);
+                setError("");
+
+                await cancelarEgreso(
+                    egreso.id,
+                    usuarioId || null
+                    );
+
+                await cargarEgresos(filtros);
+
+                window.alert("El egreso fue cancelado correctamente.");
+                } catch (errorCancelacion) {
+                console.error(
+                    "Error cancelando egreso:",
+                    errorCancelacion
+                );
+
+                setError(
+                    errorCancelacion.message ||
+                    "No fue posible cancelar el egreso."
+                );
+                } finally {
+                setCargando(false);
+                }
+            }}
             />
         </div>
       </div>

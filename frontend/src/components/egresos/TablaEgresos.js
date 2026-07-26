@@ -5,6 +5,7 @@ function TablaEgresos({
   cargando,
   onVer,
   onEditar,
+  onCancelar,
 }) {
   const formatearFecha = (fecha) => {
     if (!fecha) return "—";
@@ -242,14 +243,21 @@ function TablaEgresos({
 </button>
 
     <button
-      title="Cancelar"
-      style={botonAccion}
-      onClick={() => {
-        console.log("Cancelar", egreso);
-      }}
-    >
-      🚫
-    </button>
+  title={
+    cancelado
+      ? "Este egreso ya está cancelado"
+      : "Cancelar egreso"
+  }
+  style={{
+    ...botonAccion,
+    cursor: cancelado ? "not-allowed" : "pointer",
+    opacity: cancelado ? 0.4 : 1,
+  }}
+  disabled={cancelado}
+  onClick={() => onCancelar?.(egreso)}
+>
+  🚫
+</button>
 
     {egreso.drive_folder_url && (
       <button
