@@ -30,6 +30,35 @@ const pool = new Pool({
     : false,
 });
 
+async function registrarHistorialEgreso({
+  egresoId,
+  accion,
+  usuarioId,
+  datosAnteriores = null,
+  datosNuevos = null,
+  cliente = pool,
+}) {
+  await cliente.query(
+    `
+      INSERT INTO egresos_historial (
+        egreso_id,
+        accion,
+        usuario_id,
+        datos_anteriores,
+        datos_nuevos
+      )
+      VALUES ($1, $2, $3, $4, $5);
+    `,
+    [
+      egresoId,
+      accion,
+      usuarioId || null,
+      datosAnteriores ? JSON.stringify(datosAnteriores) : null,
+      datosNuevos ? JSON.stringify(datosNuevos) : null,
+    ]
+  );
+}
+
 // 2. Google Drive Auth (OAuth)
 const authorize = require('./auth');
 
@@ -766,6 +795,13 @@ app.post('/api/egresos', async (req, res) => {
       ]
     );
 
+        await registrarHistorialEgreso({
+      egresoId: result.rows[0].id,
+      accion: "CREADO",
+      usuarioId: usuario_crea_id,
+      datosNuevos: result.rows[0],
+    });
+
     res.json({
       success: true,
       egreso: result.rows[0]
@@ -938,6 +974,24 @@ app.put('/api/egresos/:id', async (req, res) => {
       });
     }
 
+    const previousResult = await pool.query(
+  `
+    SELECT *
+    FROM egresos
+    WHERE id = $1;
+  `,
+  [egresoId]
+);
+
+if (previousResult.rows.length === 0) {
+  return res.status(404).json({
+    success: false,
+    error: "No se encontró el egreso.",
+  });
+}
+
+const previousEgreso = previousResult.rows[0];
+
     if (!fecha) {
       return res.status(400).json({
         success: false,
@@ -1004,6 +1058,14 @@ app.put('/api/egresos/:id', async (req, res) => {
       });
     }
 
+  await registrarHistorialEgreso({
+  egresoId,
+  accion: "EDITADO",
+  usuarioId: usuario_edita_id,
+  datosAnteriores: previousEgreso,
+  datosNuevos: result.rows[0],
+});
+    
     return res.json({
       success: true,
       egreso: result.rows[0],
@@ -1058,6 +1120,13 @@ app.put('/api/egresos/:id/cancelar', async (req, res) => {
       });
     }
 
+    await registrarHistorialEgreso({
+  egresoId,
+  accion: "CANCELADO",
+  usuarioId: usuario_id,
+  datosNuevos: result.rows[0],
+});
+
     return res.json({
       success: true,
       egreso: result.rows[0],
@@ -1089,7 +1158,7 @@ if (!Number.isInteger(egresoId) || egresoId <= 0) {
 }
 
   try {
-    const resultado = await pool.query(
+    const result = await pool.query(
       `
       UPDATE egresos
       SET
@@ -1104,16 +1173,23 @@ if (!Number.isInteger(egresoId) || egresoId <= 0) {
       [egresoId, usuario_id || null]
     );
 
-    if (resultado.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: "El egreso no existe o ya está registrado.",
       });
     }
 
+    await registrarHistorialEgreso({
+  egresoId,
+  accion: "REACTIVADO",
+  usuarioId: usuario_id,
+  datosNuevos: result.rows[0],
+});
+
     return res.json({
       success: true,
-      egreso: resultado.rows[0],
+      egreso: result.rows[0],
     });
   } catch (error) {
     console.error("Error reactivando egreso:", error);
@@ -2572,7 +2648,7 @@ WHERE fecha BETWEEN $1 AND $2
         // Temporal por compatibilidad
         inversion_aportada: saldoAdelantos,
 
-        resultado_neto: utilidadAsignada - saldoAdelantos
+        result_neto: utilidadAsignada - saldoAdelantos
       };
     });
 
