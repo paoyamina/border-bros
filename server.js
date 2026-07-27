@@ -1530,6 +1530,47 @@ app.get('/api/proveedores', async (req, res) => {
   }
 });
 
+app.get("/api/usuarios", async (req, res) => {
+  const { negocio_id } = req.query;
+
+  if (!negocio_id) {
+    return res.status(400).json({
+      success: false,
+      message: "Falta negocio_id",
+    });
+  }
+
+  try {
+    const resultado = await pool.query(
+      `
+        SELECT DISTINCT
+          u.id,
+          u.nombre
+        FROM usuarios u
+        INNER JOIN egresos e
+          ON e.usuario_crea_id = u.id
+        WHERE e.negocio_id = $1
+          AND u.nombre IS NOT NULL
+          AND TRIM(u.nombre) <> ''
+        ORDER BY u.nombre ASC
+      `,
+      [negocio_id]
+    );
+
+    return res.json({
+      success: true,
+      usuarios: resultado.rows,
+    });
+  } catch (error) {
+    console.error("Error obteniendo usuarios:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "No fue posible obtener los usuarios",
+    });
+  }
+});
+
 // Obtener socios
 app.get('/api/socios', async (req, res) => {
   try {
