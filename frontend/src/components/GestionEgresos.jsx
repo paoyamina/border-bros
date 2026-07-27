@@ -10,7 +10,7 @@ import {
 } from "../services/egresosService.js";
 import ModalDetalleEgreso from "./egresos/ModalDetalleEgreso";
 import ModalEditarEgreso from "./egresos/ModalEditarEgreso";
-import { exportarExcelEgresos } from "../services/exportExcel";
+import { exportarExcelEgresos } from "../utils/exportExcel";
 
 const filtrosIniciales = {
   fecha_inicio: "",
