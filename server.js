@@ -242,19 +242,37 @@ if (!Number.isInteger(negocioId) || negocioId <= 0) {
   );
 }
 
-        const buscarOCrearCategoria = async (nombreCategoria) => {
-  const nombreLimpio = String(nombreCategoria || "").trim();
+        const buscarOCrearCategoria = async (
+  nombreCategoria,
+  negocioId
+) => {
+  const nombreLimpio = String(
+    nombreCategoria || ""
+  ).trim();
 
   if (!nombreLimpio) return null;
 
+  if (
+    !Number.isInteger(Number(negocioId)) ||
+    Number(negocioId) <= 0
+  ) {
+    throw new Error(
+      "No se recibió un negocio_id válido para la categoría."
+    );
+  }
+
   const existente = await client.query(
     `
-    SELECT id
-    FROM categorias
-    WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1))
-    LIMIT 1
+      SELECT id
+      FROM categorias
+      WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1))
+        AND negocio_id = $2
+      LIMIT 1
     `,
-    [nombreLimpio]
+    [
+      nombreLimpio,
+      Number(negocioId),
+    ]
   );
 
   if (existente.rows.length > 0) {
@@ -263,29 +281,54 @@ if (!Number.isInteger(negocioId) || negocioId <= 0) {
 
   const nueva = await client.query(
     `
-    INSERT INTO categorias (nombre)
-    VALUES ($1)
-    RETURNING id
+      INSERT INTO categorias (
+        nombre,
+        negocio_id
+      )
+      VALUES ($1, $2)
+      RETURNING id
     `,
-    [nombreLimpio]
+    [
+      nombreLimpio,
+      Number(negocioId),
+    ]
   );
 
   return nueva.rows[0].id;
 };
 
-const buscarOCrearProveedor = async (nombreProveedor, usuarioId) => {
-  const nombreLimpio = String(nombreProveedor || "").trim();
+const buscarOCrearProveedor = async (
+  nombreProveedor,
+  usuarioId,
+  negocioId
+) => {
+  const nombreLimpio = String(
+    nombreProveedor || ""
+  ).trim();
 
   if (!nombreLimpio) return null;
 
+  if (
+    !Number.isInteger(Number(negocioId)) ||
+    Number(negocioId) <= 0
+  ) {
+    throw new Error(
+      "No se recibió un negocio_id válido para el proveedor."
+    );
+  }
+
   const existente = await client.query(
     `
-    SELECT id
-    FROM proveedores
-    WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1))
-    LIMIT 1
+      SELECT id
+      FROM proveedores
+      WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1))
+        AND negocio_id = $2
+      LIMIT 1
     `,
-    [nombreLimpio]
+    [
+      nombreLimpio,
+      Number(negocioId),
+    ]
   );
 
   if (existente.rows.length > 0) {
@@ -294,15 +337,25 @@ const buscarOCrearProveedor = async (nombreProveedor, usuarioId) => {
 
   const nuevo = await client.query(
     `
-    INSERT INTO proveedores (nombre, created_by, activo)
-    VALUES ($1, $2, true)
-    RETURNING id
+      INSERT INTO proveedores (
+        nombre,
+        created_by,
+        activo,
+        negocio_id
+      )
+      VALUES ($1, $2, true, $3)
+      RETURNING id
     `,
-    [nombreLimpio, usuarioId || null]
+    [
+      nombreLimpio,
+      usuarioId || null,
+      Number(negocioId),
+    ]
   );
 
   return nuevo.rows[0].id;
 };
+
 
 const crearEgresoDesdeCorte = async ({
   movimiento,
@@ -320,10 +373,17 @@ const crearEgresoDesdeCorte = async ({
 
   if (montoMxn <= 0) return;
 
-  const categoriaId = await buscarOCrearCategoria(movimiento.categoria);
-  const proveedorId = await buscarOCrearProveedor(
+  const categoriaId =
+  await buscarOCrearCategoria(
+    movimiento.categoria,
+    negocioId
+  );
+
+const proveedorId =
+  await buscarOCrearProveedor(
     movimiento.proveedor,
-    usuarioId
+    usuarioId,
+    negocioId
   );
 
   const referencia = `CORTE-${folio}-${tipoMovimiento}-${numero}`;
@@ -829,7 +889,12 @@ app.get('/api/egresos', async (req, res) => {
       proveedor_id,
       concepto,
       referencia,
-      estatus
+      estatus,
+
+      monto_min,
+      monto_max,
+      divisa,
+      usuario_nombre,
     } = req.query;
 
     const negocioId = Number(negocio_id);
@@ -891,6 +956,34 @@ app.get('/api/egresos', async (req, res) => {
         estatus
       );
     }
+
+    if (monto_min) {
+  agregarCondicion(
+    "COALESCE(e.monto_mxn,0) >= ?",
+    Number(monto_min)
+  );
+}
+
+if (monto_max) {
+  agregarCondicion(
+    "COALESCE(e.monto_mxn,0) <= ?",
+    Number(monto_max)
+  );
+}
+
+if (divisa) {
+  agregarCondicion(
+    "COALESCE(e.divisa,'MXN') = ?",
+    divisa
+  );
+}
+
+if (usuario_nombre && usuario_nombre.trim()) {
+  agregarCondicion(
+    "LOWER(COALESCE(u.nombre,'')) LIKE LOWER(?)",
+    `%${usuario_nombre.trim()}%`
+  );
+}
 
     const result = await pool.query(
       `
