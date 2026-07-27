@@ -10,7 +10,7 @@ import {
 } from "../services/egresosService.js";
 import ModalDetalleEgreso from "./egresos/ModalDetalleEgreso";
 import ModalEditarEgreso from "./egresos/ModalEditarEgreso";
-
+import { exportarExcelEgresos } from "../services/exportExcel";
 
 const filtrosIniciales = {
   fecha_inicio: "",
@@ -469,18 +469,57 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
             </div>
 
             <div
-              style={{
-                padding: "7px 11px",
-                background: "#f3f3f1",
-                borderRadius: "999px",
-                fontSize: "13px",
-                fontWeight: "600",
-                color: "#444",
-              }}
-            >
-              {egresos.length} movimiento
-              {egresos.length === 1 ? "" : "s"}
-            </div>
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    flexWrap: "wrap",
+  }}
+>
+  <div
+    style={{
+      padding: "7px 11px",
+      background: "#f3f3f1",
+      borderRadius: "999px",
+      fontSize: "13px",
+      fontWeight: "600",
+      color: "#444",
+    }}
+  >
+    {egresos.length} movimiento
+    {egresos.length === 1 ? "" : "s"}
+  </div>
+
+  <button
+    type="button"
+    onClick={() =>
+      exportarExcelEgresos({
+        egresos,
+        filtros,
+        usuarioActivo,
+      })
+    }
+    disabled={cargando || egresos.length === 0}
+    style={{
+      padding: "9px 14px",
+      background:
+        cargando || egresos.length === 0
+          ? "#d5d5d5"
+          : "#111",
+      color: "#fff",
+      border: "none",
+      borderRadius: "8px",
+      fontSize: "13px",
+      fontWeight: "600",
+      cursor:
+        cargando || egresos.length === 0
+          ? "not-allowed"
+          : "pointer",
+    }}
+  >
+    Exportar Excel
+  </button>
+</div>
           </div>
 
          <FiltrosEgresos

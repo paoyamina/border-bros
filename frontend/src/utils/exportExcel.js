@@ -339,3 +339,142 @@ export const exportarExcelAnalisisFinanciero = ({
 
   XLSX.writeFile(workbook, nombreArchivo);
 };
+export function exportarExcelEgresos({
+  egresos = [],
+  filtros = {},
+  usuarioActivo = "",
+}) {
+  if (!Array.isArray(egresos) || egresos.length === 0) {
+    alert("No hay egresos para exportar.");
+    return;
+  }
+
+  const fechaGeneracion = new Date().toLocaleString("es-MX");
+
+  const filas = [
+    ["REPORTE DE EGRESOS - BORDER BROTHERS"],
+    [],
+    ["Fecha de generación", fechaGeneracion],
+    ["Usuario", usuarioActivo || "Sin usuario"],
+    ["Total de registros", egresos.length],
+    [],
+    ["FILTROS APLICADOS"],
+    ["Fecha inicio", filtros.fecha_inicio || "Todos"],
+    ["Fecha fin", filtros.fecha_fin || "Todos"],
+    ["Tipo de egreso", filtros.tipo_egreso || "Todos"],
+    ["Concepto", filtros.concepto || "Todos"],
+    ["Referencia", filtros.referencia || "Todos"],
+    ["Monto mínimo", filtros.monto_min || "Sin límite"],
+    ["Monto máximo", filtros.monto_max || "Sin límite"],
+    ["Divisa", filtros.divisa || "Todas"],
+    ["Usuario", filtros.usuario_nombre || "Todos"],
+    ["Estatus", filtros.estatus || "Todos"],
+    [],
+    ["DETALLE DE EGRESOS"],
+    [
+      "ID",
+      "Fecha",
+      "Tipo de egreso",
+      "Categoría",
+      "Proveedor",
+      "Concepto",
+      "Referencia",
+      "Monto",
+      "Divisa",
+      "Tipo de cambio",
+      "Monto MXN",
+      "Usuario",
+      "Estatus",
+    ],
+  ];
+
+  egresos.forEach((egreso) => {
+    const monto = Number(egreso.monto || 0);
+    const tipoCambio =
+      egreso.divisa === "USD"
+        ? Number(egreso.tipo_cambio || 1)
+        : 1;
+
+    const montoMXN =
+      egreso.divisa === "USD"
+        ? monto * tipoCambio
+        : monto;
+
+    filas.push([
+      egreso.id ?? "",
+      egreso.fecha ?? egreso.fecha_egreso ?? "",
+      egreso.tipo_egreso ?? "",
+      egreso.categoria_nombre ?? egreso.categoria ?? "",
+      egreso.proveedor_nombre ?? egreso.proveedor ?? "",
+      egreso.concepto ?? "",
+      egreso.referencia ?? "",
+      monto,
+      egreso.divisa ?? "MXN",
+      tipoCambio,
+      montoMXN,
+      egreso.usuario_nombre ??
+        egreso.usuario_crea_nombre ??
+        "",
+      egreso.estatus ?? "",
+    ]);
+  });
+
+  const totalMXN = egresos.reduce((acumulado, egreso) => {
+    const monto = Number(egreso.monto || 0);
+
+    if (egreso.divisa === "USD") {
+      return acumulado + monto * Number(egreso.tipo_cambio || 1);
+    }
+
+    return acumulado + monto;
+  }, 0);
+
+  filas.push([]);
+  filas.push(["TOTAL EN MXN", totalMXN]);
+
+  const hoja = XLSX.utils.aoa_to_sheet(filas);
+
+  hoja["!cols"] = [
+    { wch: 8 },
+    { wch: 14 },
+    { wch: 20 },
+    { wch: 24 },
+    { wch: 24 },
+    { wch: 34 },
+    { wch: 22 },
+    { wch: 14 },
+    { wch: 10 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 22 },
+    { wch: 16 },
+  ];
+
+  const encabezadoDetalleFila = 19;
+
+  hoja["!autofilter"] = {
+    ref: `A${encabezadoDetalleFila}:M${filas.length - 2}`,
+  };
+
+  hoja["!freeze"] = {
+    xSplit: 0,
+    ySplit: encabezadoDetalleFila,
+  };
+
+  const libro = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    libro,
+    hoja,
+    "Egresos"
+  );
+
+  const fechaArchivo = new Date()
+    .toISOString()
+    .slice(0, 10);
+
+  XLSX.writeFile(
+    libro,
+    `egresos_${fechaArchivo}.xlsx`
+  );
+}
