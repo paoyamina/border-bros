@@ -69,49 +69,81 @@ const [reglamentosRows, setReglamentosRows] = useState([
 ]);
 
 useEffect(() => {
-  const cargarProveedores = async () => {
-    try {
-      const respuesta = await fetch(`${API_BASE_URL}/api/proveedores`);
-      const resultado = await respuesta.json();
+  if (!negocioId) {
+    console.warn("No se recibió negocioId en CorteCaja");
+    return;
+  }
 
-      if (resultado.success) {
-        setProveedoresExistentes(resultado.proveedores || []);
+  const cargarCatalogos = async () => {
+    try {
+      const [
+        respuestaProveedores,
+        respuestaCategorias,
+        respuestaConceptos,
+      ] = await Promise.all([
+        fetch(
+          `${API_ENDPOINTS.proveedores}?negocio_id=${negocioId}`
+        ),
+        fetch(
+          `${API_ENDPOINTS.categorias}?negocio_id=${negocioId}`
+        ),
+        fetch(
+          `${API_BASE_URL}/api/egresos/conceptos?negocio_id=${negocioId}`
+        ),
+      ]);
+
+      const [
+        resultadoProveedores,
+        resultadoCategorias,
+        resultadoConceptos,
+      ] = await Promise.all([
+        respuestaProveedores.json(),
+        respuestaCategorias.json(),
+        respuestaConceptos.json(),
+      ]);
+
+      if (!respuestaProveedores.ok) {
+        throw new Error(
+          resultadoProveedores.error ||
+            "No fue posible cargar proveedores."
+        );
       }
+
+      if (!respuestaCategorias.ok) {
+        throw new Error(
+          resultadoCategorias.error ||
+            "No fue posible cargar categorías."
+        );
+      }
+
+      if (!respuestaConceptos.ok) {
+        throw new Error(
+          resultadoConceptos.error ||
+            "No fue posible cargar conceptos."
+        );
+      }
+
+      setProveedoresExistentes(
+        resultadoProveedores.proveedores || []
+      );
+
+      setCategoriasExistentes(
+        resultadoCategorias.categorias || []
+      );
+
+      setConceptosExistentes(
+        resultadoConceptos.conceptos || []
+      );
     } catch (error) {
-      console.error("Error cargando proveedores:", error);
+      console.error(
+        "Error cargando catálogos de Corte de caja:",
+        error
+      );
     }
   };
 
-  const cargarCategorias = async () => {
-    try {
-      const respuesta = await fetch(`${API_BASE_URL}/api/categorias`);
-      const resultado = await respuesta.json();
-
-      if (resultado.success) {
-        setCategoriasExistentes(resultado.categorias || []);
-      }
-    } catch (error) {
-      console.error("Error cargando categorías:", error);
-    }
-  };
-
-  const cargarConceptos = async () => {
-    try {
-      const respuesta = await fetch(`${API_BASE_URL}/api/egresos/conceptos`);
-      const resultado = await respuesta.json();
-
-      if (resultado.success) {
-        setConceptosExistentes(resultado.conceptos || []);
-      }
-    } catch (error) {
-      console.error("Error cargando conceptos:", error);
-    }
-  };
-
-  cargarProveedores();
-  cargarCategorias();
-  cargarConceptos();
-}, []);
+  cargarCatalogos();
+}, [negocioId]);
 
   const [fotosTicket, setFotosTicket] = useState([]);
   const [fotosOtros, setFotosOtros] = useState([]);
