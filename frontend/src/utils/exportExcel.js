@@ -349,21 +349,183 @@ export function exportarExcelEgresos({
     return;
   }
 
+  const obtenerPrimerValor = (...valores) =>
+    valores.find(
+      (valor) =>
+        valor !== undefined &&
+        valor !== null &&
+        valor !== ""
+    );
+
+  const convertirNumero = (...valores) => {
+    const valor = obtenerPrimerValor(...valores);
+
+    if (valor === undefined) return 0;
+
+    const numero = Number(
+      String(valor)
+        .replace(/[$,\s]/g, "")
+        .trim()
+    );
+
+    return Number.isFinite(numero) ? numero : 0;
+  };
+
+  const formatearFecha = (valor) => {
+    if (!valor) return "";
+
+    const texto = String(valor);
+
+    // Evita que una fecha UTC cambie de día por la zona horaria
+    const coincidencia = texto.match(
+      /^(\d{4})-(\d{2})-(\d{2})/
+    );
+
+    if (coincidencia) {
+      const [, anio, mes, dia] = coincidencia;
+      return `${dia}/${mes}/${anio}`;
+    }
+
+    const fecha = new Date(valor);
+
+    if (Number.isNaN(fecha.getTime())) {
+      return texto;
+    }
+
+    return fecha.toLocaleDateString("es-MX");
+  };
+
+  const formatearTexto = (valor) => {
+    if (valor === undefined || valor === null) {
+      return "";
+    }
+
+    return String(valor).trim();
+  };
+
+  const formatearTipoEgreso = (valor) => {
+    const texto = formatearTexto(valor);
+
+    if (!texto) return "";
+
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  };
+
   const fechaGeneracion = new Date().toLocaleString("es-MX");
+
+  const registros = egresos.map((egreso) => {
+    /*
+     * Se contemplan diferentes nombres porque el backend puede devolver
+     * el monto con distintos alias.
+     */
+    const monto = convertirNumero(
+      egreso.monto,
+      egreso.monto_original,
+      egreso.importe,
+      egreso.total,
+      egreso.cantidad,
+      egreso.monto_egreso
+    );
+
+    const divisa = formatearTexto(
+      obtenerPrimerValor(
+        egreso.divisa,
+        egreso.moneda,
+        egreso.currency,
+        "MXN"
+      )
+    ).toUpperCase();
+
+    const tipoCambio =
+      divisa === "USD"
+        ? convertirNumero(
+            egreso.tipo_cambio,
+            egreso.tipoCambio,
+            egreso.exchange_rate,
+            egreso.tc,
+            1
+          ) || 1
+        : 1;
+
+    const montoMXN =
+      divisa === "USD"
+        ? monto * tipoCambio
+        : convertirNumero(
+            egreso.monto_mxn,
+            egreso.total_mxn,
+            monto
+          );
+
+    const usuario = obtenerPrimerValor(
+      egreso.usuario_nombre,
+      egreso.usuario_crea_nombre,
+      egreso.nombre_usuario,
+      egreso.usuario,
+      egreso.created_by_nombre,
+      egreso.creado_por,
+      ""
+    );
+
+    return {
+      id: egreso.id ?? "",
+      fecha: formatearFecha(
+        obtenerPrimerValor(
+          egreso.fecha,
+          egreso.fecha_egreso,
+          egreso.created_at
+        )
+      ),
+      tipoEgreso: formatearTipoEgreso(
+        obtenerPrimerValor(
+          egreso.tipo_egreso,
+          egreso.tipo,
+          ""
+        )
+      ),
+      categoria: formatearTexto(
+        obtenerPrimerValor(
+          egreso.categoria_nombre,
+          egreso.categoria,
+          ""
+        )
+      ),
+      proveedor: formatearTexto(
+        obtenerPrimerValor(
+          egreso.proveedor_nombre,
+          egreso.proveedor,
+          ""
+        )
+      ),
+      concepto: formatearTexto(egreso.concepto),
+      referencia: formatearTexto(egreso.referencia),
+      monto,
+      divisa,
+      tipoCambio,
+      montoMXN,
+      usuario: formatearTexto(usuario),
+      estatus: formatearTexto(egreso.estatus),
+    };
+  });
+
+  const totalMXN = registros.reduce(
+    (acumulado, registro) =>
+      acumulado + registro.montoMXN,
+    0
+  );
 
   const filas = [
     ["REPORTE DE EGRESOS - BORDER BROTHERS"],
     [],
     ["Fecha de generación", fechaGeneracion],
     ["Usuario", usuarioActivo || "Sin usuario"],
-    ["Total de registros", egresos.length],
+    ["Total de registros", registros.length],
     [],
     ["FILTROS APLICADOS"],
-    ["Fecha inicio", filtros.fecha_inicio || "Todos"],
-    ["Fecha fin", filtros.fecha_fin || "Todos"],
+    ["Fecha inicio", filtros.fecha_inicio || "Todas"],
+    ["Fecha fin", filtros.fecha_fin || "Todas"],
     ["Tipo de egreso", filtros.tipo_egreso || "Todos"],
     ["Concepto", filtros.concepto || "Todos"],
-    ["Referencia", filtros.referencia || "Todos"],
+    ["Referencia", filtros.referencia || "Todas"],
     ["Monto mínimo", filtros.monto_min || "Sin límite"],
     ["Monto máximo", filtros.monto_max || "Sin límite"],
     ["Divisa", filtros.divisa || "Todas"],
@@ -379,7 +541,7 @@ export function exportarExcelEgresos({
       "Proveedor",
       "Concepto",
       "Referencia",
-      "Monto",
+      "Monto original",
       "Divisa",
       "Tipo de cambio",
       "Monto MXN",
@@ -388,46 +550,23 @@ export function exportarExcelEgresos({
     ],
   ];
 
-  egresos.forEach((egreso) => {
-    const monto = Number(egreso.monto || 0);
-    const tipoCambio =
-      egreso.divisa === "USD"
-        ? Number(egreso.tipo_cambio || 1)
-        : 1;
-
-    const montoMXN =
-      egreso.divisa === "USD"
-        ? monto * tipoCambio
-        : monto;
-
+  registros.forEach((registro) => {
     filas.push([
-      egreso.id ?? "",
-      egreso.fecha ?? egreso.fecha_egreso ?? "",
-      egreso.tipo_egreso ?? "",
-      egreso.categoria_nombre ?? egreso.categoria ?? "",
-      egreso.proveedor_nombre ?? egreso.proveedor ?? "",
-      egreso.concepto ?? "",
-      egreso.referencia ?? "",
-      monto,
-      egreso.divisa ?? "MXN",
-      tipoCambio,
-      montoMXN,
-      egreso.usuario_nombre ??
-        egreso.usuario_crea_nombre ??
-        "",
-      egreso.estatus ?? "",
+      registro.id,
+      registro.fecha,
+      registro.tipoEgreso,
+      registro.categoria,
+      registro.proveedor,
+      registro.concepto,
+      registro.referencia,
+      registro.monto,
+      registro.divisa,
+      registro.tipoCambio,
+      registro.montoMXN,
+      registro.usuario,
+      registro.estatus,
     ]);
   });
-
-  const totalMXN = egresos.reduce((acumulado, egreso) => {
-    const monto = Number(egreso.monto || 0);
-
-    if (egreso.divisa === "USD") {
-      return acumulado + monto * Number(egreso.tipo_cambio || 1);
-    }
-
-    return acumulado + monto;
-  }, 0);
 
   filas.push([]);
   filas.push(["TOTAL EN MXN", totalMXN]);
@@ -435,31 +574,64 @@ export function exportarExcelEgresos({
   const hoja = XLSX.utils.aoa_to_sheet(filas);
 
   hoja["!cols"] = [
-    { wch: 8 },
-    { wch: 14 },
-    { wch: 20 },
+    { wch: 9 },
+    { wch: 13 },
+    { wch: 18 },
     { wch: 24 },
-    { wch: 24 },
-    { wch: 34 },
-    { wch: 22 },
-    { wch: 14 },
+    { wch: 26 },
+    { wch: 38 },
+    { wch: 48 },
+    { wch: 18 },
     { wch: 10 },
     { wch: 16 },
-    { wch: 16 },
-    { wch: 22 },
+    { wch: 18 },
+    { wch: 24 },
     { wch: 16 },
   ];
 
-  const encabezadoDetalleFila = 19;
+  // La fila 20 contiene los nombres de las columnas.
+  const filaEncabezados = 20;
+  const ultimaFilaDetalle =
+    filaEncabezados + registros.length;
 
   hoja["!autofilter"] = {
-    ref: `A${encabezadoDetalleFila}:M${filas.length - 2}`,
+    ref: `A${filaEncabezados}:M${ultimaFilaDetalle}`,
   };
 
   hoja["!freeze"] = {
     xSplit: 0,
-    ySplit: encabezadoDetalleFila,
+    ySplit: filaEncabezados,
   };
+
+  // Formato numérico para montos y tipo de cambio.
+  for (
+    let numeroFila = filaEncabezados + 1;
+    numeroFila <= ultimaFilaDetalle;
+    numeroFila += 1
+  ) {
+    const celdaMonto = hoja[`H${numeroFila}`];
+    const celdaTipoCambio = hoja[`J${numeroFila}`];
+    const celdaMontoMXN = hoja[`K${numeroFila}`];
+
+    if (celdaMonto) {
+      celdaMonto.z = '#,##0.00';
+    }
+
+    if (celdaTipoCambio) {
+      celdaTipoCambio.z = '#,##0.0000';
+    }
+
+    if (celdaMontoMXN) {
+      celdaMontoMXN.z = '$#,##0.00';
+    }
+  }
+
+  const filaTotal = filas.length;
+  const celdaTotal = hoja[`B${filaTotal}`];
+
+  if (celdaTotal) {
+    celdaTotal.z = '$#,##0.00';
+  }
 
   const libro = XLSX.utils.book_new();
 
