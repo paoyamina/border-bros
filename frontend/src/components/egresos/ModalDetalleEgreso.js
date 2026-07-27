@@ -68,7 +68,7 @@ function ModalDetalleEgreso({ abierto, egreso, onCerrar }) {
 
     return new Date(fecha).toLocaleString("es-MX", {
       dateStyle: "medium",
-      timeStyle: "short",
+      timeStyle: "medium",
     });
   };
 
@@ -101,6 +101,67 @@ function ModalDetalleEgreso({ abierto, egreso, onCerrar }) {
         return accion || "Movimiento";
     }
   };
+
+  const camposHistorial = {
+  fecha: "Fecha",
+  tipo_egreso: "Tipo",
+  divisa: "Divisa",
+  tipo_cambio: "Tipo de cambio",
+  monto_original: "Monto original",
+  monto_mxn: "Monto MXN",
+  categoria_id: "Categoría",
+  proveedor_id: "Proveedor",
+  concepto: "Concepto",
+  referencia: "Referencia",
+  estatus: "Estatus",
+};
+
+const formatearValorHistorial = (campo, valor) => {
+  if (valor === null || valor === undefined || valor === "") {
+    return "—";
+  }
+
+  if (campo === "monto_mxn" || campo === "monto_original") {
+    return `$${Number(valor).toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+
+  if (campo === "fecha") {
+    const fechaFormateada = new Date(valor);
+
+    if (!Number.isNaN(fechaFormateada.getTime())) {
+      return fechaFormateada.toLocaleDateString("es-MX");
+    }
+  }
+
+  return String(valor);
+};
+
+const obtenerCambios = (movimiento) => {
+  if (
+    movimiento.accion !== "EDITADO" ||
+    !movimiento.datos_anteriores ||
+    !movimiento.datos_nuevos
+  ) {
+    return [];
+  }
+
+  return Object.keys(camposHistorial)
+    .filter((campo) => {
+      const anterior = movimiento.datos_anteriores[campo];
+      const nuevo = movimiento.datos_nuevos[campo];
+
+      return String(anterior ?? "") !== String(nuevo ?? "");
+    })
+    .map((campo) => ({
+      campo,
+      titulo: camposHistorial[campo],
+      anterior: movimiento.datos_anteriores[campo],
+      nuevo: movimiento.datos_nuevos[campo],
+    }));
+};
 
   return (
     <div
@@ -219,9 +280,12 @@ function ModalDetalleEgreso({ abierto, egreso, onCerrar }) {
 
           {!cargandoHistorial &&
             !errorHistorial &&
-            historial.map((movimiento) => (
-              <div
-                key={movimiento.id}
+            historial.map((movimiento) => {
+  const cambios = obtenerCambios(movimiento);
+
+  return (
+    <div
+      key={movimiento.id}
                 style={{
                   display: "grid",
                   gridTemplateColumns: "42px 1fr",
@@ -263,9 +327,62 @@ function ModalDetalleEgreso({ abierto, egreso, onCerrar }) {
                   >
                     Usuario: {movimiento.usuario || "No identificado"}
                   </div>
+
+                    {cambios.length > 0 && (
+  <div
+    style={{
+      marginTop: 12,
+      padding: 12,
+      background: "#f7f7f7",
+      borderRadius: 8,
+    }}
+  >
+    {cambios.map((cambio) => (
+      <div
+        key={cambio.campo}
+        style={{
+          padding: "8px 0",
+          borderBottom: "1px solid #ddd",
+        }}
+      >
+        <strong>{cambio.titulo}</strong>
+
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: 14,
+            color: "#666",
+          }}
+        >
+          <span
+            style={{
+              textDecoration: "line-through",
+            }}
+          >
+            {formatearValorHistorial(
+              cambio.campo,
+              cambio.anterior
+            )}
+          </span>
+
+          <span style={{ margin: "0 8px" }}>→</span>
+
+          <span>
+            {formatearValorHistorial(
+              cambio.campo,
+              cambio.nuevo
+            )}
+          </span>
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+
                 </div>
-              </div>
-            ))}
+                            </div>
+            );
+          })}
         </div>
       </div>
     </div>
