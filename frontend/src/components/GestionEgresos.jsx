@@ -21,6 +21,11 @@ const filtrosIniciales = {
   concepto: "",
   referencia: "",
   estatus: "",
+
+  monto_min: "",
+  monto_max: "",
+  divisa: "",
+  usuario_nombre: "",
 };
 
 function GestionEgresos({
@@ -42,6 +47,14 @@ function GestionEgresos({
   const [egresos, setEgresos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [proveedores, setProveedores] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
+  const usuariosUnicos = Array.from(
+  new Map(
+    usuarios
+      .filter((usuario) => usuario.nombre)
+      .map((usuario) => [usuario.nombre.trim(), usuario])
+  ).values()
+);
   const [filtros, setFiltros] = useState(filtrosIniciales);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
@@ -77,15 +90,28 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
     if (!negocioId) return;
 
     try {
-      const [respuestaCategorias, respuestaProveedores] =
-        await Promise.all([
+      const [
+        respuestaCategorias,
+        respuestaProveedores,
+        respuestaUsuarios,
+        ] = await Promise.all([
           fetch(
             `${API_BASE_URL}/api/categorias?negocio_id=${negocioId}`
           ),
           fetch(
             `${API_BASE_URL}/api/proveedores?negocio_id=${negocioId}`
           ),
+          fetch(
+            `${API_BASE_URL}/api/usuarios?negocio_id=${negocioId}`
+)
         ]);
+
+const resultadoUsuarios =
+  await respuestaUsuarios.json();
+
+if (resultadoUsuarios.success) {
+  setUsuarios(resultadoUsuarios.usuarios || []);
+}
 
       const resultadoCategorias =
         await respuestaCategorias.json();
@@ -421,15 +447,16 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
             </div>
           </div>
 
-          <FiltrosEgresos
-            filtros={filtros}
-            categorias={categorias}
-            proveedores={proveedores}
-            cargando={cargando}
-            onCambiar={cambiarFiltro}
-            onBuscar={buscar}
-            onLimpiar={limpiarFiltros}
-          />
+         <FiltrosEgresos
+                filtros={filtros}
+                categorias={categorias}
+                proveedores={proveedores}
+                usuarios={usuariosUnicos}
+                cargando={cargando}
+                onCambiar={cambiarFiltro}
+                onBuscar={buscar}
+                onLimpiar={limpiarFiltros}
+                />
 
           {error && (
             <div

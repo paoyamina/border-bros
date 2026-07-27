@@ -4,6 +4,7 @@ function FiltrosEgresos({
   filtros,
   categorias,
   proveedores,
+  usuarios,
   cargando,
   onCambiar,
   onBuscar,
@@ -141,6 +142,70 @@ function FiltrosEgresos({
             style={estiloCampo}
           />
         </div>
+
+        <div>
+  <label style={estiloLabel}>Monto mínimo</label>
+  <input
+    type="number"
+    name="monto_min"
+    value={filtros.monto_min}
+    onChange={onCambiar}
+    placeholder="0.00"
+    min="0"
+    step="0.01"
+    style={estiloCampo}
+  />
+</div>
+
+<div>
+  <label style={estiloLabel}>Monto máximo</label>
+  <input
+    type="number"
+    name="monto_max"
+    value={filtros.monto_max}
+    onChange={onCambiar}
+    placeholder="0.00"
+    min="0"
+    step="0.01"
+    style={estiloCampo}
+  />
+</div>
+
+<div>
+  <label style={estiloLabel}>Divisa</label>
+  <select
+    name="divisa"
+    value={filtros.divisa}
+    onChange={onCambiar}
+    style={estiloCampo}
+  >
+    <option value="">Todas</option>
+    <option value="MXN">MXN</option>
+    <option value="USD">USD</option>
+  </select>
+</div>
+
+<div>
+  <label style={estiloLabel}>Usuario</label>
+
+  <select
+    name="usuario_nombre"
+    value={filtros.usuario_nombre}
+    onChange={onCambiar}
+    style={estiloCampo}
+  >
+    <option value="">Todos</option>
+
+    {(usuarios || []).map((usuario) => (
+      <option
+        key={usuario.id || usuario.nombre}
+        value={usuario.nombre}
+      >
+        {usuario.nombre}
+      </option>
+    ))}
+  </select>
+</div>
 
         <div>
           <label style={estiloLabel}>Estatus</label>
