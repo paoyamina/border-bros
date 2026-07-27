@@ -87,52 +87,68 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
   };
 
   const cargarCatalogos = async () => {
-    if (!negocioId) return;
+  if (!negocioId) return;
 
-    try {
-      const [
-        respuestaCategorias,
-        respuestaProveedores,
-        respuestaUsuarios,
-        ] = await Promise.all([
-          fetch(
-            `${API_BASE_URL}/api/categorias?negocio_id=${negocioId}`
-          ),
-          fetch(
-            `${API_BASE_URL}/api/proveedores?negocio_id=${negocioId}`
-          ),
-          fetch(
-            `${API_BASE_URL}/api/usuarios?negocio_id=${negocioId}`
-)
-        ]);
+  // Cargar categorías
+  try {
+    const respuestaCategorias = await fetch(
+      `${API_BASE_URL}/api/categorias?negocio_id=${negocioId}`
+    );
 
-const resultadoUsuarios =
-  await respuestaUsuarios.json();
-
-if (resultadoUsuarios.success) {
-  setUsuarios(resultadoUsuarios.usuarios || []);
-}
-
-      const resultadoCategorias =
-        await respuestaCategorias.json();
-
-      const resultadoProveedores =
-        await respuestaProveedores.json();
-
-      if (resultadoCategorias.success) {
-        setCategorias(resultadoCategorias.categorias || []);
-      }
-
-      if (resultadoProveedores.success) {
-        setProveedores(resultadoProveedores.proveedores || []);
-      }
-    } catch (errorCatalogos) {
-      console.error(
-        "Error cargando catálogos de egresos:",
-        errorCatalogos
+    if (!respuestaCategorias.ok) {
+      throw new Error(
+        `Error ${respuestaCategorias.status} cargando categorías`
       );
     }
-  };
+
+    const resultadoCategorias =
+      await respuestaCategorias.json();
+
+    if (resultadoCategorias.success) {
+      setCategorias(resultadoCategorias.categorias || []);
+    } else {
+      setCategorias([]);
+    }
+  } catch (errorCategorias) {
+    console.error(
+      "Error cargando categorías:",
+      errorCategorias
+    );
+    setCategorias([]);
+  }
+
+  // Cargar proveedores
+  try {
+    const respuestaProveedores = await fetch(
+      `${API_BASE_URL}/api/proveedores?negocio_id=${negocioId}`
+    );
+
+    if (!respuestaProveedores.ok) {
+      throw new Error(
+        `Error ${respuestaProveedores.status} cargando proveedores`
+      );
+    }
+
+    const resultadoProveedores =
+      await respuestaProveedores.json();
+
+    if (resultadoProveedores.success) {
+      setProveedores(resultadoProveedores.proveedores || []);
+    } else {
+      setProveedores([]);
+    }
+  } catch (errorProveedores) {
+    console.error(
+      "Error cargando proveedores:",
+      errorProveedores
+    );
+    setProveedores([]);
+  }
+
+  // La ruta /api/usuarios todavía no existe.
+  // Por ahora dejamos la lista vacía sin romper los otros catálogos.
+  setUsuarios([]);
+};
 
   const cargarEgresos = async (filtrosAplicados = filtros) => {
     if (!negocioId) {
