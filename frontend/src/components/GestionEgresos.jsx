@@ -145,9 +145,29 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
     setProveedores([]);
   }
 
-  // La ruta /api/usuarios todavía no existe.
-  // Por ahora dejamos la lista vacía sin romper los otros catálogos.
-  setUsuarios([]);
+    // Cargar usuarios
+  try {
+    const respuestaUsuarios = await fetch(
+      `${API_BASE_URL}/api/usuarios?negocio_id=${negocioId}`
+    );
+
+    if (!respuestaUsuarios.ok) {
+      throw new Error(
+        `Error ${respuestaUsuarios.status} cargando usuarios`
+      );
+    }
+
+    const resultadoUsuarios = await respuestaUsuarios.json();
+
+    if (resultadoUsuarios.success) {
+      setUsuarios(resultadoUsuarios.usuarios || []);
+    } else {
+      setUsuarios([]);
+    }
+  } catch (error) {
+    console.error("Error cargando usuarios:", error);
+    setUsuarios([]);
+  }
 };
 
   const cargarEgresos = async (filtrosAplicados = filtros) => {
