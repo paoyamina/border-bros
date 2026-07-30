@@ -877,6 +877,242 @@ app.post('/api/egresos', async (req, res) => {
   }
 });
 
+// Obtener cortes de caja por negocio
+app.get("/api/cortes", async (req, res) => {
+  try {
+    const {
+      negocio_id,
+      fecha_inicio,
+      fecha_fin,
+      folio,
+    } = req.query;
+
+    const negocioId = Number(negocio_id);
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El negocio_id no es válido.",
+      });
+    }
+
+    const condiciones = ["cc.negocio_id = $1"];
+    const valores = [negocioId];
+
+    if (fecha_inicio) {
+      valores.push(fecha_inicio);
+      condiciones.push(
+        `cc.fecha::date >= $${valores.length}::date`
+      );
+    }
+
+    if (fecha_fin) {
+      valores.push(fecha_fin);
+      condiciones.push(
+        `cc.fecha::date <= $${valores.length}::date`
+      );
+    }
+
+    if (folio && String(folio).trim()) {
+      valores.push(`%${String(folio).trim()}%`);
+      condiciones.push(
+        `cc.folio ILIKE $${valores.length}`
+      );
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          cc.id,
+          cc.fecha,
+          cc.folio,
+          cc.usuario_id,
+          cc.negocio_id,
+          cc.tipo_cambio,
+          cc.total_tarjetas,
+          cc.total_efectivo_mxn,
+          cc.total_efectivo_usd,
+          cc.total_general,
+          cc.cover_tpv,
+          cc.cover_efectivo,
+          cc.cover_usd,
+          cc.total_cover,
+          cc.venta_ticket,
+          cc.diferencia,
+          cc.total_vales,
+          cc.gastos_corte,
+          cc.reglamentos,
+          cc.total_cxc,
+          cc.responsable_iniciales,
+          cc.drive_folder_id,
+          cc.drive_folder_url,
+          cc.created_at,
+          cc.updated_at,
+          cc.updated_by,
+          u.nombre AS usuario_nombre
+        FROM corte_caja cc
+        LEFT JOIN usuarios u
+          ON u.id = cc.usuario_id
+        WHERE ${condiciones.join(" AND ")}
+        ORDER BY cc.fecha DESC, cc.id DESC;
+      `,
+      valores
+    );
+
+    return res.json({
+      success: true,
+      cortes: result.rows,
+    });
+  } catch (error) {
+    console.error("Error consultando cortes:", error);
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible consultar los cortes.",
+    });
+  }
+});
+
+// Obtener detalle completo de un corte
+app.get("/api/cortes/:id", async (req, res) => {
+  const corteId = Number(req.params.id);
+
+  if (!Number.isInteger(corteId) || corteId <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "El id del corte no es válido.",
+    });
+  }
+
+  try {
+    const corteResult = await pool.query(
+      `
+        SELECT
+          cc.*,
+          u.nombre AS usuario_nombre
+        FROM corte_caja cc
+        LEFT JOIN usuarios u
+          ON u.id = cc.usuario_id
+        WHERE cc.id = $1
+        LIMIT 1;
+      `,
+      [corteId]
+    );
+
+    if (corteResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "No se encontró el corte.",
+      });
+    }
+
+    const corte = corteResult.rows[0];
+
+    const [
+      denominacionesResult,
+      valesResult,
+      cxcResult,
+      egresosResult,
+    ] = await Promise.all([
+      pool.query(
+        `
+          SELECT
+            cd.id,
+            cd.corte_id,
+            cd.denominacion_id,
+            cd.cantidad,
+            cd.tipo_ingreso,
+            cd.concepto,
+            cd.monto_original,
+            cd.monto_mxn,
+            d.moneda,
+            d.valor
+          FROM corte_denominaciones cd
+          LEFT JOIN denominaciones d
+            ON d.id = cd.denominacion_id
+          WHERE cd.corte_id = $1
+          ORDER BY cd.tipo_ingreso, d.moneda, d.valor DESC;
+        `,
+        [corteId]
+      ),
+
+      pool.query(
+        `
+          SELECT *
+          FROM corte_vales
+          WHERE corte_id = $1
+          ORDER BY id ASC;
+        `,
+        [corteId]
+      ),
+
+      pool.query(
+        `
+          SELECT *
+          FROM cuentas_por_cobrar
+          WHERE corte_id = $1
+          ORDER BY id ASC;
+        `,
+        [corteId]
+      ),
+
+      pool.query(
+        `
+          SELECT
+            e.*,
+            c.nombre AS categoria_nombre,
+            p.nombre AS proveedor_nombre
+          FROM egresos e
+          LEFT JOIN categorias c
+            ON c.id = e.categoria_id
+          LEFT JOIN proveedores p
+            ON p.id = e.proveedor_id
+          WHERE e.negocio_id = $1
+            AND e.referencia LIKE $2
+          ORDER BY e.id ASC;
+        `,
+        [
+          corte.negocio_id,
+          `CORTE-${corte.folio}-%`,
+        ]
+      ),
+    ]);
+
+    const egresosCorte = egresosResult.rows;
+
+    const gastosCorte = egresosCorte.filter((egreso) =>
+      String(egreso.referencia || "").includes("-GASTO-")
+    );
+
+    const reglamentos = egresosCorte.filter((egreso) =>
+      String(egreso.referencia || "").includes("-REGLAMENTO-")
+    );
+
+    return res.json({
+      success: true,
+      corte: {
+        ...corte,
+        denominaciones: denominacionesResult.rows,
+        vales: valesResult.rows,
+        cxc: cxcResult.rows,
+        gastos_corte_detalle: gastosCorte,
+        reglamentos_detalle: reglamentos,
+      },
+    });
+  } catch (error) {
+    console.error("Error consultando detalle del corte:", error);
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible consultar el detalle del corte.",
+    });
+  }
+});
+
 // Obtener egresos registrados por negocio
 app.get('/api/egresos', async (req, res) => {
   try {
@@ -2928,6 +3164,251 @@ app.get('/api/prenomina', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// Consultar cortes de caja por negocio
+app.get("/api/cortes", async (req, res) => {
+  try {
+    const {
+      negocio_id,
+      fecha_inicio,
+      fecha_fin,
+      folio,
+    } = req.query;
+
+    const negocioId = Number(negocio_id);
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El negocio_id no es válido.",
+      });
+    }
+
+    const condiciones = ["cc.negocio_id = $1"];
+    const valores = [negocioId];
+
+    if (fecha_inicio) {
+      valores.push(fecha_inicio);
+      condiciones.push(
+        `cc.fecha::date >= $${valores.length}::date`
+      );
+    }
+
+    if (fecha_fin) {
+      valores.push(fecha_fin);
+      condiciones.push(
+        `cc.fecha::date <= $${valores.length}::date`
+      );
+    }
+
+    if (folio && String(folio).trim()) {
+      valores.push(`%${String(folio).trim()}%`);
+      condiciones.push(
+        `cc.folio ILIKE $${valores.length}`
+      );
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          cc.id,
+          cc.fecha,
+          cc.folio,
+          cc.usuario_id,
+          cc.negocio_id,
+          cc.tipo_cambio,
+          cc.total_tarjetas,
+          cc.total_efectivo_mxn,
+          cc.total_efectivo_usd,
+          cc.total_general,
+          cc.cover_tpv,
+          cc.cover_efectivo,
+          cc.cover_usd,
+          cc.total_cover,
+          cc.venta_ticket,
+          cc.diferencia,
+          cc.total_vales,
+          cc.gastos_corte,
+          cc.reglamentos,
+          cc.total_cxc,
+          cc.responsable_iniciales,
+          cc.drive_folder_id,
+          cc.drive_folder_url,
+          cc.created_at,
+          cc.updated_at,
+          cc.updated_by,
+          u.nombre AS usuario_nombre
+        FROM corte_caja cc
+        LEFT JOIN usuarios u
+          ON u.id = cc.usuario_id
+        WHERE ${condiciones.join(" AND ")}
+        ORDER BY cc.fecha DESC, cc.id DESC;
+      `,
+      valores
+    );
+
+    return res.json({
+      success: true,
+      cortes: result.rows,
+    });
+  } catch (error) {
+    console.error("Error consultando cortes:", error);
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible consultar los cortes.",
+    });
+  }
+});
+
+// Consultar el detalle de un corte de caja
+app.get("/api/cortes/:id", async (req, res) => {
+  const corteId = Number(req.params.id);
+
+  if (!Number.isInteger(corteId) || corteId <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "El id del corte no es válido.",
+    });
+  }
+
+  try {
+    const corteResult = await pool.query(
+      `
+        SELECT
+          cc.*,
+          u.nombre AS usuario_nombre
+        FROM corte_caja cc
+        LEFT JOIN usuarios u
+          ON u.id = cc.usuario_id
+        WHERE cc.id = $1
+        LIMIT 1;
+      `,
+      [corteId]
+    );
+
+    if (corteResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "No se encontró el corte.",
+      });
+    }
+
+    const corte = corteResult.rows[0];
+
+    const [
+      denominacionesResult,
+      valesResult,
+      cxcResult,
+      egresosResult,
+    ] = await Promise.all([
+      pool.query(
+        `
+          SELECT
+            cd.id,
+            cd.corte_id,
+            cd.denominacion_id,
+            cd.cantidad,
+            cd.tipo_ingreso,
+            cd.concepto,
+            cd.monto_original,
+            cd.monto_mxn,
+            d.moneda,
+            d.valor
+          FROM corte_denominaciones cd
+          LEFT JOIN denominaciones d
+            ON d.id = cd.denominacion_id
+          WHERE cd.corte_id = $1
+          ORDER BY cd.tipo_ingreso, d.moneda, d.valor DESC;
+        `,
+        [corteId]
+      ),
+
+      pool.query(
+        `
+          SELECT *
+          FROM corte_vales
+          WHERE corte_id = $1
+          ORDER BY id ASC;
+        `,
+        [corteId]
+      ),
+
+      pool.query(
+        `
+          SELECT *
+          FROM cuentas_por_cobrar
+          WHERE corte_id = $1
+          ORDER BY id ASC;
+        `,
+        [corteId]
+      ),
+
+      /*
+       * Gastos de corte y Reglamentos se guardan como egresos.
+       * Se localizan mediante la referencia generada desde el corte.
+       */
+      pool.query(
+        `
+          SELECT
+            e.*,
+            c.nombre AS categoria_nombre,
+            p.nombre AS proveedor_nombre
+          FROM egresos e
+          LEFT JOIN categorias c
+            ON c.id = e.categoria_id
+          LEFT JOIN proveedores p
+            ON p.id = e.proveedor_id
+          WHERE e.negocio_id = $1
+            AND e.referencia LIKE $2
+          ORDER BY e.id ASC;
+        `,
+        [
+          corte.negocio_id,
+          `CORTE-${corte.folio}-%`,
+        ]
+      ),
+    ]);
+
+    const egresosCorte = egresosResult.rows;
+
+    const gastosCorte = egresosCorte.filter((egreso) =>
+      String(egreso.referencia || "").includes("-GASTO-")
+    );
+
+    const reglamentos = egresosCorte.filter((egreso) =>
+      String(egreso.referencia || "").includes(
+        "-REGLAMENTO-"
+      )
+    );
+
+    return res.json({
+      success: true,
+      corte: {
+        ...corte,
+        denominaciones: denominacionesResult.rows,
+        vales: valesResult.rows,
+        cxc: cxcResult.rows,
+        gastos_corte_detalle: gastosCorte,
+        reglamentos_detalle: reglamentos,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Error consultando detalle del corte:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible consultar el detalle del corte.",
     });
   }
 });

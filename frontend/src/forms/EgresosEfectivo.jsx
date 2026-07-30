@@ -490,18 +490,21 @@ alert(
           <div style={estilos.section}>
             <label style={estilos.panelLabel}>CATEGORÍA</label>
             <div style={{ display: "flex", gap: "5px" }}>
-              <select
-                value={categoriaEgreso}
-                onChange={(e) => setCategoriaEgreso(e.target.value)}
-                style={{ ...estilos.input, flex: 1, height: "42px" }}
-              >
-                <option value="">-- Selecciona --</option>
-                {categoriasExistentes.map((cat) => (
-                  <option key={cat.id} value={cat.nombre}>
-  {cat.nombre}
-</option>
-                ))}
-              </select>
+              <input
+                  type="text"
+                  list="categorias-egreso-efectivo"
+                  value={categoriaEgreso}
+                  onChange={(e) => setCategoriaEgreso(e.target.value)}
+                  placeholder="Escribe para buscar una categoría"
+                  autoComplete="off"
+                  style={{ ...estilos.input, flex: 1, height: "42px" }}
+                />
+
+                <datalist id="categorias-egreso-efectivo">
+                  {categoriasExistentes.map((cat) => (
+                    <option key={cat.id} value={cat.nombre} />
+                  ))}
+                </datalist>
 
               {puedeAgregarCategoria && (
             <button type="button" style={estilos.btnAdd} onClick={agregarCategoria}>
@@ -533,22 +536,28 @@ alert(
 </datalist>
 
             <div style={{ display: "flex", gap: "5px" }}>
-              <select
-  value={beneficiarioEgreso}
-  onChange={(e) => setBeneficiarioEgreso(e.target.value)}
-  style={{
-    ...estilos.input,
-    width: "100%",
-  }}
->
-  <option value="">-- Selecciona proveedor --</option>
+              <input
+                  type="text"
+                  list="proveedores-egreso-efectivo"
+                  value={beneficiarioEgreso}
+                  onChange={(e) => setBeneficiarioEgreso(e.target.value)}
+                  placeholder="Escribe para buscar un proveedor"
+                  autoComplete="off"
+                  style={{
+                    ...estilos.input,
+                    flex: 1,
+                    height: "42px",
+                  }}
+                />
 
-  {proveedoresExistentes.map((proveedor) => (
-    <option key={proveedor.id} value={proveedor.nombre}>
-      {proveedor.nombre}
-    </option>
-  ))}
-</select>
+                <datalist id="proveedores-egreso-efectivo">
+                  {proveedoresExistentes.map((proveedor) => (
+                    <option
+                      key={proveedor.id}
+                      value={proveedor.nombre}
+                    />
+                  ))}
+                </datalist>
 
               <button type="button" style={estilos.btnAdd} onClick={agregarProveedor}>
                 +

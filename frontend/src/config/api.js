@@ -7,6 +7,7 @@ export const API_ENDPOINTS = {
   guardarReporte: `${API_BASE_URL}/api/guardar-reporte`,
   proveedores: `${API_BASE_URL}/api/proveedores`,
   categorias: `${API_BASE_URL}/api/categorias`,
+  cortes: `${API_BASE_URL}/api/cortes`,
 };
 
 export default API_BASE_URL;
