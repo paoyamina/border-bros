@@ -240,48 +240,13 @@ useEffect(() => {
           )}
 
           <TablaCortes
-                cortes={cortes}
-                cargando={cargando}
-                onVer={verDetalle}
-                onEditar={onEditarCorte}
-               onCancelar={async (corte) => {
-  if (!window.confirm("¿Cancelar este corte?")) return;
-
-  const res = await fetch(
-    `${API_BASE_URL}/api/cortes/${corte.id}/cancelar`,
-    {
-      method: "PUT",
-    }
-  );
-
-  const data = await res.json();
-
-  if (!data.success) {
-    alert(data.error);
-    return;
-  }
-
-  cargarCortes();
-}}
-
-onReactivar={async (corte) => {
-  const res = await fetch(
-    `${API_BASE_URL}/api/cortes/${corte.id}/reactivar`,
-    {
-      method: "PUT",
-    }
-  );
-
-  const data = await res.json();
-
-  if (!data.success) {
-    alert(data.error);
-    return;
-  }
-
-  cargarCortes();
-}}
-                />
+  cortes={cortes}
+  cargando={cargando}
+  onVer={verDetalle}
+  onEditar={onEditarCorte}
+  onCancelar={cancelarCorte}
+  onReactivar={reactivarCorte}
+/>
         </div>
       </div>
 
