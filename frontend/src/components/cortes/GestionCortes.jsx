@@ -14,6 +14,12 @@ function GestionCortes({
   const [cortes, setCortes] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+  const [filtros, setFiltros] = useState({
+  fecha_inicio: "",
+  fecha_fin: "",
+  folio: "",
+  estatus: "",
+});
   const [detalleAbierto, setDetalleAbierto] = useState(false);
 const [corteSeleccionado, setCorteSeleccionado] = useState(null);
 
@@ -104,31 +110,67 @@ const reactivarCorte = async (corte) => {
   }
 };
 
-  const cargarCortes = useCallback(async () => {
+const cargarCortes = useCallback(async () => {
   if (!negocioId) return;
 
   try {
     setCargando(true);
     setError("");
 
+    const parametros = new URLSearchParams({
+      negocio_id: String(negocioId),
+    });
+
+    if (filtros.fecha_inicio) {
+      parametros.append("fecha_inicio", filtros.fecha_inicio);
+    }
+
+    if (filtros.fecha_fin) {
+      parametros.append("fecha_fin", filtros.fecha_fin);
+    }
+
+    if (filtros.folio.trim()) {
+      parametros.append("folio", filtros.folio.trim());
+    }
+
     const respuesta = await fetch(
-      `${API_BASE_URL}/api/cortes?negocio_id=${negocioId}`
+      `${API_BASE_URL}/api/cortes?${parametros.toString()}`
     );
 
     const resultado = await respuesta.json();
 
-    if (!resultado.success) {
-      throw new Error(resultado.error);
+    if (!respuesta.ok || !resultado.success) {
+      throw new Error(
+        resultado.error || "No se pudieron cargar los cortes."
+      );
     }
 
-    setCortes(resultado.cortes || []);
+    let cortesFiltrados = resultado.cortes || [];
+
+    if (filtros.estatus) {
+      cortesFiltrados = cortesFiltrados.filter(
+        (corte) =>
+          (corte.estatus || "REGISTRADO") === filtros.estatus
+      );
+    }
+
+    setCortes(cortesFiltrados);
   } catch (error) {
     console.error(error);
     setError(error.message);
   } finally {
     setCargando(false);
   }
-}, [negocioId]);
+}, [negocioId, filtros]);
+
+const limpiarFiltros = () => {
+  setFiltros({
+    fecha_inicio: "",
+    fecha_fin: "",
+    folio: "",
+    estatus: "",
+  });
+};
 
 useEffect(() => {
   cargarCortes();
@@ -228,6 +270,119 @@ useEffect(() => {
         >
           <h2>Historial de cortes</h2>
 
+          <div
+  style={{
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "12px",
+    marginBottom: "20px",
+    padding: "16px",
+    background: "#fafafa",
+    border: "1px solid #e5e5e5",
+    borderRadius: "10px",
+  }}
+>
+  <div>
+    <label style={estiloEtiquetaFiltro}>
+      Fecha inicial
+    </label>
+
+    <input
+      type="date"
+      value={filtros.fecha_inicio}
+      onChange={(e) =>
+        setFiltros({
+          ...filtros,
+          fecha_inicio: e.target.value,
+        })
+      }
+      style={estiloInputFiltro}
+    />
+  </div>
+
+  <div>
+    <label style={estiloEtiquetaFiltro}>
+      Fecha final
+    </label>
+
+    <input
+      type="date"
+      value={filtros.fecha_fin}
+      onChange={(e) =>
+        setFiltros({
+          ...filtros,
+          fecha_fin: e.target.value,
+        })
+      }
+      style={estiloInputFiltro}
+    />
+  </div>
+
+  <div>
+    <label style={estiloEtiquetaFiltro}>
+      Folio
+    </label>
+
+    <input
+      type="text"
+      placeholder="Buscar folio"
+      value={filtros.folio}
+      onChange={(e) =>
+        setFiltros({
+          ...filtros,
+          folio: e.target.value,
+        })
+      }
+      style={estiloInputFiltro}
+    />
+  </div>
+
+  <div>
+    <label style={estiloEtiquetaFiltro}>
+      Estatus
+    </label>
+
+    <select
+      value={filtros.estatus}
+      onChange={(e) =>
+        setFiltros({
+          ...filtros,
+          estatus: e.target.value,
+        })
+      }
+      style={estiloInputFiltro}
+    >
+      <option value="">Todos</option>
+      <option value="REGISTRADO">Registrado</option>
+      <option value="CANCELADO">Cancelado</option>
+    </select>
+  </div>
+
+  <div
+    style={{
+      display: "flex",
+      alignItems: "flex-end",
+    }}
+  >
+    <button
+      type="button"
+      onClick={limpiarFiltros}
+      style={{
+        width: "100%",
+        minHeight: "42px",
+        background: "#fff",
+        border: "1px solid #111",
+        borderRadius: "8px",
+        cursor: "pointer",
+        fontWeight: "600",
+      }}
+    >
+      Limpiar filtros
+    </button>
+  </div>
+</div>
+
           {error && (
             <div
               style={{
@@ -262,6 +417,26 @@ useEffect(() => {
     </div>
   );
 }
+
+const estiloEtiquetaFiltro = {
+  display: "block",
+  marginBottom: "6px",
+  fontSize: "12px",
+  fontWeight: "700",
+  textTransform: "uppercase",
+  color: "#555",
+};
+
+const estiloInputFiltro = {
+  width: "100%",
+  boxSizing: "border-box",
+  minHeight: "42px",
+  padding: "10px 12px",
+  border: "1px solid #d7d7d7",
+  borderRadius: "8px",
+  background: "#fff",
+  fontSize: "14px",
+};
 
 export default GestionCortes;
 
