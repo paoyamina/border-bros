@@ -45,35 +45,35 @@ const [corteSeleccionado, setCorteSeleccionado] = useState(null);
   setDetalleAbierto(true);
 };
 
-  const cargarCortes = async () => {
-    if (!negocioId) return;
+  const cargarCortes = useCallback(async () => {
+  if (!negocioId) return;
 
-    try {
-      setCargando(true);
-      setError("");
+  try {
+    setCargando(true);
+    setError("");
 
-      const respuesta = await fetch(
-        `${API_BASE_URL}/api/cortes?negocio_id=${negocioId}`
-      );
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/cortes?negocio_id=${negocioId}`
+    );
 
-      const resultado = await respuesta.json();
+    const resultado = await respuesta.json();
 
-      if (!resultado.success) {
-        throw new Error(resultado.error);
-      }
-
-      setCortes(resultado.cortes || []);
-    } catch (error) {
-      console.error(error);
-      setError(error.message);
-    } finally {
-      setCargando(false);
+    if (!resultado.success) {
+      throw new Error(resultado.error);
     }
-  };
 
-  useEffect(() => {
-    cargarCortes();
-  }, [negocioId]);
+    setCortes(resultado.cortes || []);
+  } catch (error) {
+    console.error(error);
+    setError(error.message);
+  } finally {
+    setCargando(false);
+  }
+}, [negocioId]);
+
+useEffect(() => {
+  cargarCortes();
+}, [cargarCortes]);
 
     return (
     <div
