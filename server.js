@@ -976,6 +976,7 @@ app.get("/api/cortes", async (req, res) => {
           cc.responsable_iniciales,
           cc.drive_folder_id,
           cc.drive_folder_url,
+          cc.estatus,
           cc.created_at,
           cc.updated_at,
           cc.updated_by,
@@ -1226,7 +1227,9 @@ app.put("/api/cortes/:id", async (req, res) => {
     denominaciones,
     vales,
     cxc,
-  } = req.body;
+    gastosCorteDetalle,
+    reglamentosDetalle,
+    } = req.body;
 
   const negocioId = Number(negocio_id);
 
@@ -1517,6 +1520,310 @@ app.put("/api/cortes/:id", async (req, res) => {
       );
     }
 
+    // Sincronizar egresos automáticos del corte
+const buscarCategoriaId = async (nombre) => {
+  const nombreLimpio = String(nombre || "").trim();
+
+  if (!nombreLimpio) return null;
+
+  const resultado = await client.query(
+    `
+      SELECT id
+      FROM categorias
+      WHERE negocio_id = $1
+        AND LOWER(TRIM(nombre)) = LOWER(TRIM($2))
+      LIMIT 1;
+    `,
+    [negocioId, nombreLimpio]
+  );
+
+  if (resultado.rows.length === 0) {
+    throw new Error(
+      `No se encontró la categoría "${nombreLimpio}".`
+    );
+  }
+
+  return resultado.rows[0].id;
+};
+
+const buscarProveedorId = async (nombre) => {
+  const nombreLimpio = String(nombre || "").trim();
+
+  if (!nombreLimpio) return null;
+
+  const resultado = await client.query(
+    `
+      SELECT id
+      FROM proveedores
+      WHERE negocio_id = $1
+        AND LOWER(TRIM(nombre)) = LOWER(TRIM($2))
+      LIMIT 1;
+    `,
+    [negocioId, nombreLimpio]
+  );
+
+  if (resultado.rows.length === 0) {
+    throw new Error(
+      `No se encontró el proveedor "${nombreLimpio}".`
+    );
+  }
+
+  return resultado.rows[0].id;
+};
+
+const sincronizarMovimientos = async ({
+  tipoMovimiento,
+  movimientos,
+}) => {
+  const movimientosNuevos = Array.isArray(movimientos)
+    ? movimientos
+    : [];
+
+  const folioAnterior = String(corteAnterior.folio || "").trim();
+  const folioNuevo = String(folio || "").trim();
+
+  const referenciasConservadas = [];
+
+  for (let index = 0; index < movimientosNuevos.length; index += 1) {
+    const movimiento = movimientosNuevos[index];
+    const numero = movimiento.numero || index + 1;
+
+    const referenciaAnterior =
+      `CORTE-${folioAnterior}-${tipoMovimiento}-${numero}`;
+
+    const referenciaNueva =
+      `CORTE-${folioNuevo}-${tipoMovimiento}-${numero}`;
+
+    referenciasConservadas.push(referenciaNueva);
+
+    const categoriaId = await buscarCategoriaId(
+      movimiento.categoria
+    );
+
+    const proveedorId = await buscarProveedorId(
+      movimiento.proveedor
+    );
+
+    const montoOriginal = toNumber(
+      movimiento.monto_original
+    );
+
+    const montoMxn = toNumber(movimiento.monto_mxn);
+
+    if (montoMxn <= 0) continue;
+
+    const egresoAnteriorResult = await client.query(
+      `
+        SELECT *
+        FROM egresos
+        WHERE negocio_id = $1
+          AND referencia IN ($2, $3)
+        ORDER BY id ASC
+        LIMIT 1
+        FOR UPDATE;
+      `,
+      [
+        negocioId,
+        referenciaAnterior,
+        referenciaNueva,
+      ]
+    );
+
+    if (egresoAnteriorResult.rows.length > 0) {
+      const egresoAnterior = egresoAnteriorResult.rows[0];
+
+      const egresoActualizadoResult = await client.query(
+        `
+          UPDATE egresos
+          SET
+            fecha = $1,
+            tipo_egreso = 'efectivo',
+            divisa = $2,
+            tipo_cambio = $3,
+            monto_original = $4,
+            monto_mxn = $5,
+            categoria_id = $6,
+            proveedor_id = $7,
+            concepto = $8,
+            referencia = $9,
+            drive_folder_id = $10,
+            drive_folder_url = $11,
+            estatus = 'REGISTRADO',
+            fecha_edicion = NOW(),
+            updated_at = NOW(),
+            updated_by = $12
+          WHERE id = $13
+          RETURNING *;
+        `,
+        [
+          fecha,
+          movimiento.divisa || "MXN",
+          toNumber(movimiento.tipo_cambio) || 1,
+          montoOriginal,
+          montoMxn,
+          categoriaId,
+          proveedorId,
+          movimiento.concepto ||
+            `${tipoMovimiento} de corte`,
+          referenciaNueva,
+          corteAnterior.drive_folder_id || null,
+          corteAnterior.drive_folder_url || null,
+          usuario_edita_id || null,
+          egresoAnterior.id,
+        ]
+      );
+
+      await registrarHistorialEgreso({
+        egresoId: egresoAnterior.id,
+        accion: "EDITADO",
+        usuarioId: usuario_edita_id,
+        datosAnteriores: egresoAnterior,
+        datosNuevos: egresoActualizadoResult.rows[0],
+        cliente: client,
+      });
+    } else {
+      const egresoNuevoResult = await client.query(
+        `
+          INSERT INTO egresos (
+            tipo_egreso,
+            fecha,
+            divisa,
+            tipo_cambio,
+            monto_original,
+            monto_mxn,
+            negocio_id,
+            categoria_id,
+            proveedor_id,
+            concepto,
+            cuenta_id,
+            referencia,
+            usuario_crea_id,
+            drive_folder_id,
+            drive_folder_url,
+            estatus
+          )
+          VALUES (
+            'efectivo',
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            $7,
+            $8,
+            $9,
+            NULL,
+            $10,
+            $11,
+            $12,
+            $13,
+            'REGISTRADO'
+          )
+          RETURNING *;
+        `,
+        [
+          fecha,
+          movimiento.divisa || "MXN",
+          toNumber(movimiento.tipo_cambio) || 1,
+          montoOriginal,
+          montoMxn,
+          negocioId,
+          categoriaId,
+          proveedorId,
+          movimiento.concepto ||
+            `${tipoMovimiento} de corte`,
+          referenciaNueva,
+          usuario_edita_id || null,
+          corteAnterior.drive_folder_id || null,
+          corteAnterior.drive_folder_url || null,
+        ]
+      );
+
+      await registrarHistorialEgreso({
+        egresoId: egresoNuevoResult.rows[0].id,
+        accion: "CREADO",
+        usuarioId: usuario_edita_id,
+        datosNuevos: egresoNuevoResult.rows[0],
+        cliente: client,
+      });
+    }
+  }
+
+  const prefijosPosibles = [
+    `CORTE-${folioAnterior}-${tipoMovimiento}-%`,
+    `CORTE-${folioNuevo}-${tipoMovimiento}-%`,
+  ];
+
+  const egresosExistentesResult = await client.query(
+    `
+      SELECT *
+      FROM egresos
+      WHERE negocio_id = $1
+        AND (
+          referencia LIKE $2
+          OR referencia LIKE $3
+        )
+      FOR UPDATE;
+    `,
+    [
+      negocioId,
+      prefijosPosibles[0],
+      prefijosPosibles[1],
+    ]
+  );
+
+  for (const egresoExistente of egresosExistentesResult.rows) {
+    if (
+      referenciasConservadas.includes(
+        egresoExistente.referencia
+      )
+    ) {
+      continue;
+    }
+
+    if (egresoExistente.estatus === "CANCELADO") {
+      continue;
+    }
+
+    const egresoCanceladoResult = await client.query(
+      `
+        UPDATE egresos
+        SET
+          estatus = 'CANCELADO',
+          fecha_edicion = NOW(),
+          updated_at = NOW(),
+          updated_by = $1
+        WHERE id = $2
+        RETURNING *;
+      `,
+      [
+        usuario_edita_id || null,
+        egresoExistente.id,
+      ]
+    );
+
+    await registrarHistorialEgreso({
+      egresoId: egresoExistente.id,
+      accion: "CANCELADO",
+      usuarioId: usuario_edita_id,
+      datosAnteriores: egresoExistente,
+      datosNuevos: egresoCanceladoResult.rows[0],
+      cliente: client,
+    });
+  }
+};
+
+await sincronizarMovimientos({
+  tipoMovimiento: "GASTO",
+  movimientos: gastosCorteDetalle,
+});
+
+await sincronizarMovimientos({
+  tipoMovimiento: "REGLAMENTO",
+  movimientos: reglamentosDetalle,
+});
+
     await registrarHistorialCorte({
       corteId,
       accion: "EDITADO",
@@ -1546,6 +1853,56 @@ app.put("/api/cortes/:id", async (req, res) => {
     });
   } finally {
     client.release();
+  }
+});
+
+app.put("/api/cortes/:id/cancelar", async (req, res) => {
+  const corteId = Number(req.params.id);
+
+  try {
+    await pool.query(
+      `
+      UPDATE corte_caja
+      SET estatus='CANCELADO'
+      WHERE id=$1
+      `,
+      [corteId]
+    );
+
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+app.put("/api/cortes/:id/cancelar", async (req, res) => {
+  const corteId = Number(req.params.id);
+
+  try {
+    await pool.query(
+      `
+      UPDATE corte_caja
+      SET estatus='CANCELADO'
+      WHERE id=$1
+      `,
+      [corteId]
+    );
+
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 });
 

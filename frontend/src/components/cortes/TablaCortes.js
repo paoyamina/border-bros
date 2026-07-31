@@ -5,6 +5,8 @@ function TablaCortes({
   cargando,
   onVer,
   onEditar,
+  onCancelar,
+  onReactivar,
 }) {
   const formatearFecha = (fecha) => {
     if (!fecha) return "—";
@@ -77,6 +79,7 @@ function TablaCortes({
               "Fecha",
               "Folio",
               "Operador",
+              "Estatus",
               "Venta ticket",
               "Total general",
               "Total cover",
@@ -135,6 +138,28 @@ function TablaCortes({
 
               <td style={estiloCelda}>
                 {corte.usuario_nombre || "Sin operador"}
+              </td>
+
+              <td style={estiloCelda}>
+                {(() => {
+                  const estatus = corte.estatus || "REGISTRADO";
+                  const cancelado = estatus === "CANCELADO";
+
+                  return (
+                    <span
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: "999px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        background: cancelado ? "#fdeaea" : "#e8f5e9",
+                        color: cancelado ? "#b42318" : "#256029",
+                      }}
+                    >
+                      {estatus}
+                    </span>
+                  );
+                })()}
               </td>
 
               <td style={estiloCeldaMonto}>
@@ -196,12 +221,33 @@ function TablaCortes({
                   </button>
 
                   <button
-                    title="Editar corte"
-                    style={botonAccion}
-                    onClick={() => onEditar?.(corte)}
-                  >
-                    ✏
-                  </button>
+  title={
+    corte.estatus === "CANCELADO"
+      ? "No se puede editar"
+      : "Editar corte"
+  }
+  disabled={corte.estatus === "CANCELADO"}
+  style={botonAccion}
+  onClick={() => onEditar?.(corte)}
+>
+  ✏
+</button>
+
+                  <button
+  title={
+    corte.estatus === "CANCELADO"
+      ? "Reactivar"
+      : "Cancelar"
+  }
+  style={botonAccion}
+  onClick={() =>
+    corte.estatus === "CANCELADO"
+      ? onReactivar?.(corte)
+      : onCancelar?.(corte)
+  }
+>
+  {corte.estatus === "CANCELADO" ? "↩" : "🚫"}
+</button>
 
                   {corte.drive_folder_url && (
                     <button

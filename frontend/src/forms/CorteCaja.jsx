@@ -1201,6 +1201,8 @@ totalTarjetas,
         denominaciones: obtenerDenominacionesCorte(),
         vales: [],
         cxc: cxcRows,
+        gastosCorteDetalle: gastosCorteParaGuardar,
+        reglamentosDetalle: reglamentosParaGuardar,
       }),
     }
   );

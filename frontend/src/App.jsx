@@ -374,14 +374,17 @@ if (!isLoggedIn) {
 
   if (formularioActivo === "caja") {
   return (
-    <GestionCortes
-      usuarioActivo={usuarioActivo}
-      usuarioId={usuarioId}
-      rol={rol}
-      negocioId={negocioId}
-      onSeleccionarTipo={seleccionarFormulario}
-      onVolver={volverAlMenu}
-    />
+   <GestionCortes
+  usuarioActivo={usuarioActivo}
+  usuarioId={usuarioId}
+  rol={rol}
+  negocioId={negocioId}
+  onSeleccionarTipo={seleccionarFormulario}
+  onVolver={volverAlMenu}
+  onEditarCorte={(corte) =>
+    seleccionarFormulario("caja_editar", corte)
+  }
+/>
   );
 }
 

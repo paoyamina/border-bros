@@ -9,6 +9,7 @@ function GestionCortes({
   negocioId,
   onSeleccionarTipo,
   onVolver,
+  onEditarCorte,
 }) {
   const [cortes, setCortes] = useState([]);
   const [cargando, setCargando] = useState(false);
@@ -43,6 +44,64 @@ const [corteSeleccionado, setCorteSeleccionado] = useState(null);
   const verDetalle = (corte) => {
   setCorteSeleccionado(corte);
   setDetalleAbierto(true);
+};
+
+const cancelarCorte = async (corte) => {
+  const confirmar = window.confirm(
+    `¿Cancelar el corte ${corte.folio}?`
+  );
+
+  if (!confirmar) return;
+
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/cortes/${corte.id}/cancelar`,
+      {
+        method: "PUT",
+      }
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(resultado.error);
+    }
+
+    await cargarCortes();
+
+    alert("✅ Corte cancelado.");
+  } catch (error) {
+    alert(error.message);
+  }
+};
+
+const reactivarCorte = async (corte) => {
+  const confirmar = window.confirm(
+    `¿Reactivar el corte ${corte.folio}?`
+  );
+
+  if (!confirmar) return;
+
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/cortes/${corte.id}/reactivar`,
+      {
+        method: "PUT",
+      }
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(resultado.error);
+    }
+
+    await cargarCortes();
+
+    alert("✅ Corte reactivado.");
+  } catch (error) {
+    alert(error.message);
+  }
 };
 
   const cargarCortes = useCallback(async () => {
@@ -184,7 +243,44 @@ useEffect(() => {
                 cortes={cortes}
                 cargando={cargando}
                 onVer={verDetalle}
-                onEditar={(corte) => onSeleccionarTipo("caja_editar", corte)}
+                onEditar={onEditarCorte}
+               onCancelar={async (corte) => {
+  if (!window.confirm("¿Cancelar este corte?")) return;
+
+  const res = await fetch(
+    `${API_BASE_URL}/api/cortes/${corte.id}/cancelar`,
+    {
+      method: "PUT",
+    }
+  );
+
+  const data = await res.json();
+
+  if (!data.success) {
+    alert(data.error);
+    return;
+  }
+
+  cargarCortes();
+}}
+
+onReactivar={async (corte) => {
+  const res = await fetch(
+    `${API_BASE_URL}/api/cortes/${corte.id}/reactivar`,
+    {
+      method: "PUT",
+    }
+  );
+
+  const data = await res.json();
+
+  if (!data.success) {
+    alert(data.error);
+    return;
+  }
+
+  cargarCortes();
+}}
                 />
         </div>
       </div>
