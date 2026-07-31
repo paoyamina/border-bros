@@ -59,6 +59,36 @@ async function registrarHistorialEgreso({
   );
 }
 
+async function registrarHistorialCorte({
+  corteId,
+  accion,
+  usuarioId,
+  datosAnteriores = null,
+  datosNuevos = null,
+  cliente = pool,
+}) {
+  await cliente.query(
+    `
+      INSERT INTO cortes_historial (
+        corte_id,
+        accion,
+        usuario_id,
+        datos_anteriores,
+        datos_nuevos
+      )
+      VALUES ($1, $2, $3, $4, $5);
+    `,
+    [
+      corteId,
+      accion,
+      usuarioId || null,
+      datosAnteriores ? JSON.stringify(datosAnteriores) : null,
+      datosNuevos ? JSON.stringify(datosNuevos) : null,
+    ]
+  );
+}
+
+
 // 2. Google Drive Auth (OAuth)
 const authorize = require('./auth');
 
@@ -971,6 +1001,54 @@ app.get("/api/cortes", async (req, res) => {
       error:
         error.message ||
         "No fue posible consultar los cortes.",
+    });
+  }
+});
+
+// Obtener historial de un corte
+app.get("/api/cortes/:id/historial", async (req, res) => {
+  const corteId = Number(req.params.id);
+
+  if (!Number.isInteger(corteId) || corteId <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "El id del corte no es válido.",
+    });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+        SELECT
+          ch.id,
+          ch.corte_id,
+          ch.accion,
+          ch.usuario_id,
+          ch.datos_anteriores,
+          ch.datos_nuevos,
+          ch.fecha,
+          u.nombre AS usuario
+        FROM cortes_historial ch
+        LEFT JOIN usuarios u
+          ON u.id = ch.usuario_id
+        WHERE ch.corte_id = $1
+        ORDER BY ch.fecha DESC, ch.id DESC;
+      `,
+      [corteId]
+    );
+
+    return res.json({
+      success: true,
+      historial: result.rows,
+    });
+  } catch (error) {
+    console.error("Error consultando historial del corte:", error);
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible consultar el historial del corte.",
     });
   }
 });

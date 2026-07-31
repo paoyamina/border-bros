@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-
 import Login from "./components/Login";
 import MenuPrincipal from "./components/MenuPrincipal";
 import GestionEgresos from "./components/GestionEgresos";
@@ -13,6 +12,7 @@ import HistorialNomina from "./forms/HistorialNomina";
 import Empleados from "./forms/Empleados";
 import InversionesSocios from "./components/InversionesSocios";
 import AnalisisFinanciero from "./components/AnalisisFinanciero";
+import GestionCortes from "./components/cortes/GestionCortes";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -367,15 +367,28 @@ if (!isLoggedIn) {
   }
 
   if (formularioActivo === "caja") {
-    return (
-      <CorteCaja
-        usuarioActivo={usuarioActivo}
-        usuarioId={usuarioId}
-        negocioId={negocioId}
-        onVolver={volverAlMenu}
-      />
-    );
-  }
+  return (
+    <GestionCortes
+      usuarioActivo={usuarioActivo}
+      usuarioId={usuarioId}
+      rol={rol}
+      negocioId={negocioId}
+      onSeleccionarTipo={setFormularioActivo}
+      onVolver={volverAlMenu}
+    />
+  );
+}
+
+if (formularioActivo === "caja_nuevo") {
+  return (
+    <CorteCaja
+      usuarioActivo={usuarioActivo}
+      usuarioId={usuarioId}
+      negocioId={negocioId}
+      onVolver={volverAlMenu}
+    />
+  );
+}
 
   if (formularioActivo === "egresos") {
   return (
