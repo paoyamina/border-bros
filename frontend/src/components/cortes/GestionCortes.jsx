@@ -184,7 +184,7 @@ useEffect(() => {
                 cortes={cortes}
                 cargando={cargando}
                 onVer={verDetalle}
-                onEditar={(corte) => console.log(corte)}
+                onEditar={(corte) => onSeleccionarTipo("caja_editar", corte)}
                 />
         </div>
       </div>

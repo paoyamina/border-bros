@@ -24,6 +24,7 @@ function App() {
   const [, setUsuario] = useState(null);
   const [mostrandoSplash, setMostrandoSplash] = useState(true);
   const [seccionSeleccionada, setSeccionSeleccionada] = useState(null);
+  const [corteEditando, setCorteEditando] = useState(null);
   const puedeEntrarAnalisis = (rolUsuario) => {
   return ["socio", "contador", "gobernador"].includes(
     String(rolUsuario || "").trim().toLowerCase()
@@ -99,6 +100,11 @@ console.log("negocio_id:", usuario.negocio_id);
 
     setFormularioActivo(null);
   };
+
+  const seleccionarFormulario = (tipo, corte = null) => {
+  setFormularioActivo(tipo);
+  setCorteEditando(corte);
+};
 
   if (mostrandoSplash) {
   return (
@@ -360,7 +366,7 @@ if (!isLoggedIn) {
       <MenuPrincipal
         usuarioActivo={usuarioActivo}
         rol={rol}
-        onSeleccionarFormulario={setFormularioActivo}
+        onSeleccionarFormulario={seleccionarFormulario}
         onLogout={cerrarSesion}
       />
     );
@@ -373,7 +379,7 @@ if (!isLoggedIn) {
       usuarioId={usuarioId}
       rol={rol}
       negocioId={negocioId}
-      onSeleccionarTipo={setFormularioActivo}
+      onSeleccionarTipo={seleccionarFormulario}
       onVolver={volverAlMenu}
     />
   );
@@ -386,6 +392,22 @@ if (formularioActivo === "caja_nuevo") {
       usuarioId={usuarioId}
       negocioId={negocioId}
       onVolver={volverAlMenu}
+    />
+  );
+}
+
+if (formularioActivo === "caja_editar") {
+  return (
+    <CorteCaja
+      usuarioActivo={usuarioActivo}
+      usuarioId={usuarioId}
+      negocioId={negocioId}
+      corteEditando={corteEditando}
+      modoEdicion={true}
+      onVolver={() => {
+        setFormularioActivo("caja");
+        setCorteEditando(null);
+      }}
     />
   );
 }

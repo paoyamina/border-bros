@@ -8,8 +8,11 @@ function CorteCaja({
   usuarioActivo,
   usuarioId,
   negocioId,
+  corteEditando,
+  modoEdicion = false,
   onVolver,
 }) {
+
   const denomMXN = [1000, 500, 200, 100, 50, 20, 10, 5];
   const denomUSD = [100, 50, 20, 10, 5, 2, 1, 0.5, 0.25];
 
@@ -31,6 +34,7 @@ function CorteCaja({
   );
   const [nombreReporte, setNombreReporte] = useState(generarFolio("CORTE"));
   const [iniciales, setIniciales] = useState("");
+  const [cargandoCorte, setCargandoCorte] = useState(false);
 
   const [valesRows, setValesRows] = useState([
     { id: Date.now(), concepto: "", monto: "" },
@@ -144,6 +148,252 @@ useEffect(() => {
 
   cargarCatalogos();
 }, [negocioId]);
+
+useEffect(() => {
+  if (!modoEdicion || !corteEditando?.id) return;
+
+  let componenteActivo = true;
+
+  const cargarCorteParaEditar = async () => {
+    try {
+      setCargandoCorte(true);
+
+      const respuesta = await fetch(
+        `${API_BASE_URL}/api/cortes/${corteEditando.id}`
+      );
+
+      const resultado = await respuesta.json();
+
+      if (!respuesta.ok || !resultado.success) {
+        throw new Error(
+          resultado.error || "No fue posible cargar el corte."
+        );
+      }
+
+      if (!componenteActivo) return;
+
+      const corte = resultado.corte;
+      const cantidadesCargadas = {};
+
+      setFechaReporte(
+        corte.fecha
+          ? String(corte.fecha).split("T")[0]
+          : new Date().toISOString().split("T")[0]
+      );
+
+      setNombreReporte(corte.folio || "");
+      setIniciales(corte.responsable_iniciales || "");
+      setTc(Number(corte.tipo_cambio) || 17.5);
+
+      cantidadesCargadas.tarjetas =
+        corte.total_tarjetas ?? "";
+
+      cantidadesCargadas.cover_tpv =
+        corte.cover_tpv ?? "";
+
+      cantidadesCargadas.monto_meta =
+        corte.venta_ticket ?? "";
+
+      const denominaciones = Array.isArray(corte.denominaciones)
+        ? corte.denominaciones
+        : [];
+
+      denominaciones.forEach((item) => {
+        const tipoIngreso = String(
+          item.tipo_ingreso || "Normal"
+        ).toLowerCase();
+
+        const moneda = String(item.moneda || "").toUpperCase();
+        const valor = Number(item.valor);
+        const cantidad = Number(item.cantidad) || 0;
+        const concepto = String(item.concepto || "").toLowerCase();
+        const montoOriginal = Number(item.monto_original) || 0;
+
+        if (valor > 0) {
+          if (tipoIngreso === "cover" && moneda === "MXN") {
+            cantidadesCargadas[`cover_mxn_${valor}`] = cantidad;
+          } else if (
+            tipoIngreso === "cover" &&
+            moneda === "USD"
+          ) {
+            cantidadesCargadas[`cover_usd_${valor}`] = cantidad;
+          } else if (moneda === "MXN") {
+            cantidadesCargadas[`mxn_${valor}`] = cantidad;
+          } else if (moneda === "USD") {
+            cantidadesCargadas[`usd_${valor}`] = cantidad;
+          }
+
+          return;
+        }
+
+        if (
+          tipoIngreso === "cover" &&
+          moneda === "MXN"
+        ) {
+          cantidadesCargadas.cover_monedas_mxn = montoOriginal;
+        } else if (
+          tipoIngreso === "cover" &&
+          moneda === "USD"
+        ) {
+          cantidadesCargadas.cover_monedas_usd_extra =
+            montoOriginal;
+        } else if (moneda === "MXN") {
+          cantidadesCargadas.monedas_mxn = montoOriginal;
+        } else if (moneda === "USD") {
+          cantidadesCargadas.monedas_usd_extra = montoOriginal;
+        }
+
+        // Conservamos la variable para evitar advertencias si
+        // posteriormente se ajusta el reconocimiento por concepto.
+        void concepto;
+      });
+
+      setCantidades(cantidadesCargadas);
+
+      const cxc = Array.isArray(corte.cxc) ? corte.cxc : [];
+
+      setCxcRows(
+        cxc.length > 0
+          ? cxc.map((item, index) => ({
+              id: item.id || Date.now() + index,
+              nombre: item.nombre || "",
+              monto: item.monto ?? "",
+            }))
+          : [{ id: Date.now(), nombre: "", monto: "" }]
+      );
+
+      const gastos = Array.isArray(
+        corte.gastos_corte_detalle
+      )
+        ? corte.gastos_corte_detalle
+        : [];
+
+      setGastosCorteRows(
+        gastos.length > 0
+          ? gastos.map((item, index) => ({
+              id: item.id || Date.now() + index,
+              categoria:
+                item.categoria_nombre ||
+                item.categoria ||
+                "",
+              proveedor:
+                item.proveedor_nombre ||
+                item.proveedor ||
+                "",
+              concepto: item.concepto || "",
+              divisa: item.divisa || "MXN",
+              tipo_cambio:
+                Number(item.tipo_cambio) || 1,
+              monto:
+                item.monto_original ??
+                item.monto_mxn ??
+                "",
+            }))
+          : [
+              {
+                id: Date.now(),
+                categoria: "",
+                proveedor: "",
+                concepto: "",
+                divisa: "MXN",
+                tipo_cambio: 1,
+                monto: "",
+              },
+            ]
+      );
+
+      const reglamentos = Array.isArray(
+        corte.reglamentos_detalle
+      )
+        ? corte.reglamentos_detalle
+        : [];
+
+      setReglamentosRows(
+        reglamentos.length > 0
+          ? reglamentos.map((item, index) => ({
+              id: item.id || Date.now() + index,
+              categoria:
+                item.categoria_nombre ||
+                item.categoria ||
+                "Reglamentos",
+              proveedor:
+                item.proveedor_nombre ||
+                item.proveedor ||
+                "Interventor",
+              concepto:
+                item.concepto ||
+                "Reglamentos / Interventor",
+              divisa: item.divisa || "MXN",
+              tipo_cambio:
+                Number(item.tipo_cambio) || 1,
+              monto:
+                item.monto_original ??
+                item.monto_mxn ??
+                "",
+            }))
+          : [
+              {
+                id: Date.now() + 1,
+                categoria: "Reglamentos",
+                proveedor: "Interventor",
+                concepto: "Reglamentos / Interventor",
+                divisa: "MXN",
+                tipo_cambio: 1,
+                monto: "",
+              },
+            ]
+      );
+
+setSecciones({
+  mxn: denominaciones.some(
+    (item) =>
+      String(item.tipo_ingreso || "Normal").toLowerCase() !==
+        "cover" &&
+      String(item.moneda || "").toUpperCase() === "MXN"
+  ),
+  usd: denominaciones.some(
+    (item) =>
+      String(item.tipo_ingreso || "Normal").toLowerCase() !==
+        "cover" &&
+      String(item.moneda || "").toUpperCase() === "USD"
+  ),
+  cover_mxn: denominaciones.some(
+    (item) =>
+      String(item.tipo_ingreso || "").toLowerCase() ===
+        "cover" &&
+      String(item.moneda || "").toUpperCase() === "MXN"
+  ),
+  cover_usd: denominaciones.some(
+    (item) =>
+      String(item.tipo_ingreso || "").toLowerCase() ===
+        "cover" &&
+      String(item.moneda || "").toUpperCase() === "USD"
+  ),
+  gastos_corte: gastos.length > 0,
+  reglamentos: reglamentos.length > 0,
+  vales: false,
+  cxc: cxc.length > 0,
+});
+
+    } catch (error) {
+      console.error("Error cargando corte para editar:", error);
+      alert(
+        "🚨 Error cargando el corte: " +
+          error.message
+      );
+    } finally {
+      if (componenteActivo) {
+        setCargandoCorte(false);
+      }
+    }
+  };
+
+  cargarCorteParaEditar();
+
+  return () => {
+    componenteActivo = false;
+  };
+}, [modoEdicion, corteEditando?.id]);
 
   const [fotosTicket, setFotosTicket] = useState([]);
   const [fotosOtros, setFotosOtros] = useState([]);
@@ -919,6 +1169,57 @@ totalTarjetas,
         formData.append("fotos", file);
       });
 
+      if (modoEdicion && corteEditando?.id) {
+  const respuestaEdicion = await fetch(
+    `${API_BASE_URL}/api/cortes/${corteEditando.id}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fecha: fechaReporte,
+        folio: nombreReporte,
+        negocio_id: negocioId,
+        usuario_edita_id: usuarioId,
+        tipoCambio: tc,
+        totalTarjetas,
+        efectivoMXN: calcularMXN(),
+        efectivoUSD: calcularUSD(),
+        totalGlobalMXN,
+        coverTPV,
+        coverEfectivo: calcularCoverMXN(),
+        coverUSD: calcularCoverUSD(),
+        totalCover,
+        ventaTicket: montoVentaMeta,
+        diferencia,
+        totalVales: 0,
+        gastosCorte: totalGastosCorte,
+        reglamentos: totalReglamentos,
+        totalCxC,
+        responsable: iniciales.toUpperCase(),
+        denominaciones: obtenerDenominacionesCorte(),
+        vales: [],
+        cxc: cxcRows,
+      }),
+    }
+  );
+
+  const resultadoEdicion = await respuestaEdicion.json();
+
+  if (!respuestaEdicion.ok || !resultadoEdicion.success) {
+    throw new Error(
+      resultadoEdicion.error || "No se pudo actualizar el corte."
+    );
+  }
+
+  descargarExcel();
+
+  alert("✅ Corte actualizado correctamente y Excel descargado.");
+  onVolver();
+  return;
+}
+
       const respuesta = await fetch(API_ENDPOINTS.guardarReporte, {
         method: "POST",
         body: formData,
@@ -940,6 +1241,23 @@ onVolver();
       alert("🚨 Error al guardar corte: " + error.message);
     }
   };
+
+  if (cargandoCorte) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily:
+          '"Helvetica Neue", Helvetica, Arial, sans-serif',
+      }}
+    >
+      Cargando corte...
+    </div>
+  );
+}
 
   return (
     <div style={estilos.container}>
@@ -971,7 +1289,11 @@ onVolver();
             }}
           />
 
-          <h1 style={estilos.h1}>Corte de caja diario BOSSE</h1>
+          <h1 style={estilos.h1}>
+  {modoEdicion
+    ? "Editar corte de caja BOSSE"
+    : "Corte de caja diario BOSSE"}
+</h1>
 
           <div
             style={{
@@ -1301,8 +1623,12 @@ onVolver();
             <label style={estilos.labelCheck}>
               <input
                 type="checkbox"
+                checked={secciones.mxn}
                 onChange={() =>
-                  setSecciones({ ...secciones, mxn: !secciones.mxn })
+                  setSecciones({
+                    ...secciones,
+                    mxn: !secciones.mxn,
+                  })
                 }
               />{" "}
               1. EFECTIVO MONEDA NACIONAL
@@ -1333,6 +1659,7 @@ onVolver();
                       <input
                         type="number"
                         placeholder="0"
+                        value={cantidades[`mxn_${v}`] ?? ""}
                         onChange={(e) =>
                           setCantidades({
                             ...cantidades,
@@ -1358,6 +1685,7 @@ onVolver();
                   <input
                     type="number"
                     placeholder="$ 0.00"
+                    value={cantidades.monedas_mxn ?? ""}
                     onChange={(e) =>
                       setCantidades({
                         ...cantidades,
@@ -1375,8 +1703,12 @@ onVolver();
             <label style={estilos.labelCheck}>
               <input
                 type="checkbox"
+                checked={secciones.usd}
                 onChange={() =>
-                  setSecciones({ ...secciones, usd: !secciones.usd })
+                  setSecciones({
+                    ...secciones,
+                    usd: !secciones.usd,
+                  })
                 }
               />{" "}
               2. INGRESO DÓLARES (USD)
@@ -1419,6 +1751,7 @@ onVolver();
                       <input
                         type="number"
                         placeholder="0"
+                        value={cantidades[`usd_${v}`] ?? ""}
                         onChange={(e) =>
                           setCantidades({
                             ...cantidades,
@@ -1444,6 +1777,7 @@ onVolver();
                   <input
                     type="number"
                     placeholder="USD $ 0.00"
+                    value={cantidades.monedas_usd_extra ?? ""}
                     onChange={(e) =>
                       setCantidades({
                         ...cantidades,
@@ -1458,18 +1792,19 @@ onVolver();
           </div>
 
           <div style={estilos.section}>
-  <label style={estilos.labelCheck}>
-    <input
-      type="checkbox"
-      onChange={() =>
-        setSecciones({
-          ...secciones,
-          cover_mxn: !secciones.cover_mxn,
-        })
-      }
-    />{" "}
-    3. COVER EFECTIVO MONEDA NACIONAL
-  </label>
+              <label style={estilos.labelCheck}>
+                <input
+                  type="checkbox"
+                  checked={secciones.cover_mxn}
+                  onChange={() =>
+                    setSecciones({
+                      ...secciones,
+                      cover_mxn: !secciones.cover_mxn,
+                    })
+                  }
+                />{" "}
+                3. COVER EFECTIVO MONEDA NACIONAL
+              </label>
 
   {secciones.cover_mxn && (
     <div
@@ -1494,16 +1829,18 @@ onVolver();
           >
             <small style={{ width: "40px", color: "#666" }}>${v}</small>
             <input
-              type="number"
-              placeholder="0"
-              onChange={(e) =>
-                setCantidades({
-                  ...cantidades,
-                  [`cover_mxn_${v}`]: e.target.value,
-                })
-              }
-              style={estilos.inputNumber}
-            />
+  type="number"
+  placeholder="0"
+  value={cantidades[`cover_mxn_${v}`] ?? ""}
+  onChange={(e) =>
+    setCantidades({
+      ...cantidades,
+      [`cover_mxn_${v}`]: e.target.value,
+    })
+  }
+  style={estilos.inputNumber}
+/>
+
           </div>
         ))}
       </div>
@@ -1519,16 +1856,17 @@ onVolver();
           MONEDAS PEQUEÑAS / OTROS COVER (MXN)
         </label>
         <input
-          type="number"
-          placeholder="$ 0.00"
-          onChange={(e) =>
-            setCantidades({
-              ...cantidades,
-              cover_monedas_mxn: e.target.value,
-            })
-          }
-          style={{ ...estilos.input, width: "95%" }}
-        />
+              type="number"
+              placeholder="$ 0.00"
+              value={cantidades.cover_monedas_mxn ?? ""}
+              onChange={(e) =>
+                setCantidades({
+                  ...cantidades,
+                  cover_monedas_mxn: e.target.value,
+                })
+              }
+              style={{ ...estilos.input, width: "95%" }}
+            />
       </div>
     </div>
   )}
@@ -1536,15 +1874,16 @@ onVolver();
 
 <div style={estilos.section}>
   <label style={estilos.labelCheck}>
-    <input
-      type="checkbox"
-      onChange={() =>
-        setSecciones({
-          ...secciones,
-          cover_usd: !secciones.cover_usd,
-        })
-      }
-    />{" "}
+   <input
+  type="checkbox"
+  checked={secciones.cover_usd}
+  onChange={() =>
+    setSecciones({
+      ...secciones,
+      cover_usd: !secciones.cover_usd,
+    })
+  }
+/>{" "}
     4. COVER INGRESO DÓLARES (USD)
   </label>
 
@@ -1568,25 +1907,33 @@ onVolver();
           gap: "8px",
         }}
       >
-        {denomUSD.map((v) => (
-          <div
-            key={`cover_usd_${v}`}
-            style={{ display: "flex", alignItems: "center", gap: "5px" }}
-          >
-            <small style={{ width: "50px", color: "#666" }}>USD {v}</small>
-            <input
-              type="number"
-              placeholder="0"
-              onChange={(e) =>
-                setCantidades({
-                  ...cantidades,
-                  [`cover_usd_${v}`]: e.target.value,
-                })
-              }
-              style={estilos.inputNumber}
-            />
-          </div>
-        ))}
+{denomUSD.map((v) => (
+  <div
+    key={`cover_usd_${v}`}
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+    }}
+  >
+    <small style={{ width: "50px", color: "#666" }}>
+      USD {v}
+    </small>
+
+    <input
+      type="number"
+      placeholder="0"
+      value={cantidades[`cover_usd_${v}`] ?? ""}
+      onChange={(e) =>
+        setCantidades({
+          ...cantidades,
+          [`cover_usd_${v}`]: e.target.value,
+        })
+      }
+      style={estilos.inputNumber}
+    />
+  </div>
+))}
       </div>
 
       <div
@@ -1600,16 +1947,17 @@ onVolver();
           MONEDAS PEQUEÑAS / OTROS COVER (USD)
         </label>
         <input
-          type="number"
-          placeholder="USD $ 0.00"
-          onChange={(e) =>
-            setCantidades({
-              ...cantidades,
-              cover_monedas_usd_extra: e.target.value,
-            })
-          }
-          style={{ ...estilos.input, width: "95%" }}
-        />
+            type="number"
+            placeholder="USD $ 0.00"
+            value={cantidades.cover_monedas_usd_extra ?? ""}
+            onChange={(e) =>
+              setCantidades({
+                ...cantidades,
+                cover_monedas_usd_extra: e.target.value,
+              })
+            }
+            style={{ ...estilos.input, width: "95%" }}
+          />
       </div>
     </div>
   )}
@@ -1625,29 +1973,31 @@ onVolver();
 >
   <label style={estilos.panelLabel}>5. COVER TPV</label>
   <input
-    type="number"
-    placeholder="$ 0.00"
-    onChange={(e) =>
-      setCantidades({
-        ...cantidades,
-        cover_tpv: e.target.value,
-      })
-    }
-    style={{ ...estilos.input, width: "95%", fontSize: "16px" }}
-  />
+  type="number"
+  placeholder="$ 0.00"
+  value={cantidades.cover_tpv ?? ""}
+  onChange={(e) =>
+    setCantidades({
+      ...cantidades,
+      cover_tpv: e.target.value,
+    })
+  }
+  style={{ ...estilos.input, width: "95%", fontSize: "16px" }}
+/>
 </div>
 
 <div style={estilos.section}>
   <label style={estilos.labelCheck}>
     <input
-      type="checkbox"
-      onChange={() =>
-        setSecciones({
-          ...secciones,
-          reglamentos: !secciones.reglamentos,
-        })
-      }
-    />{" "}
+  type="checkbox"
+  checked={secciones.reglamentos}
+  onChange={() =>
+    setSecciones({
+      ...secciones,
+      reglamentos: !secciones.reglamentos,
+    })
+  }
+/>{" "}
     6. REGLAMENTOS / INTERVENTOR
   </label>
 
@@ -1661,18 +2011,19 @@ onVolver();
 </div>
 
 <div style={estilos.section}>
-  <label style={estilos.labelCheck}>
-    <input
-      type="checkbox"
-      onChange={() =>
-        setSecciones({
-          ...secciones,
-          gastos_corte: !secciones.gastos_corte,
-        })
-      }
-    />{" "}
-    7. GASTOS DE CORTE
-  </label>
+<label style={estilos.labelCheck}>
+  <input
+    type="checkbox"
+    checked={secciones.gastos_corte}
+    onChange={() =>
+      setSecciones({
+        ...secciones,
+        gastos_corte: !secciones.gastos_corte,
+      })
+    }
+  />{" "}
+  7. GASTOS DE CORTE
+</label>
 
   {secciones.gastos_corte &&
     renderMovimientoCorte({
@@ -1685,15 +2036,18 @@ onVolver();
 
           <div style={estilos.section}>
             <label style={estilos.labelCheck}>
-              <input
-                type="checkbox"
-                onChange={() =>
-                  setSecciones({ ...secciones, cxc: !secciones.cxc })
-                }
-              />{" "}
-
-              8. CUENTAS POR COBRAR
-            </label>
+  <input
+    type="checkbox"
+    checked={secciones.cxc}
+    onChange={() =>
+      setSecciones({
+        ...secciones,
+        cxc: !secciones.cxc,
+      })
+    }
+  />{" "}
+  8. CUENTAS POR COBRAR
+</label>
 
             {secciones.cxc && (
               <div
@@ -1727,6 +2081,7 @@ onVolver();
                       }
                       style={{ ...estilos.input, flex: 1 }}
                     />
+
                   </div>
                 ))}
 
@@ -1751,13 +2106,21 @@ onVolver();
           >
             <label style={estilos.panelLabel}>TOTAL VENTAS TARJETA (TPV)</label>
             <input
-              type="number"
-              placeholder="$ 0.00"
-              onChange={(e) =>
-                setCantidades({ ...cantidades, tarjetas: e.target.value })
-              }
-              style={{ ...estilos.input, width: "95%", fontSize: "16px" }}
-            />
+  type="number"
+  placeholder="$ 0.00"
+  value={cantidades.tarjetas ?? ""}
+  onChange={(e) =>
+    setCantidades({
+      ...cantidades,
+      tarjetas: e.target.value,
+    })
+  }
+  style={{
+    ...estilos.input,
+    width: "95%",
+    fontSize: "16px",
+  }}
+/>
           </div>
 
           <div
@@ -1837,8 +2200,12 @@ onVolver();
             <input
               type="number"
               placeholder="$ 0.00"
+              value={cantidades.monto_meta ?? ""}
               onChange={(e) =>
-                setCantidades({ ...cantidades, monto_meta: e.target.value })
+                setCantidades({
+                  ...cantidades,
+                  monto_meta: e.target.value,
+                })
               }
               style={{
                 ...estilos.input,

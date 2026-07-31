@@ -1191,6 +1191,364 @@ app.get("/api/cortes/:id", async (req, res) => {
   }
 });
 
+// Editar un corte de caja
+app.put("/api/cortes/:id", async (req, res) => {
+  const corteId = Number(req.params.id);
+
+  if (!Number.isInteger(corteId) || corteId <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "El id del corte no es válido.",
+    });
+  }
+
+  const {
+    fecha,
+    folio,
+    negocio_id,
+    usuario_edita_id,
+    tipoCambio,
+    totalTarjetas,
+    efectivoMXN,
+    efectivoUSD,
+    totalGlobalMXN,
+    coverTPV,
+    coverEfectivo,
+    coverUSD,
+    totalCover,
+    ventaTicket,
+    diferencia,
+    totalVales,
+    gastosCorte,
+    reglamentos,
+    totalCxC,
+    responsable,
+    denominaciones,
+    vales,
+    cxc,
+  } = req.body;
+
+  const negocioId = Number(negocio_id);
+
+  if (!Number.isInteger(negocioId) || negocioId <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "El negocio_id no es válido.",
+    });
+  }
+
+  if (!fecha) {
+    return res.status(400).json({
+      success: false,
+      error: "La fecha es obligatoria.",
+    });
+  }
+
+  if (!folio || !String(folio).trim()) {
+    return res.status(400).json({
+      success: false,
+      error: "El folio es obligatorio.",
+    });
+  }
+
+  const toNumber = (value) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+  };
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const corteAnteriorResult = await client.query(
+      `
+        SELECT *
+        FROM corte_caja
+        WHERE id = $1
+        FOR UPDATE;
+      `,
+      [corteId]
+    );
+
+    if (corteAnteriorResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+
+      return res.status(404).json({
+        success: false,
+        error: "No se encontró el corte.",
+      });
+    }
+
+    const corteAnterior = corteAnteriorResult.rows[0];
+
+    if (Number(corteAnterior.negocio_id) !== negocioId) {
+      await client.query("ROLLBACK");
+
+      return res.status(403).json({
+        success: false,
+        error: "El corte no pertenece al negocio indicado.",
+      });
+    }
+
+    const corteActualizadoResult = await client.query(
+      `
+        UPDATE corte_caja
+        SET
+          fecha = $1,
+          folio = $2,
+          negocio_id = $3,
+          tipo_cambio = $4,
+          total_tarjetas = $5,
+          total_efectivo_mxn = $6,
+          total_efectivo_usd = $7,
+          total_general = $8,
+          total_tarjetas_mxn = $9,
+          total_tarjetas_usd = $10,
+          cover_tpv = $11,
+          cover_efectivo = $12,
+          cover_usd = $13,
+          total_cover = $14,
+          venta_ticket = $15,
+          diferencia = $16,
+          total_vales = $17,
+          gastos_corte = $18,
+          reglamentos = $19,
+          total_cxc = $20,
+          responsable_iniciales = $21,
+          updated_at = NOW(),
+          updated_by = $22
+        WHERE id = $23
+        RETURNING *;
+      `,
+      [
+        fecha,
+        String(folio).trim(),
+        negocioId,
+        toNumber(tipoCambio),
+        toNumber(totalTarjetas),
+        toNumber(efectivoMXN),
+        toNumber(efectivoUSD),
+        toNumber(totalGlobalMXN),
+        toNumber(totalTarjetas),
+        0,
+        toNumber(coverTPV),
+        toNumber(coverEfectivo),
+        toNumber(coverUSD),
+        toNumber(totalCover),
+        toNumber(ventaTicket),
+        toNumber(diferencia),
+        toNumber(totalVales),
+        toNumber(gastosCorte),
+        toNumber(reglamentos),
+        toNumber(totalCxC),
+        responsable || null,
+        usuario_edita_id || null,
+        corteId,
+      ]
+    );
+
+    const corteActualizado = corteActualizadoResult.rows[0];
+
+    // Reemplazar denominaciones anteriores
+    await client.query(
+      `
+        DELETE FROM corte_denominaciones
+        WHERE corte_id = $1;
+      `,
+      [corteId]
+    );
+
+    const denominacionesNuevas = Array.isArray(denominaciones)
+      ? denominaciones
+      : [];
+
+    for (const item of denominacionesNuevas) {
+      const moneda = String(item.moneda || "").toUpperCase();
+      const valor = toNumber(item.valor);
+      const cantidad = Number.parseInt(item.cantidad, 10) || 0;
+      const tipoIngreso = item.tipo_ingreso || "Normal";
+      const concepto =
+        item.concepto || `${tipoIngreso} ${moneda} ${valor}`;
+
+      const montoOriginal =
+        item.monto_original !== undefined
+          ? toNumber(item.monto_original)
+          : valor * cantidad;
+
+      const montoMxn =
+        item.monto_mxn !== undefined
+          ? toNumber(item.monto_mxn)
+          : moneda === "USD"
+          ? montoOriginal * toNumber(tipoCambio)
+          : montoOriginal;
+
+      if (!moneda || cantidad <= 0) continue;
+
+      let denominacionId = null;
+
+      const denominacionExistente = await client.query(
+        `
+          SELECT id
+          FROM denominaciones
+          WHERE moneda = $1
+            AND valor = $2
+          LIMIT 1;
+        `,
+        [moneda, valor]
+      );
+
+      if (denominacionExistente.rows.length > 0) {
+        denominacionId = denominacionExistente.rows[0].id;
+      } else {
+        const nuevaDenominacion = await client.query(
+          `
+            INSERT INTO denominaciones (
+              moneda,
+              valor
+            )
+            VALUES ($1, $2)
+            RETURNING id;
+          `,
+          [moneda, valor]
+        );
+
+        denominacionId = nuevaDenominacion.rows[0].id;
+      }
+
+      await client.query(
+        `
+          INSERT INTO corte_denominaciones (
+            corte_id,
+            denominacion_id,
+            cantidad,
+            tipo_ingreso,
+            concepto,
+            monto_original,
+            monto_mxn
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7);
+        `,
+        [
+          corteId,
+          denominacionId,
+          cantidad,
+          tipoIngreso,
+          concepto,
+          montoOriginal,
+          montoMxn,
+        ]
+      );
+    }
+
+    // Reemplazar vales anteriores
+    await client.query(
+      `
+        DELETE FROM corte_vales
+        WHERE corte_id = $1;
+      `,
+      [corteId]
+    );
+
+    const valesNuevos = Array.isArray(vales) ? vales : [];
+
+    for (const vale of valesNuevos) {
+      const monto = toNumber(vale.monto);
+
+      if (!vale.concepto && monto <= 0) continue;
+
+      await client.query(
+        `
+          INSERT INTO corte_vales (
+            corte_id,
+            concepto,
+            monto,
+            moneda,
+            tipo_cambio,
+            monto_mxn
+          )
+          VALUES ($1, $2, $3, 'MXN', $4, $5);
+        `,
+        [
+          corteId,
+          vale.concepto || "Sin concepto",
+          monto,
+          toNumber(tipoCambio),
+          monto,
+        ]
+      );
+    }
+
+    // Reemplazar cuentas por cobrar anteriores
+    await client.query(
+      `
+        DELETE FROM cuentas_por_cobrar
+        WHERE corte_id = $1;
+      `,
+      [corteId]
+    );
+
+    const cuentasNuevas = Array.isArray(cxc) ? cxc : [];
+
+    for (const cuenta of cuentasNuevas) {
+      const monto = toNumber(cuenta.monto);
+
+      if (!cuenta.nombre && monto <= 0) continue;
+
+      await client.query(
+        `
+          INSERT INTO cuentas_por_cobrar (
+            corte_id,
+            nombre,
+            monto,
+            moneda,
+            tipo_cambio,
+            monto_mxn
+          )
+          VALUES ($1, $2, $3, 'MXN', $4, $5);
+        `,
+        [
+          corteId,
+          cuenta.nombre || "Sin nombre",
+          monto,
+          toNumber(tipoCambio),
+          monto,
+        ]
+      );
+    }
+
+    await registrarHistorialCorte({
+      corteId,
+      accion: "EDITADO",
+      usuarioId: usuario_edita_id,
+      datosAnteriores: corteAnterior,
+      datosNuevos: corteActualizado,
+      cliente: client,
+    });
+
+    await client.query("COMMIT");
+
+    return res.json({
+      success: true,
+      message: "Corte actualizado correctamente.",
+      corte: corteActualizado,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+
+    console.error("Error editando corte:", error);
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible actualizar el corte.",
+    });
+  } finally {
+    client.release();
+  }
+});
+
 // Obtener egresos registrados por negocio
 app.get('/api/egresos', async (req, res) => {
   try {
