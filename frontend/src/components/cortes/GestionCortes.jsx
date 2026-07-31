@@ -14,12 +14,21 @@ function GestionCortes({
   const [cortes, setCortes] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
-  const [filtros, setFiltros] = useState({
+  const filtrosIniciales = {
   fecha_inicio: "",
   fecha_fin: "",
   folio: "",
+  operador: "",
   estatus: "",
-});
+  diferencia_min: "",
+  diferencia_max: "",
+  venta_min: "",
+  venta_max: "",
+};
+
+const [filtros, setFiltros] = useState(filtrosIniciales);
+const [filtrosAplicados, setFiltrosAplicados] =
+  useState(filtrosIniciales);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
 const [corteSeleccionado, setCorteSeleccionado] = useState(null);
 
@@ -121,16 +130,25 @@ const cargarCortes = useCallback(async () => {
       negocio_id: String(negocioId),
     });
 
-    if (filtros.fecha_inicio) {
-      parametros.append("fecha_inicio", filtros.fecha_inicio);
+    if (filtrosAplicados.fecha_inicio) {
+      parametros.append(
+        "fecha_inicio",
+        filtrosAplicados.fecha_inicio
+      );
     }
 
-    if (filtros.fecha_fin) {
-      parametros.append("fecha_fin", filtros.fecha_fin);
+    if (filtrosAplicados.fecha_fin) {
+      parametros.append(
+        "fecha_fin",
+        filtrosAplicados.fecha_fin
+      );
     }
 
-    if (filtros.folio.trim()) {
-      parametros.append("folio", filtros.folio.trim());
+    if (filtrosAplicados.folio.trim()) {
+      parametros.append(
+        "folio",
+        filtrosAplicados.folio.trim()
+      );
     }
 
     const respuesta = await fetch(
@@ -141,16 +159,61 @@ const cargarCortes = useCallback(async () => {
 
     if (!respuesta.ok || !resultado.success) {
       throw new Error(
-        resultado.error || "No se pudieron cargar los cortes."
+        resultado.error ||
+          "No se pudieron cargar los cortes."
       );
     }
 
     let cortesFiltrados = resultado.cortes || [];
 
-    if (filtros.estatus) {
+    if (filtrosAplicados.operador.trim()) {
+      const operadorBuscado =
+        filtrosAplicados.operador.trim().toLowerCase();
+
+      cortesFiltrados = cortesFiltrados.filter((corte) =>
+        String(corte.usuario_nombre || "")
+          .toLowerCase()
+          .includes(operadorBuscado)
+      );
+    }
+
+    if (filtrosAplicados.estatus) {
       cortesFiltrados = cortesFiltrados.filter(
         (corte) =>
-          (corte.estatus || "REGISTRADO") === filtros.estatus
+          (corte.estatus || "REGISTRADO") ===
+          filtrosAplicados.estatus
+      );
+    }
+
+    if (filtrosAplicados.diferencia_min !== "") {
+      cortesFiltrados = cortesFiltrados.filter(
+        (corte) =>
+          Number(corte.diferencia || 0) >=
+          Number(filtrosAplicados.diferencia_min)
+      );
+    }
+
+    if (filtrosAplicados.diferencia_max !== "") {
+      cortesFiltrados = cortesFiltrados.filter(
+        (corte) =>
+          Number(corte.diferencia || 0) <=
+          Number(filtrosAplicados.diferencia_max)
+      );
+    }
+
+    if (filtrosAplicados.venta_min !== "") {
+      cortesFiltrados = cortesFiltrados.filter(
+        (corte) =>
+          Number(corte.venta_ticket || 0) >=
+          Number(filtrosAplicados.venta_min)
+      );
+    }
+
+    if (filtrosAplicados.venta_max !== "") {
+      cortesFiltrados = cortesFiltrados.filter(
+        (corte) =>
+          Number(corte.venta_ticket || 0) <=
+          Number(filtrosAplicados.venta_max)
       );
     }
 
@@ -161,15 +224,15 @@ const cargarCortes = useCallback(async () => {
   } finally {
     setCargando(false);
   }
-}, [negocioId, filtros]);
+}, [negocioId, filtrosAplicados]);
+
+const buscarCortes = () => {
+  setFiltrosAplicados({ ...filtros });
+};
 
 const limpiarFiltros = () => {
-  setFiltros({
-    fecha_inicio: "",
-    fecha_fin: "",
-    folio: "",
-    estatus: "",
-  });
+  setFiltros({ ...filtrosIniciales });
+  setFiltrosAplicados({ ...filtrosIniciales });
 };
 
 useEffect(() => {
@@ -272,10 +335,6 @@ useEffect(() => {
 
           <div
   style={{
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "12px",
     marginBottom: "20px",
     padding: "16px",
     background: "#fafafa",
@@ -283,102 +342,198 @@ useEffect(() => {
     borderRadius: "10px",
   }}
 >
-  <div>
-    <label style={estiloEtiquetaFiltro}>
-      Fecha inicial
-    </label>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns:
+        "repeat(auto-fit, minmax(145px, 1fr))",
+      gap: "12px",
+    }}
+  >
+    <div>
+      <label style={estiloEtiquetaFiltro}>Fecha inicial</label>
+      <input
+        type="date"
+        value={filtros.fecha_inicio}
+        onChange={(e) =>
+          setFiltros({
+            ...filtros,
+            fecha_inicio: e.target.value,
+          })
+        }
+        style={estiloInputFiltro}
+      />
+    </div>
 
-    <input
-      type="date"
-      value={filtros.fecha_inicio}
-      onChange={(e) =>
-        setFiltros({
-          ...filtros,
-          fecha_inicio: e.target.value,
-        })
-      }
-      style={estiloInputFiltro}
-    />
-  </div>
+    <div>
+      <label style={estiloEtiquetaFiltro}>Fecha final</label>
+      <input
+        type="date"
+        value={filtros.fecha_fin}
+        onChange={(e) =>
+          setFiltros({
+            ...filtros,
+            fecha_fin: e.target.value,
+          })
+        }
+        style={estiloInputFiltro}
+      />
+    </div>
 
-  <div>
-    <label style={estiloEtiquetaFiltro}>
-      Fecha final
-    </label>
+    <div>
+      <label style={estiloEtiquetaFiltro}>Folio</label>
+      <input
+        type="text"
+        placeholder="Buscar folio"
+        value={filtros.folio}
+        onChange={(e) =>
+          setFiltros({
+            ...filtros,
+            folio: e.target.value,
+          })
+        }
+        style={estiloInputFiltro}
+      />
+    </div>
 
-    <input
-      type="date"
-      value={filtros.fecha_fin}
-      onChange={(e) =>
-        setFiltros({
-          ...filtros,
-          fecha_fin: e.target.value,
-        })
-      }
-      style={estiloInputFiltro}
-    />
-  </div>
+    <div>
+      <label style={estiloEtiquetaFiltro}>Operador</label>
+      <input
+        type="text"
+        placeholder="Buscar operador"
+        value={filtros.operador}
+        onChange={(e) =>
+          setFiltros({
+            ...filtros,
+            operador: e.target.value,
+          })
+        }
+        style={estiloInputFiltro}
+      />
+    </div>
 
-  <div>
-    <label style={estiloEtiquetaFiltro}>
-      Folio
-    </label>
+    <div>
+      <label style={estiloEtiquetaFiltro}>Estatus</label>
+      <select
+        value={filtros.estatus}
+        onChange={(e) =>
+          setFiltros({
+            ...filtros,
+            estatus: e.target.value,
+          })
+        }
+        style={estiloInputFiltro}
+      >
+        <option value="">Todos</option>
+        <option value="REGISTRADO">Registrado</option>
+        <option value="CANCELADO">Cancelado</option>
+      </select>
+    </div>
 
-    <input
-      type="text"
-      placeholder="Buscar folio"
-      value={filtros.folio}
-      onChange={(e) =>
-        setFiltros({
-          ...filtros,
-          folio: e.target.value,
-        })
-      }
-      style={estiloInputFiltro}
-    />
-  </div>
+    <div>
+      <label style={estiloEtiquetaFiltro}>Diferencia mínima</label>
+      <input
+        type="number"
+        placeholder="0.00"
+        value={filtros.diferencia_min}
+        onChange={(e) =>
+          setFiltros({
+            ...filtros,
+            diferencia_min: e.target.value,
+          })
+        }
+        style={estiloInputFiltro}
+      />
+    </div>
 
-  <div>
-    <label style={estiloEtiquetaFiltro}>
-      Estatus
-    </label>
+    <div>
+      <label style={estiloEtiquetaFiltro}>Diferencia máxima</label>
+      <input
+        type="number"
+        placeholder="0.00"
+        value={filtros.diferencia_max}
+        onChange={(e) =>
+          setFiltros({
+            ...filtros,
+            diferencia_max: e.target.value,
+          })
+        }
+        style={estiloInputFiltro}
+      />
+    </div>
 
-    <select
-      value={filtros.estatus}
-      onChange={(e) =>
-        setFiltros({
-          ...filtros,
-          estatus: e.target.value,
-        })
-      }
-      style={estiloInputFiltro}
-    >
-      <option value="">Todos</option>
-      <option value="REGISTRADO">Registrado</option>
-      <option value="CANCELADO">Cancelado</option>
-    </select>
+    <div>
+      <label style={estiloEtiquetaFiltro}>Venta mínima</label>
+      <input
+        type="number"
+        placeholder="0.00"
+        value={filtros.venta_min}
+        onChange={(e) =>
+          setFiltros({
+            ...filtros,
+            venta_min: e.target.value,
+          })
+        }
+        style={estiloInputFiltro}
+      />
+    </div>
+
+    <div>
+      <label style={estiloEtiquetaFiltro}>Venta máxima</label>
+      <input
+        type="number"
+        placeholder="0.00"
+        value={filtros.venta_max}
+        onChange={(e) =>
+          setFiltros({
+            ...filtros,
+            venta_max: e.target.value,
+          })
+        }
+        style={estiloInputFiltro}
+      />
+    </div>
   </div>
 
   <div
     style={{
       display: "flex",
-      alignItems: "flex-end",
+      justifyContent: "flex-end",
+      gap: "10px",
+      marginTop: "14px",
     }}
   >
     <button
       type="button"
       onClick={limpiarFiltros}
       style={{
-        width: "100%",
         minHeight: "42px",
+        padding: "0 22px",
         background: "#fff",
-        border: "1px solid #111",
+        border: "1px solid #bbb",
         borderRadius: "8px",
         cursor: "pointer",
         fontWeight: "600",
       }}
     >
       Limpiar filtros
+    </button>
+
+    <button
+      type="button"
+      onClick={buscarCortes}
+      style={{
+        minHeight: "42px",
+        padding: "0 26px",
+        background: "#111",
+        color: "#fff",
+        border: "1px solid #111",
+        borderRadius: "8px",
+        cursor: "pointer",
+        fontWeight: "600",
+      }}
+    >
+      Buscar
     </button>
   </div>
 </div>
