@@ -1856,53 +1856,259 @@ await sincronizarMovimientos({
   }
 });
 
+// Cancelar un corte y sus egresos automáticos
 app.put("/api/cortes/:id/cancelar", async (req, res) => {
   const corteId = Number(req.params.id);
 
+  if (!Number.isInteger(corteId) || corteId <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "El id del corte no es válido.",
+    });
+  }
+
+  const client = await pool.connect();
+
   try {
-    await pool.query(
+    await client.query("BEGIN");
+
+    const corteResult = await client.query(
       `
-      UPDATE corte_caja
-      SET estatus='CANCELADO'
-      WHERE id=$1
+        SELECT *
+        FROM corte_caja
+        WHERE id = $1
+        FOR UPDATE;
       `,
       [corteId]
     );
 
-    res.json({ success: true });
+    if (corteResult.rows.length === 0) {
+      await client.query("ROLLBACK");
 
-  } catch (error) {
-    console.error(error);
+      return res.status(404).json({
+        success: false,
+        error: "No se encontró el corte.",
+      });
+    }
 
-    res.status(500).json({
-      success: false,
-      error: error.message,
+    const corteAnterior = corteResult.rows[0];
+
+    if (corteAnterior.estatus === "CANCELADO") {
+      await client.query("ROLLBACK");
+
+      return res.json({
+        success: true,
+        message: "El corte ya estaba cancelado.",
+      });
+    }
+
+    const corteActualizadoResult = await client.query(
+      `
+        UPDATE corte_caja
+        SET
+          estatus = 'CANCELADO',
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING *;
+      `,
+      [corteId]
+    );
+
+    const egresosResult = await client.query(
+      `
+        SELECT *
+        FROM egresos
+        WHERE negocio_id = $1
+          AND referencia LIKE $2
+          AND COALESCE(estatus, 'REGISTRADO') <> 'CANCELADO'
+        FOR UPDATE;
+      `,
+      [
+        corteAnterior.negocio_id,
+        `CORTE-${corteAnterior.folio}-%`,
+      ]
+    );
+
+    for (const egresoAnterior of egresosResult.rows) {
+      const egresoActualizadoResult = await client.query(
+        `
+          UPDATE egresos
+          SET
+            estatus = 'CANCELADO',
+            fecha_edicion = NOW(),
+            updated_at = NOW()
+          WHERE id = $1
+          RETURNING *;
+        `,
+        [egresoAnterior.id]
+      );
+
+      await registrarHistorialEgreso({
+        egresoId: egresoAnterior.id,
+        accion: "CANCELADO",
+        usuarioId: null,
+        datosAnteriores: egresoAnterior,
+        datosNuevos: egresoActualizadoResult.rows[0],
+        cliente: client,
+      });
+    }
+
+    await registrarHistorialCorte({
+      corteId,
+      accion: "CANCELADO",
+      usuarioId: null,
+      datosAnteriores: corteAnterior,
+      datosNuevos: corteActualizadoResult.rows[0],
+      cliente: client,
     });
+
+    await client.query("COMMIT");
+
+    return res.json({
+      success: true,
+      message: "Corte y egresos asociados cancelados correctamente.",
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+
+    console.error("Error cancelando corte:", error);
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible cancelar el corte.",
+    });
+  } finally {
+    client.release();
   }
 });
 
-app.put("/api/cortes/:id/cancelar", async (req, res) => {
+// Reactivar un corte y sus egresos automáticos
+app.put("/api/cortes/:id/reactivar", async (req, res) => {
   const corteId = Number(req.params.id);
 
+  if (!Number.isInteger(corteId) || corteId <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "El id del corte no es válido.",
+    });
+  }
+
+  const client = await pool.connect();
+
   try {
-    await pool.query(
+    await client.query("BEGIN");
+
+    const corteResult = await client.query(
       `
-      UPDATE corte_caja
-      SET estatus='CANCELADO'
-      WHERE id=$1
+        SELECT *
+        FROM corte_caja
+        WHERE id = $1
+        FOR UPDATE;
       `,
       [corteId]
     );
 
-    res.json({ success: true });
+    if (corteResult.rows.length === 0) {
+      await client.query("ROLLBACK");
 
-  } catch (error) {
-    console.error(error);
+      return res.status(404).json({
+        success: false,
+        error: "No se encontró el corte.",
+      });
+    }
 
-    res.status(500).json({
-      success: false,
-      error: error.message,
+    const corteAnterior = corteResult.rows[0];
+
+    if (corteAnterior.estatus !== "CANCELADO") {
+      await client.query("ROLLBACK");
+
+      return res.json({
+        success: true,
+        message: "El corte ya estaba registrado.",
+      });
+    }
+
+    const corteActualizadoResult = await client.query(
+      `
+        UPDATE corte_caja
+        SET
+          estatus = 'REGISTRADO',
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING *;
+      `,
+      [corteId]
+    );
+
+    const egresosResult = await client.query(
+      `
+        SELECT *
+        FROM egresos
+        WHERE negocio_id = $1
+          AND referencia LIKE $2
+          AND estatus = 'CANCELADO'
+        FOR UPDATE;
+      `,
+      [
+        corteAnterior.negocio_id,
+        `CORTE-${corteAnterior.folio}-%`,
+      ]
+    );
+
+    for (const egresoAnterior of egresosResult.rows) {
+      const egresoActualizadoResult = await client.query(
+        `
+          UPDATE egresos
+          SET
+            estatus = 'REGISTRADO',
+            fecha_edicion = NOW(),
+            updated_at = NOW()
+          WHERE id = $1
+          RETURNING *;
+        `,
+        [egresoAnterior.id]
+      );
+
+      await registrarHistorialEgreso({
+        egresoId: egresoAnterior.id,
+        accion: "REACTIVADO",
+        usuarioId: null,
+        datosAnteriores: egresoAnterior,
+        datosNuevos: egresoActualizadoResult.rows[0],
+        cliente: client,
+      });
+    }
+
+    await registrarHistorialCorte({
+      corteId,
+      accion: "REACTIVADO",
+      usuarioId: null,
+      datosAnteriores: corteAnterior,
+      datosNuevos: corteActualizadoResult.rows[0],
+      cliente: client,
     });
+
+    await client.query("COMMIT");
+
+    return res.json({
+      success: true,
+      message: "Corte y egresos asociados reactivados correctamente.",
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+
+    console.error("Error reactivando corte:", error);
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible reactivar el corte.",
+    });
+  } finally {
+    client.release();
   }
 });
 
