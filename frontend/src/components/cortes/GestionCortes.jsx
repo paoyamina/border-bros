@@ -331,7 +331,46 @@ useEffect(() => {
             boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
           }}
         >
-          <h2>Historial de cortes</h2>
+          <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    marginBottom: "16px",
+    flexWrap: "wrap",
+  }}
+>
+  <div>
+    <h2 style={{ margin: 0 }}>
+      Historial de cortes
+    </h2>
+
+    <p
+      style={{
+        margin: "6px 0 0",
+        color: "#666",
+        fontSize: "14px",
+      }}
+    >
+      Consulta los cortes registrados para el negocio activo.
+    </p>
+  </div>
+
+  <div
+    style={{
+      padding: "7px 12px",
+      background: "#f2f2f0",
+      borderRadius: "999px",
+      fontSize: "13px",
+      fontWeight: "700",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {cortes.length}{" "}
+    {cortes.length === 1 ? "corte" : "cortes"}
+  </div>
+</div>
 
           <div
   style={{

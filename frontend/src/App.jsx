@@ -10,6 +10,7 @@ import Nomina from "./forms/Nomina";
 import AprobacionesNomina from "./forms/AprobacionesNomina";
 import HistorialNomina from "./forms/HistorialNomina";
 import Empleados from "./forms/Empleados";
+import Puestos from "./forms/Puestos";
 import InversionesSocios from "./components/InversionesSocios";
 import AnalisisFinanciero from "./components/AnalisisFinanciero";
 import GestionCortes from "./components/cortes/GestionCortes";
@@ -490,6 +491,15 @@ if (formularioActivo === "caja_editar") {
       usuarioActivo={usuarioActivo}
       usuarioId={usuarioId}
       onVolver={volverAlMenu}
+    />
+  );
+}
+
+if (formularioActivo === "puestos") {
+  return (
+    <Puestos
+      usuarioActivo={usuarioActivo}
+      onVolver={() => setFormularioActivo(null)}
     />
   );
 }

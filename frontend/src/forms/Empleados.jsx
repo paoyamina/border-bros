@@ -4,6 +4,7 @@ import API_BASE_URL from "../config/api";
 function Empleados({ usuarioActivo, usuarioId, onVolver }) {
 
   const [empleados, setEmpleados] = useState([]);
+  const [puestos, setPuestos] = useState([]);
   const [filtro, setFiltro] = useState("activos");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [busqueda, setBusqueda] = useState("");
@@ -13,7 +14,7 @@ const [empleadoEditando, setEmpleadoEditando] = useState(null);
 
 const [nuevoEmpleado, setNuevoEmpleado] = useState({
   nombre: "",
-  puesto: "",
+  puesto_id: "",
   fecha_ingreso: "",
   cuenta_bancaria: "",
   sueldo_diario: "",
@@ -49,11 +50,37 @@ const [nuevoEmpleado, setNuevoEmpleado] = useState({
     }
   }, [filtro]);
 
+  const cargarPuestos = useCallback(async () => {
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/puestos?negocio_id=1&activos=true`
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok || !resultado.success) {
+      throw new Error(
+        resultado.error || "No se pudieron cargar los puestos."
+      );
+    }
+
+    setPuestos(resultado.puestos || []);
+  } catch (error) {
+    console.error("Error cargando puestos:", error);
+    alert("🚨 Error cargando catálogo de puestos: " + error.message);
+  }
+}, []);
+
 const crearEmpleado = async () => {
   if (!nuevoEmpleado.nombre.trim()) {
     alert("⚠️ El nombre es obligatorio.");
     return;
   }
+
+  if (!nuevoEmpleado.puesto_id) {
+  alert("⚠️ Debes seleccionar un puesto.");
+  return;
+}
 
   try {
     const respuesta = await fetch(`${API_BASE_URL}/api/empleados`, {
@@ -77,7 +104,7 @@ const crearEmpleado = async () => {
 
   setNuevoEmpleado({
   nombre: "",
-  puesto: "",
+  puesto_id: "",
   fecha_ingreso: "",
   cuenta_bancaria: "",
   sueldo_diario: "",
@@ -98,7 +125,7 @@ const empezarEditar = (empleado) => {
 
   setNuevoEmpleado({
     nombre: empleado.nombre || "",
-    puesto: empleado.puesto || "",
+    puesto_id: empleado.puesto_id || "",
     fecha_ingreso: empleado.fecha_ingreso
       ? empleado.fecha_ingreso.split("T")[0]
       : "",
@@ -117,6 +144,11 @@ const actualizarEmpleado = async () => {
     alert("⚠️ El nombre es obligatorio.");
     return;
   }
+
+  if (!nuevoEmpleado.puesto_id) {
+  alert("⚠️ Debes seleccionar un puesto.");
+  return;
+}
 
   try {
     const respuesta = await fetch(
@@ -146,7 +178,7 @@ const actualizarEmpleado = async () => {
 
    setNuevoEmpleado({
   nombre: "",
-  puesto: "",
+  puesto_id: "",
   fecha_ingreso: "",
   cuenta_bancaria: "",
   sueldo_diario: "",
@@ -228,9 +260,10 @@ const reactivarEmpleado = async (empleado) => {
   }
 };
 
-  useEffect(() => {
+ useEffect(() => {
   cargarEmpleados();
-}, [cargarEmpleados]);
+  cargarPuestos();
+}, [cargarEmpleados, cargarPuestos]);
   const empleadosFiltradosOrdenados = empleados
   .filter((emp) => {
     const texto = busqueda.toLowerCase().trim();
@@ -311,14 +344,37 @@ const reactivarEmpleado = async (empleado) => {
       }
     />
 
-    <input
-      placeholder="Puesto"
-      value={nuevoEmpleado.puesto}
-      onChange={(e) =>
-        setNuevoEmpleado({ ...nuevoEmpleado, puesto: e.target.value })
-      }
-      style={{ marginLeft: "10px" }}
-    />
+    <select
+  value={nuevoEmpleado.puesto_id}
+  onChange={(e) => {
+    const puestoId = e.target.value;
+
+    const puestoSeleccionado = puestos.find(
+      (puesto) => puesto.id === Number(puestoId)
+    );
+
+    setNuevoEmpleado({
+      ...nuevoEmpleado,
+      puesto_id: puestoId,
+      tipo_nomina:
+        puestoSeleccionado?.tipo_nomina ||
+        nuevoEmpleado.tipo_nomina,
+      sueldo_diario:
+        Number(puestoSeleccionado?.tarifa_base || 0) > 0
+          ? puestoSeleccionado.tarifa_base
+          : nuevoEmpleado.sueldo_diario,
+    });
+  }}
+  style={{ marginLeft: "10px" }}
+>
+  <option value="">Selecciona un puesto</option>
+
+  {puestos.map((puesto) => (
+    <option key={puesto.id} value={puesto.id}>
+      {puesto.nombre}
+    </option>
+  ))}
+</select>
 
     <input
       type="date"
@@ -373,9 +429,8 @@ const reactivarEmpleado = async (empleado) => {
   }
   style={{ marginLeft: "10px" }}
 >
-  <option value="Operativa">Operativa</option>
-  <option value="Banco">Banco</option>
-  <option value="Administrativa">Administrativa</option>
+<option value="Operativa">Operativa</option>
+<option value="Administrativa">Administrativa</option>
 </select>
 
 <select
@@ -389,7 +444,8 @@ const reactivarEmpleado = async (empleado) => {
   style={{ marginLeft: "10px" }}
 >
   <option value="Efectivo">Efectivo</option>
-  <option value="Banco">Banco</option>
+<option value="Banco">Banco</option>
+<option value="Banca">Banca</option>
 </select>
 
     <button

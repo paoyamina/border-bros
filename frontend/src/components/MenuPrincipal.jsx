@@ -11,6 +11,7 @@ const permisosPorRol = {
     "aprobaciones_nomina",
     "historial_nomina",
     "inversiones_socios",
+    "puestos",
   ],
   contador: [
     "caja",
@@ -21,6 +22,7 @@ const permisosPorRol = {
     "aprobaciones_nomina",
     "historial_nomina",
     "inversiones_socios",
+    "puestos",
   ],
   gobernador: [
     "caja",
@@ -32,6 +34,7 @@ const permisosPorRol = {
     "aprobaciones_nomina",
     "historial_nomina",
     "inversiones_socios",
+    "puestos",
   ],
   administrador: [
     "egresos_caja",
@@ -40,6 +43,7 @@ const permisosPorRol = {
     "nomina",
     "empleados",
     "historial_nomina",
+    "puestos",
   ],
   cajero: [
     "egresos_caja",
@@ -185,6 +189,15 @@ function MenuPrincipal({ usuarioActivo, rol, onSeleccionarFormulario, onLogout }
     style={estiloBotonMenu}
   >
     GESTIÓN EMPLEADOS
+  </button>
+)}
+
+{puedeVer(rol, "puestos") && (
+  <button
+    onClick={() => onSeleccionarFormulario("puestos")}
+    style={estiloBotonMenu}
+  >
+    CATÁLOGO DE PUESTOS
   </button>
 )}
 

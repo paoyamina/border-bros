@@ -5,7 +5,6 @@ const { google } = require('googleapis');
 const path = require('path');
 const multer = require('multer'); 
 const fs = require('fs');
-
 const app = express();
 
 // Configuración de CORS más robusta
@@ -3095,42 +3094,424 @@ app.post('/api/categorias/buscar-o-crear', async (req, res) => {
   }
 });
 
-// Obtener empleados
-app.get('/api/empleados', async (req, res) => {
-
+// Obtener catálogo de puestos
+app.get('/api/puestos', async (req, res) => {
   try {
+    const negocioId = Number(req.query.negocio_id || 1);
+    const activos =
+  req.query.activos === "true"
+    ? true
+    : req.query.activos === "false"
+    ? false
+    : null;
 
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El negocio_id no es válido.",
+      });
+    }
+
+    const result = await pool.query(
+  `
+    SELECT
+      id,
+      nombre,
+      tipo_nomina,
+      hoja_excel,
+      seccion_nomina,
+      modalidad_pago,
+      tarifa_base,
+      tarifa_viernes,
+      tarifa_sabado,
+      activo,
+      negocio_id
+    FROM puestos
+    WHERE negocio_id = $1
+      AND (
+        $2::BOOLEAN IS NULL
+        OR activo = $2::BOOLEAN
+      )
+    ORDER BY nombre ASC;
+  `,
+  [negocioId, activos]
+);
+
+    return res.json({
+      success: true,
+      puestos: result.rows,
+    });
+  } catch (error) {
+    console.error("Error obteniendo puestos:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: error.message || "No se pudieron obtener los puestos.",
+    });
+  }
+});
+
+// Crear puesto
+app.post('/api/puestos', async (req, res) => {
+  try {
+    const {
+      nombre,
+      tipo_nomina,
+      hoja_excel,
+      seccion_nomina,
+      modalidad_pago,
+      tarifa_base,
+      tarifa_viernes,
+      tarifa_sabado,
+      negocio_id,
+    } = req.body;
+
+    const nombreLimpio = String(nombre || "").trim();
+    const negocioId = Number(negocio_id || 1);
+
+    if (!nombreLimpio) {
+      return res.status(400).json({
+        success: false,
+        error: "El nombre del puesto es obligatorio.",
+      });
+    }
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El negocio_id no es válido.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        INSERT INTO puestos (
+          nombre,
+          tipo_nomina,
+          hoja_excel,
+          seccion_nomina,
+          modalidad_pago,
+          tarifa_base,
+          tarifa_viernes,
+          tarifa_sabado,
+          activo,
+          negocio_id,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          $1, $2, $3, $4, $5,
+          $6, $7, $8,
+          TRUE, $9, NOW(), NOW()
+        )
+        RETURNING *;
+      `,
+      [
+        nombreLimpio,
+        tipo_nomina || "Operativa",
+        hoja_excel || "PRINCIPAL",
+        String(seccion_nomina || "GENERAL").trim().toUpperCase(),
+        modalidad_pago || "DIARIO",
+        Number(tarifa_base) || 0,
+        Number(tarifa_viernes) || 300,
+        Number(tarifa_sabado) || 200,
+        negocioId,
+      ]
+    );
+
+    return res.json({
+      success: true,
+      puesto: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Error creando puesto:", error);
+
+    if (error.code === "23505") {
+      return res.status(409).json({
+        success: false,
+        error: "Ya existe un puesto con ese nombre.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Editar puesto
+app.put('/api/puestos/:id', async (req, res) => {
+  try {
+    const puestoId = Number(req.params.id);
+
+    const {
+      nombre,
+      tipo_nomina,
+      hoja_excel,
+      seccion_nomina,
+      modalidad_pago,
+      tarifa_base,
+      tarifa_viernes,
+      tarifa_sabado,
+      negocio_id,
+    } = req.body;
+
+    const nombreLimpio = String(nombre || "").trim();
+    const negocioId = Number(negocio_id || 1);
+
+    if (!Number.isInteger(puestoId) || puestoId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El id del puesto no es válido.",
+      });
+    }
+
+    if (!nombreLimpio) {
+      return res.status(400).json({
+        success: false,
+        error: "El nombre del puesto es obligatorio.",
+      });
+    }
+
+    const anteriorResult = await pool.query(
+      `
+        SELECT *
+        FROM puestos
+        WHERE id = $1
+          AND negocio_id = $2
+        LIMIT 1;
+      `,
+      [puestoId, negocioId]
+    );
+
+    if (anteriorResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "No se encontró el puesto.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE puestos
+        SET
+          nombre = $1,
+          tipo_nomina = $2,
+          hoja_excel = $3,
+          seccion_nomina = $4,
+          modalidad_pago = $5,
+          tarifa_base = $6,
+          tarifa_viernes = $7,
+          tarifa_sabado = $8,
+          updated_at = NOW()
+        WHERE id = $9
+          AND negocio_id = $10
+        RETURNING *;
+      `,
+      [
+        nombreLimpio,
+        tipo_nomina || "Operativa",
+        hoja_excel || "PRINCIPAL",
+        String(seccion_nomina || "GENERAL").trim().toUpperCase(),
+        modalidad_pago || "DIARIO",
+        Number(tarifa_base) || 0,
+        Number(tarifa_viernes) || 300,
+        Number(tarifa_sabado) || 200,
+        puestoId,
+        negocioId,
+      ]
+    );
+
+    // Mantener sincronizado el texto antiguo del puesto
+    await pool.query(
+      `
+        UPDATE empleados
+        SET puesto = $1
+        WHERE puesto_id = $2;
+      `,
+      [nombreLimpio, puestoId]
+    );
+
+    return res.json({
+      success: true,
+      puesto: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Error editando puesto:", error);
+
+    if (error.code === "23505") {
+      return res.status(409).json({
+        success: false,
+        error: "Ya existe otro puesto con ese nombre.",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Desactivar puesto
+app.put('/api/puestos/:id/desactivar', async (req, res) => {
+  try {
+    const puestoId = Number(req.params.id);
+
+    if (!Number.isInteger(puestoId) || puestoId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El id del puesto no es válido.",
+      });
+    }
+
+    const empleadosActivos = await pool.query(
+      `
+        SELECT COUNT(*)::INTEGER AS total
+        FROM empleados
+        WHERE puesto_id = $1
+          AND activo = TRUE;
+      `,
+      [puestoId]
+    );
+
+    if (empleadosActivos.rows[0].total > 0) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "No puedes desactivar este puesto porque tiene empleados activos asignados.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE puestos
+        SET
+          activo = FALSE,
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING *;
+      `,
+      [puestoId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "No se encontró el puesto.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      puesto: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Error desactivando puesto:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Reactivar puesto
+app.put('/api/puestos/:id/reactivar', async (req, res) => {
+  try {
+    const puestoId = Number(req.params.id);
+
+    if (!Number.isInteger(puestoId) || puestoId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El id del puesto no es válido.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE puestos
+        SET
+          activo = TRUE,
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING *;
+      `,
+      [puestoId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "No se encontró el puesto.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      puesto: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Error reactivando puesto:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Obtener empleados con configuración del puesto
+app.get('/api/empleados', async (req, res) => {
+  try {
     const { activos } = req.query;
 
-    let query = `
-      SELECT *
-      FROM empleados
-    `;
+    const condiciones = [];
+    const valores = [];
 
     if (activos === 'true') {
-      query += ` WHERE activo = true `;
+      condiciones.push('e.activo = TRUE');
     }
 
     if (activos === 'false') {
-      query += ` WHERE activo = false `;
+      condiciones.push('e.activo = FALSE');
     }
 
-    query += ` ORDER BY nombre ASC `;
+    let query = `
+      SELECT
+        e.*,
+        COALESCE(p.nombre, e.puesto) AS puesto_nombre,
+        p.tipo_nomina AS tipo_nomina_puesto,
+        p.hoja_excel,
+        p.seccion_nomina,
+        p.modalidad_pago,
+        p.tarifa_base,
+        p.tarifa_viernes,
+        p.tarifa_sabado
+      FROM empleados e
+      LEFT JOIN puestos p
+        ON p.id = e.puesto_id
+    `;
 
-    const result = await pool.query(query);
+    if (condiciones.length > 0) {
+      query += ` WHERE ${condiciones.join(' AND ')} `;
+    }
 
-    res.json({
+    query += ` ORDER BY e.nombre ASC `;
+
+    const result = await pool.query(query, valores);
+
+    return res.json({
       success: true,
-      empleados: result.rows
+      empleados: result.rows,
     });
-
   } catch (error) {
-
     console.error('Error empleados:', error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -3140,9 +3521,9 @@ app.post('/api/empleados', async (req, res) => {
 
   try {
 
-    const {
+  const {
   nombre,
-  puesto,
+  puesto_id,
   fecha_ingreso,
   cuenta_bancaria,
   sueldo_diario,
@@ -3156,6 +3537,7 @@ app.post('/api/empleados', async (req, res) => {
       `
       INSERT INTO empleados (
   nombre,
+  puesto_id,
   puesto,
   fecha_ingreso,
   cuenta_bancaria,
@@ -3167,9 +3549,16 @@ app.post('/api/empleados', async (req, res) => {
   created_at,
   created_by
 )
-      VALUES (
-  $1, $2, $3, $4,
-  $5, $6, $7, $8,
+VALUES (
+  $1,
+  $2,
+  (SELECT nombre FROM puestos WHERE id = $2),
+  $3,
+  $4,
+  $5,
+  $6,
+  $7,
+  $8,
   true,
   NOW(),
   $9
@@ -3178,7 +3567,7 @@ app.post('/api/empleados', async (req, res) => {
       `,
       [
   nombre,
-  puesto || null,
+  puesto_id || null,
   fecha_ingreso || null,
   cuenta_bancaria || null,
   sueldo_diario || 0,
@@ -3297,7 +3686,7 @@ app.put('/api/empleados/:id', async (req, res) => {
 
    const {
   nombre,
-  puesto,
+  puesto_id,
   fecha_ingreso,
   cuenta_bancaria,
   sueldo_diario,
@@ -3312,7 +3701,12 @@ app.put('/api/empleados/:id', async (req, res) => {
       UPDATE empleados
 SET
   nombre = $1,
-  puesto = $2,
+  puesto_id = $2,
+  puesto = (
+    SELECT nombre
+    FROM puestos
+    WHERE id = $2
+  ),
   fecha_ingreso = $3,
   cuenta_bancaria = $4,
   sueldo_diario = $5,
@@ -3326,7 +3720,7 @@ RETURNING *
       `,
       [
   nombre,
-  puesto || null,
+  puesto_id || null,
   fecha_ingreso || null,
   cuenta_bancaria || null,
   sueldo_diario || 0,
