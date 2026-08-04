@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import * as XLSX from "xlsx";
 import estilos from "../styles/estilos";
 import { validarEgreso } from "../utils/validaciones";
 import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
@@ -205,32 +204,6 @@ const limpiarFormulario = () => {
   setReferencia("");
   setFotosEgreso([]);
 };
-
-const descargarExcelBanco = () => {
-  const filas = [
-    ["EGRESO BANCOS - BOSSE"],
-    [],
-    ["Fecha:", fechaEgreso],
-    ["Operador:", usuarioActivo],
-    ["Banco origen:", bancoOrigen],
-    ["Referencia:", referencia],
-    ["Proveedor:", beneficiarioEgreso],
-    ["Categoría:", categoriaEgreso],
-    ["Concepto:", conceptoEgreso],
-    ["Monto:", parseFloat(montoEgreso) || 0],
-  ];
-
-  const hoja = XLSX.utils.aoa_to_sheet(filas);
-  const libro = XLSX.utils.book_new();
-
-  XLSX.utils.book_append_sheet(libro, hoja, "Egreso Bancos");
-
-  XLSX.writeFile(
-    libro,
-    `Egreso_Bancos_BOSSE_${fechaEgreso}_${referencia || "SinReferencia"}.xlsx`
-  );
-};
-
   const registrarEgreso = async () => {
 
   const errorValidacion = validarEgreso({
@@ -376,9 +349,7 @@ if (!resultadoBD.success) {
   );
 }
 
-descargarExcelBanco();
-
-alert("✅ Egreso banco registrado correctamente y Excel descargado.");
+alert("✅ Egreso banco registrado correctamente.");
 limpiarFormulario();
 
 window.dispatchEvent(new Event("egresoActualizado"));
@@ -638,6 +609,7 @@ window.dispatchEvent(new Event("egresoActualizado"));
                 placeholder="0.00"
                 value={montoEgreso}
                 onChange={(e) => setMontoEgreso(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
                 style={{
                   ...estilos.input,
                   width: "150px",

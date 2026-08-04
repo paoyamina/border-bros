@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import * as XLSX from "xlsx";
 import estilos from "../styles/estilos";
 import { validarEgreso } from "../utils/validaciones";
 import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
@@ -207,33 +206,6 @@ const limpiarFormulario = () => {
   setFotosEgreso([]);
 };
 
-const descargarExcelEgreso = () => {
-
-  const filas = [
-    ["EGRESO EFECTIVO - BOSSE"],
-    [],
-    ["Fecha:", fechaEgreso],
-    ["Operador:", usuarioActivo],
-    ["Proveedor:", beneficiarioEgreso],
-    ["Categoría:", categoriaEgreso],
-    ["Concepto:", conceptoEgreso],
-    ["Divisa:", divisaEgreso],
-    ["Tipo de cambio:", divisaEgreso === "USD" ? tcEgreso : ""],
-    ["Monto original:", montoNumerico],
-    ["Monto MXN:", montoMXN],
-  ];
-
-  const hoja = XLSX.utils.aoa_to_sheet(filas);
-
-  const libro = XLSX.utils.book_new();
-
-  XLSX.utils.book_append_sheet(libro, hoja, "Egreso Efectivo");
-
-  XLSX.writeFile(
-    libro,
-    `Egreso_Efectivo_BOSSE_${fechaEgreso}_${beneficiarioEgreso || "SinProveedor"}.xlsx`
-  );
-};
   const enviarEgresoADrive = async () => {
 
   const errorValidacion = validarEgreso({
@@ -391,10 +363,6 @@ if (!resultadoBD.success) {
   throw new Error(resultadoBD.error || "Error al guardar en base de datos.");
 }
 
-// Safari: la descarga ocurre solamente después de confirmar
-// que la base de datos guardó correctamente.
-descargarExcelEgreso();
-
 limpiarFormulario();
 
 window.dispatchEvent(new Event("egresoActualizado"));
@@ -479,9 +447,10 @@ alert(
             >
               <label style={estilos.panelLabel}>TIPO DE CAMBIO (USD/MXN)</label>
               <input
-                type="number"
-                value={tcEgreso}
-                onChange={(e) => setTcEgreso(parseFloat(e.target.value))}
+  type="number"
+  value={tcEgreso}
+  onChange={(e) => setTcEgreso(parseFloat(e.target.value))}
+  onWheel={(e) => e.currentTarget.blur()}
                 style={{ ...estilos.input, width: "100px" }}
               />
             </div>
@@ -584,10 +553,11 @@ alert(
               </span>
 
               <input
-                type="number"
-                placeholder="0.00"
-                value={montoEgreso}
-                onChange={(e) => setMontoEgreso(e.target.value)}
+  type="number"
+  placeholder="0.00"
+  value={montoEgreso}
+  onChange={(e) => setMontoEgreso(e.target.value)}
+  onWheel={(e) => e.currentTarget.blur()}
                 style={{
                   ...estilos.input,
                   width: "150px",

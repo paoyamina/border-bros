@@ -3799,38 +3799,86 @@ app.post('/api/prenomina', async (req, res) => {
     const prenomina = prenominaResult.rows[0];
 
     for (const fila of detalle) {
-      await client.query(
-        `
-        INSERT INTO prenomina_detalle (
-          prenomina_id,
-          empleado_id,
-          dias,
-          costo_unitario,
-          prima,
-          descuento,
-          total,
-          tipo_nomina,
-          metodo_pago_nomina,
-          comentario_pago,
-          nota
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        `,
-        [
-          prenomina.id,
-          fila.empleado_id,
-          fila.dias || 0,
-          fila.costo_unitario || 0,
-          fila.prima || 0,
-          fila.descuento || 0,
-          fila.total || 0,
-          fila.tipo_nomina || "Operativa",
-          fila.metodo_pago_nomina || "Efectivo",
-          fila.comentario_pago || null,
-          fila.nota || null
-        ]
-      );
-    }
+  const empleadoResult = await client.query(
+    `
+      SELECT
+        e.id,
+        e.puesto_id,
+        COALESCE(p.nombre, e.puesto) AS puesto_nombre,
+        COALESCE(p.tipo_nomina, e.tipo_nomina, 'Operativa') AS tipo_nomina,
+        p.modalidad_pago,
+        p.hoja_excel,
+        p.seccion_nomina,
+        COALESCE(
+          e.metodo_pago_nomina,
+          'Efectivo'
+        ) AS metodo_pago_nomina
+      FROM empleados e
+      LEFT JOIN puestos p
+        ON p.id = e.puesto_id
+      WHERE e.id = $1
+      LIMIT 1;
+    `,
+    [fila.empleado_id]
+  );
+
+  if (empleadoResult.rows.length === 0) {
+    throw new Error(
+      `No se encontró el empleado con id ${fila.empleado_id}.`
+    );
+  }
+
+  const empleado = empleadoResult.rows[0];
+
+  await client.query(
+    `
+      INSERT INTO prenomina_detalle (
+        prenomina_id,
+        empleado_id,
+        puesto_id,
+        puesto_nombre,
+        dias,
+        costo_unitario,
+        prima,
+        descuento,
+        total,
+        tipo_nomina,
+        metodo_pago_nomina,
+        modalidad_pago,
+        hoja_excel,
+        seccion_nomina,
+        comentario_pago,
+        nota
+      )
+      VALUES (
+        $1, $2, $3, $4,
+        $5, $6, $7, $8,
+        $9, $10, $11, $12,
+        $13, $14, $15, $16
+      )
+    `,
+    [
+      prenomina.id,
+      fila.empleado_id,
+      empleado.puesto_id || null,
+      empleado.puesto_nombre || null,
+      Number(fila.dias) || 0,
+      Number(fila.costo_unitario) || 0,
+      Number(fila.prima) || 0,
+      Number(fila.descuento) || 0,
+      Number(fila.total) || 0,
+      empleado.tipo_nomina || "Operativa",
+      fila.metodo_pago_nomina ||
+        empleado.metodo_pago_nomina ||
+        "Efectivo",
+      empleado.modalidad_pago || "DIARIO",
+      empleado.hoja_excel || "PRINCIPAL",
+      empleado.seccion_nomina || "GENERAL",
+      fila.comentario_pago || null,
+      fila.nota || null,
+    ]
+  );
+}
 
     await client.query(
       `
@@ -3872,58 +3920,131 @@ app.post('/api/prenomina', async (req, res) => {
   }
 });
 
-// Obtener detalle de una prenómina
+// Obtener detalle histórico de una prenómina
 app.get('/api/prenomina/:id/detalle', async (req, res) => {
   try {
-    const { id } = req.params;
+    const prenominaId = Number(req.params.id);
+
+    if (!Number.isInteger(prenominaId) || prenominaId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El id de la prenómina no es válido.",
+      });
+    }
 
     const prenominaResult = await pool.query(
       `
-      SELECT
-        p.*,
-        u.nombre AS usuario_crea
-      FROM prenomina p
-      LEFT JOIN usuarios u
-        ON u.id = p.usuario_crea_id
-      WHERE p.id = $1
+        SELECT
+          p.*,
+          creador.nombre AS usuario_crea,
+          aprobador.nombre AS usuario_aprueba
+        FROM prenomina p
+        LEFT JOIN usuarios creador
+          ON creador.id = p.usuario_crea_id
+        LEFT JOIN usuarios aprobador
+          ON aprobador.id = p.usuario_aprueba_id
+        WHERE p.id = $1
+        LIMIT 1;
       `,
-      [id]
+      [prenominaId]
     );
 
     if (prenominaResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        error: "Prenómina no encontrada"
+        error: "Prenómina no encontrada.",
       });
     }
 
     const detalleResult = await pool.query(
       `
-      SELECT
-        pd.*,
-        e.nombre AS empleado,
-        e.puesto
-      FROM prenomina_detalle pd
-      LEFT JOIN empleados e
-        ON e.id = pd.empleado_id
-      WHERE pd.prenomina_id = $1
-      ORDER BY e.nombre ASC
+        SELECT
+          pd.id,
+          pd.prenomina_id,
+          pd.empleado_id,
+
+          COALESCE(
+            e.nombre,
+            'Empleado no disponible'
+          ) AS empleado,
+
+          pd.puesto_id,
+
+          COALESCE(
+            pd.puesto_nombre,
+            p.nombre,
+            e.puesto,
+            'Sin puesto'
+          ) AS puesto,
+
+          COALESCE(
+            pd.tipo_nomina,
+            p.tipo_nomina,
+            e.tipo_nomina,
+            'Operativa'
+          ) AS tipo_nomina,
+
+          COALESCE(
+            pd.metodo_pago_nomina,
+            e.metodo_pago_nomina,
+            'Efectivo'
+          ) AS metodo_pago_nomina,
+
+          COALESCE(
+            pd.modalidad_pago,
+            p.modalidad_pago,
+            'DIARIO'
+          ) AS modalidad_pago,
+
+          COALESCE(
+            pd.hoja_excel,
+            p.hoja_excel,
+            'PRINCIPAL'
+          ) AS hoja_excel,
+
+          COALESCE(
+            pd.seccion_nomina,
+            p.seccion_nomina,
+            'GENERAL'
+          ) AS seccion_nomina,
+
+          pd.dias,
+          pd.costo_unitario,
+          pd.prima,
+          pd.descuento,
+          pd.total,
+          pd.comentario_pago,
+          pd.nota
+
+        FROM prenomina_detalle pd
+
+        LEFT JOIN empleados e
+          ON e.id = pd.empleado_id
+
+        LEFT JOIN puestos p
+          ON p.id = pd.puesto_id
+
+        WHERE pd.prenomina_id = $1
+
+        ORDER BY
+          COALESCE(pd.hoja_excel, p.hoja_excel, 'PRINCIPAL'),
+          COALESCE(pd.seccion_nomina, p.seccion_nomina, 'GENERAL'),
+          COALESCE(e.nombre, '') ASC;
       `,
-      [id]
+      [prenominaId]
     );
 
-    res.json({
+    return res.json({
       success: true,
       prenomina: prenominaResult.rows[0],
-      detalle: detalleResult.rows
+      detalle: detalleResult.rows,
     });
-
   } catch (error) {
     console.error("Error detalle prenómina:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
