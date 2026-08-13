@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import estilos from "../styles/estilos";
-import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
+import API_BASE_URL from "../config/api";
 import { validarNomina } from "../utils/validaciones";
-import { exportarExcelNomina } from "../utils/exportExcel";
 
 const estiloInputTabla = {
   width: "100%",
@@ -10,6 +9,17 @@ const estiloInputTabla = {
   padding: "8px",
   outline: "none",
   fontSize: "13px",
+};
+
+const estiloInputMesa = {
+  width: "100%",
+  boxSizing: "border-box",
+  minHeight: "38px",
+  padding: "8px 10px",
+  border: "1px solid #d7d7d7",
+  borderRadius: "6px",
+  background: "#fff",
+  fontSize: "12px",
 };
 
 const thBosse = {
@@ -22,27 +32,41 @@ const thBosse = {
 };
 
 function Nomina({ usuarioActivo, usuarioId, onVolver }) {
-  const [filas, setFilas] = useState([
-  {
-    id: 1,
-    nombre: "",
-    puesto: "",
-    ingreso: "",
-    cuenta: "",
-    dias: 0,
-    costo: 0,
-    prima: 0,
-    descuento: 0,
-    total: 0,
-    tipo_nomina: "Operativa",
-    metodo_pago_nomina: "Efectivo",
-    comentario_pago: "",
-  },
+  const crearFilaVacia = (id = Date.now()) => ({
+  id,
+  empleado_id: "",
+  nombre: "",
+  puesto: "",
+  puesto_id: "",
+  ingreso: "",
+  cuenta: "",
+
+  tipo_nomina: "Operativa",
+  metodo_pago_nomina: "Efectivo",
+
+  modalidad_pago: "DIARIO",
+  hoja_excel: "PRINCIPAL",
+  seccion_nomina: "GENERAL",
+
+  cantidad: 0,
+  tarifa: 0,
+  prima: 0,
+  descuento: 0,
+  total: 0,
+
+  comentario_pago: "",
+  mesas: [],
+});
+
+const [filas, setFilas] = useState([
+  crearFilaVacia(1),
 ]);
 
   const [statusNomina, setStatusNomina] = useState("CAPTURA");
   const [empleadosDisponibles, setEmpleadosDisponibles] = useState([]);
   const [comentariosExtraordinarios, setComentariosExtraordinarios] = useState("");
+  const [fechaInicio, setFechaInicio] = useState("");
+const [fechaFin, setFechaFin] = useState("");
   useEffect(() => {
   const cargarEmpleados = async () => {
     try {
@@ -53,21 +77,56 @@ function Nomina({ usuarioActivo, usuarioId, onVolver }) {
         setEmpleadosDisponibles(resultado.empleados);
 
         const filasIniciales = resultado.empleados.map((emp) => ({
-            id: emp.id,
-            empleado_id: emp.id,
-            nombre: emp.nombre,
-            puesto: emp.puesto || "",
-            ingreso: emp.fecha_ingreso || "",
-            cuenta: emp.cuenta_bancaria || "",
-            dias: 0,
-            costo: parseFloat(emp.sueldo_diario) || 0,
-            prima: 0,
-            descuento: 0,
-            total: 0,
-            tipo_nomina: emp.tipo_nomina || "Operativa",
-            metodo_pago_nomina: emp.metodo_pago_nomina || "Efectivo",
-            comentario_pago: "",
-          }));
+  ...crearFilaVacia(emp.id),
+
+  id: emp.id,
+  empleado_id: emp.id,
+  nombre: emp.nombre || "",
+
+  puesto_id: emp.puesto_id || "",
+  puesto:
+    emp.puesto_nombre ||
+    emp.puesto_catalogo ||
+    emp.puesto ||
+    "",
+
+  ingreso: emp.fecha_ingreso || "",
+  cuenta: emp.cuenta_bancaria || "",
+
+  tipo_nomina:
+    emp.tipo_nomina_puesto ||
+    emp.tipo_nomina ||
+    "Operativa",
+
+  metodo_pago_nomina:
+    emp.metodo_pago_nomina ||
+    "Efectivo",
+
+  modalidad_pago:
+    emp.modalidad_pago ||
+    "DIARIO",
+
+  hoja_excel:
+    emp.hoja_excel ||
+    "PRINCIPAL",
+
+  seccion_nomina:
+    emp.seccion_nomina ||
+    "GENERAL",
+
+  cantidad: 0,
+
+  tarifa:
+    Number(emp.sueldo_diario) ||
+    Number(emp.sueldo_base) ||
+    0,
+
+  prima: 0,
+  descuento: 0,
+  total: 0,
+  comentario_pago: "",
+  mesas: [],
+}));
 
         setFilas(filasIniciales);
       }
@@ -79,27 +138,242 @@ function Nomina({ usuarioActivo, usuarioId, onVolver }) {
   cargarEmpleados();
 }, []);
 
-  const manejarCambioFila = (id, campo, valor) => {
-    const nuevasFilas = filas.map((fila) => {
-      if (fila.id === id) {
-        const f = { ...fila, [campo]: valor };
+  const calcularTotalFila = (fila) => {
+  const prima = Number(fila.prima) || 0;
+  const descuento = Number(fila.descuento) || 0;
 
-        const subtotal =
-          (parseFloat(f.dias) || 0) * (parseFloat(f.costo) || 0);
+  if (fila.modalidad_pago === "POR_MESA") {
+    const subtotalMesas = (fila.mesas || []).reduce(
+      (acumulado, mesa) =>
+        acumulado +
+        (Number(mesa.cantidad_mesas) || 0) *
+          (Number(mesa.tarifa_mesa) || 0),
+      0
+    );
 
-        f.total =
-          subtotal +
-          (parseFloat(f.prima) || 0) -
-          (parseFloat(f.descuento) || 0);
+    return subtotalMesas + prima - descuento;
+  }
 
-        return f;
-      }
+  const cantidad = Number(fila.cantidad) || 0;
+  const tarifa = Number(fila.tarifa) || 0;
 
-      return fila;
-    });
+  return cantidad * tarifa + prima - descuento;
+};
 
-    setFilas(nuevasFilas);
-  };
+const manejarCambioFila = (id, campo, valor) => {
+  setFilas((filasActuales) =>
+    filasActuales.map((fila) => {
+      if (fila.id !== id) return fila;
+
+      const filaActualizada = {
+        ...fila,
+        [campo]: valor,
+      };
+
+      return {
+        ...filaActualizada,
+        total: calcularTotalFila(filaActualizada),
+      };
+    })
+  );
+};
+
+const obtenerTarifaMesaSugerida = (fecha) => {
+  if (!fecha) return 0;
+
+  const fechaLocal = new Date(`${fecha}T12:00:00`);
+  const diaSemana = fechaLocal.getDay();
+
+  // Viernes
+  if (diaSemana === 5) return 300;
+
+  // Sábado
+  if (diaSemana === 6) return 200;
+
+  return 0;
+};
+
+const crearMesasIniciales = () => {
+  const fechas = [];
+
+  if (fechaInicio) {
+    fechas.push(fechaInicio);
+  }
+
+  if (fechaFin && fechaFin !== fechaInicio) {
+    fechas.push(fechaFin);
+  }
+
+  return fechas.map((fecha) => ({
+    id: `${Date.now()}-${fecha}`,
+    fecha,
+    cantidad_mesas: 0,
+    tarifa_mesa: obtenerTarifaMesaSugerida(fecha),
+  }));
+};
+
+const seleccionarEmpleado = (filaId, empleadoId) => {
+  const empleado = empleadosDisponibles.find(
+    (item) => item.id === Number(empleadoId)
+  );
+
+  if (!empleado) return;
+
+  setFilas((filasActuales) =>
+    filasActuales.map((fila) => {
+      if (fila.id !== filaId) return fila;
+
+      const modalidad =
+        empleado.modalidad_pago || "DIARIO";
+
+      const tarifaEmpleado =
+        modalidad === "SEMANAL"
+          ? Number(empleado.sueldo_base) ||
+            Number(empleado.sueldo_diario) ||
+            0
+          : Number(empleado.sueldo_diario) ||
+            Number(empleado.sueldo_base) ||
+            0;
+
+      const filaActualizada = {
+        ...fila,
+        empleado_id: empleado.id,
+        nombre: empleado.nombre || "",
+
+        puesto_id: empleado.puesto_id || "",
+        puesto:
+          empleado.puesto_nombre ||
+          empleado.puesto_catalogo ||
+          empleado.puesto ||
+          "",
+
+        ingreso: empleado.fecha_ingreso || "",
+        cuenta: empleado.cuenta_bancaria || "",
+
+        tipo_nomina:
+          empleado.tipo_nomina_puesto ||
+          empleado.tipo_nomina ||
+          "Operativa",
+
+        metodo_pago_nomina:
+          empleado.metodo_pago_nomina ||
+          "Efectivo",
+
+        modalidad_pago: modalidad,
+
+        hoja_excel:
+          empleado.hoja_excel ||
+          "PRINCIPAL",
+
+        seccion_nomina:
+          empleado.seccion_nomina ||
+          "GENERAL",
+
+        tarifa: tarifaEmpleado,
+
+        mesas:
+          modalidad === "POR_MESA"
+            ? crearMesasIniciales()
+            : [],
+      };
+
+      return {
+        ...filaActualizada,
+        total: calcularTotalFila(filaActualizada),
+      };
+    })
+  );
+};
+
+const agregarMesa = (filaId) => {
+  setFilas((filasActuales) =>
+    filasActuales.map((fila) => {
+      if (fila.id !== filaId) return fila;
+
+      const filaActualizada = {
+        ...fila,
+        mesas: [
+          ...(fila.mesas || []),
+          {
+            id: Date.now(),
+            fecha: "",
+            cantidad_mesas: 0,
+            tarifa_mesa: 0,
+          },
+        ],
+      };
+
+      return {
+        ...filaActualizada,
+        total: calcularTotalFila(filaActualizada),
+      };
+    })
+  );
+};
+
+const cambiarMesa = (
+  filaId,
+  mesaId,
+  campo,
+  valor
+) => {
+  setFilas((filasActuales) =>
+    filasActuales.map((fila) => {
+      if (fila.id !== filaId) return fila;
+
+      const mesasActualizadas = (fila.mesas || []).map(
+        (mesa) => {
+          if (mesa.id !== mesaId) return mesa;
+
+          const mesaActualizada = {
+            ...mesa,
+            [campo]: valor,
+          };
+
+          if (
+            campo === "fecha" &&
+            !Number(mesa.tarifa_mesa)
+          ) {
+            mesaActualizada.tarifa_mesa =
+              obtenerTarifaMesaSugerida(valor);
+          }
+
+          return mesaActualizada;
+        }
+      );
+
+      const filaActualizada = {
+        ...fila,
+        mesas: mesasActualizadas,
+      };
+
+      return {
+        ...filaActualizada,
+        total: calcularTotalFila(filaActualizada),
+      };
+    })
+  );
+};
+
+const eliminarMesa = (filaId, mesaId) => {
+  setFilas((filasActuales) =>
+    filasActuales.map((fila) => {
+      if (fila.id !== filaId) return fila;
+
+      const filaActualizada = {
+        ...fila,
+        mesas: (fila.mesas || []).filter(
+          (mesa) => mesa.id !== mesaId
+        ),
+      };
+
+      return {
+        ...filaActualizada,
+        total: calcularTotalFila(filaActualizada),
+      };
+    })
+  );
+};
 
   const nombresOcupados = filas
     .map((f) => f.nombre.trim().toLowerCase())
@@ -109,9 +383,22 @@ function Nomina({ usuarioActivo, usuarioId, onVolver }) {
     (nombre, index) => nombresOcupados.indexOf(nombre) !== index
   );
 
-  const totalGlobal = filas.reduce((acc, f) => acc + (parseFloat(f.total) || 0), 0);
+  const totalGlobal = filas.reduce(
+  (acumulado, fila) =>
+    acumulado + (Number(fila.total) || 0),
+  0
+);
 
   const enviarNominaADrive = async () => {
+    if (!fechaInicio || !fechaFin) {
+  alert("⚠️ Debes seleccionar la fecha inicial y final de la nómina.");
+  return;
+}
+
+if (fechaInicio > fechaFin) {
+  alert("⚠️ La fecha inicial no puede ser posterior a la fecha final.");
+  return;
+}
     const errorValidacion = validarNomina(filas);
 
     if (errorValidacion) {
@@ -119,64 +406,59 @@ function Nomina({ usuarioActivo, usuarioId, onVolver }) {
       return;
     }
 
-    const confirmar = window.confirm(`
-¿DESEAS GUARDAR ESTA PRE-NÓMINA?
+const confirmar = window.confirm(`
+¿DESEAS ENVIAR ESTA PRE-NÓMINA A APROBACIÓN?
 
-Empleados: ${filas.length}
-Total a dispersar: $${totalGlobal.toLocaleString("es-MX", {
-      minimumFractionDigits: 2,
-    })}
+Empleados: ${filas.filter((fila) => Number(fila.total) !== 0).length}
+Total: $${totalGlobal.toLocaleString("es-MX", {
+  minimumFractionDigits: 2,
+})}
 
-Al aceptar, se guardará el registro y se descargará el Excel local.
+Al aceptar, la prenómina quedará pendiente de aprobación.
 `);
 
     if (!confirmar) return;
 
     try {
-  const formData = new FormData();
-
-      formData.append(
-        "nombreCarpeta",
-        `NOMINA_${new Date().toISOString().split("T")[0]}`
-      );
-
-      formData.append("usuario", usuarioActivo);
-
-      formData.append(
-        "detalles",
-        JSON.stringify({
-          tipo: "NOMINA",
-          usuario: usuarioActivo,
-          fecha: new Date().toISOString().split("T")[0],
-          status: "APROBADO",
-          totalGlobal,
-          empleados: filas,
-        })
-      );
-
-      const respuesta = await fetch(API_ENDPOINTS.guardarReporte, {
-        method: "POST",
-        body: formData,
-      });
-
-      const resultado = await respuesta.json();
-
-      if (!resultado.success) {
-        throw new Error(resultado.error || "Error desconocido en servidor.");
-      }
 const detallePrenomina = filas
-  .filter((fila) => fila.empleado_id && parseFloat(fila.total) > 0)
+  .filter((fila) => fila.empleado_id)
   .map((fila) => ({
     empleado_id: fila.empleado_id,
-    dias: parseFloat(fila.dias) || 0,
-    costo_unitario: parseFloat(fila.costo) || 0,
-    prima: parseFloat(fila.prima) || 0,
-    descuento: parseFloat(fila.descuento) || 0,
-    total: parseFloat(fila.total) || 0,
-    tipo_nomina: fila.tipo_nomina || "Operativa",
-    metodo_pago_nomina: fila.metodo_pago_nomina || "Efectivo",
-    comentario_pago: fila.comentario_pago || null,
+
+    dias:
+      fila.modalidad_pago === "DIARIO"
+        ? Number(fila.cantidad) || 0
+        : fila.modalidad_pago === "SEMANAL"
+        ? Number(fila.cantidad) || 0
+        : 0,
+
+    costo_unitario:
+      Number(fila.tarifa) || 0,
+
+    prima:
+      Number(fila.prima) || 0,
+
+    descuento:
+      Number(fila.descuento) || 0,
+
+    total:
+      Number(fila.total) || 0,
+
+    tipo_nomina:
+      fila.tipo_nomina || "Operativa",
+
+    metodo_pago_nomina:
+      fila.metodo_pago_nomina || "Efectivo",
+
+    comentario_pago:
+      fila.comentario_pago || null,
+
     nota: null,
+
+    mesas:
+      fila.modalidad_pago === "POR_MESA"
+        ? fila.mesas || []
+        : [],
   }));
 
 const respuestaPrenomina = await fetch(`${API_BASE_URL}/api/prenomina`, {
@@ -185,8 +467,8 @@ const respuestaPrenomina = await fetch(`${API_BASE_URL}/api/prenomina`, {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    fecha_inicio: null,
-    fecha_fin: null,
+    fecha_inicio: fechaInicio,
+fecha_fin: fechaFin,
     total: totalGlobal,
     usuario_crea_id: usuarioId,
     comentarios_extraordinarios: comentariosExtraordinarios,
@@ -203,14 +485,9 @@ if (!resultadoPrenomina.success) {
   );
 }
 
-exportarExcelNomina({
-  filas,
-  totalGlobal,
-});
-
 setStatusNomina("PENDIENTE");
 
-alert("✅ Prenómina enviada a aprobación correctamente y Excel descargado.");
+alert("✅ Prenómina enviada a aprobación correctamente.");
 onVolver();
     } catch (error) {
       console.error("Error en nómina:", error);
@@ -251,221 +528,513 @@ onVolver();
             </p>
           </div>
         </div>
+            
+            <div
+  style={{
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fit, minmax(210px, 1fr))",
+    gap: "14px",
+    padding: "18px",
+    marginBottom: "22px",
+    background: "#fafafa",
+    border: "1px solid #e5e5e5",
+    borderRadius: "10px",
+  }}
+>
+  <div>
+    <label style={estilos.panelLabel}>
+      Fecha inicial
+    </label>
+
+    <input
+      type="date"
+      value={fechaInicio}
+      onChange={(e) => setFechaInicio(e.target.value)}
+      style={{
+        ...estilos.input,
+        width: "100%",
+        boxSizing: "border-box",
+        marginTop: "7px",
+      }}
+    />
+  </div>
+
+  <div>
+    <label style={estilos.panelLabel}>
+      Fecha final
+    </label>
+
+    <input
+      type="date"
+      value={fechaFin}
+      onChange={(e) => setFechaFin(e.target.value)}
+      style={{
+        ...estilos.input,
+        width: "100%",
+        boxSizing: "border-box",
+        marginTop: "7px",
+      }}
+    />
+  </div>
+</div>
 
         <div style={{ overflowX: "auto", marginBottom: "20px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #000" }}>
-                <th style={thBosse}>EMPLEADO</th>
-                <th style={thBosse}>TIPO NÓMINA</th>
-                <th style={thBosse}>MÉTODO PAGO</th>
-                <th style={thBosse}>COMENTARIO PAGO</th>
-                <th style={thBosse}>DÍAS</th>
-                <th style={thBosse}>COSTO U.</th>
-                <th style={thBosse}>PRIMA (+)</th>
-                <th style={thBosse}>DESC. (-)</th>
-                <th style={{ ...thBosse, textAlign: "right" }}>TOTAL</th>
-                <th style={thBosse}></th>
-              </tr>
-            </thead>
+  <tr style={{ borderBottom: "1px solid #000" }}>
+    <th style={thBosse}>Empleado</th>
+    <th style={thBosse}>Puesto</th>
+    <th style={thBosse}>Modalidad</th>
+    <th style={thBosse}>Método pago</th>
+    <th style={thBosse}>Cantidad / mesas</th>
+    <th style={thBosse}>Tarifa</th>
+    <th style={thBosse}>Prima (+)</th>
+    <th style={thBosse}>Desc. (-)</th>
+    <th style={thBosse}>Comentario</th>
+    <th
+      style={{
+        ...thBosse,
+        textAlign: "right",
+      }}
+    >
+      Total
+    </th>
+    <th style={thBosse}></th>
+  </tr>
+</thead>
 
-            <tbody>
-              {filas.map((fila) => {
-                return (
-                  <tr key={fila.id} style={{ borderBottom: "1px solid #eee" }}>
-                    <td style={{ padding: "5px" }}>
-                      <select
-  value={fila.empleado_id || ""}
-  onChange={(e) => {
+<tbody>
+  {filas.map((fila) => {
+    const esPorMesa =
+      fila.modalidad_pago === "POR_MESA";
 
-    const empleado = empleadosDisponibles.find(
-      (emp) => emp.id === parseInt(e.target.value)
-    );
+    const etiquetaCantidad =
+      fila.modalidad_pago === "SEMANAL"
+        ? "Semanas"
+        : "Días";
 
-    if (!empleado) return;
+    return (
+      <React.Fragment key={fila.id}>
+        <tr
+          style={{
+            borderBottom: esPorMesa
+              ? "none"
+              : "1px solid #eee",
+          }}
+        >
+          <td style={{ padding: "5px", minWidth: 190 }}>
+            <select
+              value={fila.empleado_id || ""}
+              onChange={(e) =>
+                seleccionarEmpleado(
+                  fila.id,
+                  e.target.value
+                )
+              }
+              style={estiloInputTabla}
+            >
+              <option value="">
+                Seleccionar empleado
+              </option>
 
-    const nuevasFilas = filas.map((f) => {
+              {empleadosDisponibles.map((empleado) => (
+                <option
+                  key={empleado.id}
+                  value={empleado.id}
+                >
+                  {empleado.nombre}
+                </option>
+              ))}
+            </select>
+          </td>
 
-      if (f.id === fila.id) {
+          <td
+            style={{
+              padding: "10px",
+              minWidth: 130,
+              fontSize: "13px",
+            }}
+          >
+            <div style={{ fontWeight: 600 }}>
+              {fila.puesto || "Sin puesto"}
+            </div>
 
-        const dias = parseFloat(f.dias) || 0;
-        const costo = parseFloat(empleado.sueldo_diario) || 0;
+            <div
+              style={{
+                color: "#888",
+                fontSize: "11px",
+                marginTop: "4px",
+              }}
+            >
+              {fila.tipo_nomina || "Operativa"}
+            </div>
+          </td>
 
-        return {
-  ...f,
-  empleado_id: empleado.id,
-  nombre: empleado.nombre,
-  puesto: empleado.puesto,
-  ingreso: empleado.fecha_ingreso,
-  cuenta: empleado.cuenta_bancaria,
-  costo,
-  tipo_nomina: empleado.tipo_nomina || "Operativa",
-  metodo_pago_nomina: empleado.metodo_pago_nomina || "Efectivo",
-  comentario_pago: f.comentario_pago || "",
-  total:
-    (dias * costo) +
-    (parseFloat(f.prima) || 0) -
-    (parseFloat(f.descuento) || 0),
-};  
-      }
+          <td
+            style={{
+              padding: "10px",
+              minWidth: 105,
+              fontSize: "12px",
+              fontWeight: 600,
+            }}
+          >
+            {fila.modalidad_pago === "POR_MESA"
+              ? "Por mesa"
+              : fila.modalidad_pago === "SEMANAL"
+              ? "Semanal"
+              : "Diario"}
+          </td>
 
-      return f;
-    });
+          <td style={{ minWidth: 110 }}>
+            <select
+              value={
+                fila.metodo_pago_nomina ||
+                "Efectivo"
+              }
+              onChange={(e) =>
+                manejarCambioFila(
+                  fila.id,
+                  "metodo_pago_nomina",
+                  e.target.value
+                )
+              }
+              style={estiloInputTabla}
+            >
+              <option value="Efectivo">
+                Efectivo
+              </option>
+              <option value="Banco">Banco</option>
+              <option value="Banca">Banca</option>
+            </select>
+          </td>
 
-    setFilas(nuevasFilas);
-  }}
-  style={estiloInputTabla}
->
+          <td
+            style={{
+              minWidth: esPorMesa ? 130 : 90,
+              padding: "5px",
+            }}
+          >
+            {esPorMesa ? (
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#666",
+                }}
+              >
+                {(fila.mesas || []).length} fecha(s)
+              </span>
+            ) : (
+              <input
+                type="number"
+                min="0"
+                step={
+                  fila.modalidad_pago === "SEMANAL"
+                    ? "0.01"
+                    : "1"
+                }
+                placeholder={etiquetaCantidad}
+                value={fila.cantidad}
+                onChange={(e) =>
+                  manejarCambioFila(
+                    fila.id,
+                    "cantidad",
+                    e.target.value
+                  )
+                }
+                style={estiloInputTabla}
+              />
+            )}
+          </td>
 
-  <option value="">
-    Seleccionar empleado
-  </option>
+          <td style={{ minWidth: 95 }}>
+            {esPorMesa ? (
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#777",
+                }}
+              >
+                Por fecha
+              </span>
+            ) : (
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={fila.tarifa}
+                onChange={(e) =>
+                  manejarCambioFila(
+                    fila.id,
+                    "tarifa",
+                    e.target.value
+                  )
+                }
+                style={estiloInputTabla}
+              />
+            )}
+          </td>
 
-  {empleadosDisponibles.map((emp) => (
-    <option key={emp.id} value={emp.id}>
-      {emp.nombre}
-    </option>
-  ))}
+          <td style={{ minWidth: 90 }}>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={fila.prima}
+              onChange={(e) =>
+                manejarCambioFila(
+                  fila.id,
+                  "prima",
+                  e.target.value
+                )
+              }
+              style={estiloInputTabla}
+            />
+          </td>
 
-</select>
-                    </td>
+          <td style={{ minWidth: 90 }}>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={fila.descuento}
+              onChange={(e) =>
+                manejarCambioFila(
+                  fila.id,
+                  "descuento",
+                  e.target.value
+                )
+              }
+              style={estiloInputTabla}
+            />
+          </td>
 
-                                        <td>
-                      <select
-                        value={fila.tipo_nomina || "Operativa"}
-                        onChange={(e) =>
-                          manejarCambioFila(
-                            fila.id,
-                            "tipo_nomina",
-                            e.target.value
-                          )
-                        }
-                        style={estiloInputTabla}
-                      >
-                        <option value="Operativa">Operativa</option>
-                        <option value="Banco">Banco</option>
-                        <option value="Administrativa">Administrativa</option>
-                      </select>
-                    </td>
+          <td style={{ minWidth: 150 }}>
+            <input
+              placeholder="Comentario"
+              value={fila.comentario_pago || ""}
+              onChange={(e) =>
+                manejarCambioFila(
+                  fila.id,
+                  "comentario_pago",
+                  e.target.value
+                )
+              }
+              style={estiloInputTabla}
+            />
+          </td>
 
-                    <td>
-                      <select
-                        value={fila.metodo_pago_nomina || "Efectivo"}
-                        onChange={(e) =>
-                          manejarCambioFila(
-                            fila.id,
-                            "metodo_pago_nomina",
-                            e.target.value
-                          )
-                        }
-                        style={estiloInputTabla}
-                      >
-                        <option value="Efectivo">Efectivo</option>
-                        <option value="Banco">Banco</option>
-                      </select>
-                    </td>
+          <td
+            style={{
+              textAlign: "right",
+              fontWeight: "700",
+              padding: "12px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {Number(fila.total || 0).toLocaleString(
+              "es-MX",
+              {
+                style: "currency",
+                currency: "MXN",
+              }
+            )}
+          </td>
 
-                    <td>
-                      <input
-                        placeholder="Comentario"
-                        value={fila.comentario_pago || ""}
-                        onChange={(e) =>
-                          manejarCambioFila(
-                            fila.id,
-                            "comentario_pago",
-                            e.target.value
-                          )
-                        }
-                        style={estiloInputTabla}
-                      />
-                    </td>
+          <td style={{ textAlign: "center" }}>
+            <button
+              type="button"
+              title="Eliminar línea"
+              onClick={() => {
+                if (filas.length === 1) {
+                  alert(
+                    "⚠️ Debe existir al menos una línea."
+                  );
+                  return;
+                }
 
-                    <td>
-                      <input
-                        type="number"
-                        value={fila.dias}
-                        onChange={(e) =>
-                          manejarCambioFila(fila.id, "dias", e.target.value)
-                        }
-                        style={estiloInputTabla}
-                      />
-                    </td>
-
-                    <td>
-                      <input
-                        type="number"
-                        value={fila.costo}
-                        onChange={(e) =>
-                          manejarCambioFila(fila.id, "costo", e.target.value)
-                        }
-                        style={estiloInputTabla}
-                      />
-                    </td>
-
-                    <td>
-                      <input
-                        type="number"
-                        value={fila.prima}
-                        onChange={(e) =>
-                          manejarCambioFila(fila.id, "prima", e.target.value)
-                        }
-                        style={estiloInputTabla}
-                      />
-                    </td>
-
-                    <td>
-                      <input
-                        type="number"
-                        value={fila.descuento}
-                        onChange={(e) =>
-                          manejarCambioFila(
-                            fila.id,
-                            "descuento",
-                            e.target.value
-                          )
-                        }
-                        style={estiloInputTabla}
-                      />
-                    </td>
-
-                    <td
-                      style={{
-                        textAlign: "right",
-                        fontWeight: "600",
-                        padding: "12px",
-                        fontSize: "14px",
-                      }}
-                    >
-                      $
-                      {fila.total.toLocaleString("es-MX", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </td>
-
-                    <td style={{ textAlign: "center" }}>
-                      <button
-                        onClick={() => {
-                          if (filas.length === 1) {
-                            alert("⚠️ Debe existir al menos una línea.");
-                            return;
-                          }
-
-                          setFilas(filas.filter((f) => f.id !== fila.id));
-                        }}
-                        style={{
-                          border: "none",
-                          background: "none",
-                          color: "#ccc",
-                          cursor: "pointer",
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </td>
-                  </tr>
+                setFilas((filasActuales) =>
+                  filasActuales.filter(
+                    (item) => item.id !== fila.id
+                  )
                 );
-              })}
-            </tbody>
+              }}
+              style={{
+                border: "none",
+                background: "none",
+                color: "#999",
+                cursor: "pointer",
+              }}
+            >
+              ✕
+            </button>
+          </td>
+        </tr>
+
+        {esPorMesa && (
+          <tr style={{ borderBottom: "1px solid #eee" }}>
+            <td colSpan="11" style={{ padding: "0 12px 18px" }}>
+              <div
+                style={{
+                  padding: "14px",
+                  background: "#fafafa",
+                  border: "1px solid #e5e5e5",
+                  borderRadius: "9px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <strong
+                    style={{
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Mesas de {fila.nombre || "RP"}
+                  </strong>
+
+                  <button
+                    type="button"
+                    onClick={() => agregarMesa(fila.id)}
+                    style={{
+                      border: "1px solid #111",
+                      background: "#fff",
+                      borderRadius: "6px",
+                      padding: "6px 10px",
+                      cursor: "pointer",
+                      fontSize: "11px",
+                    }}
+                  >
+                    + Agregar fecha
+                  </button>
+                </div>
+
+                {(fila.mesas || []).length === 0 ? (
+                  <p
+                    style={{
+                      color: "#777",
+                      fontSize: "12px",
+                      margin: 0,
+                    }}
+                  >
+                    Agrega al menos una fecha para registrar
+                    las mesas.
+                  </p>
+                ) : (
+                  (fila.mesas || []).map((mesa) => {
+                    const subtotal =
+                      (Number(mesa.cantidad_mesas) || 0) *
+                      (Number(mesa.tarifa_mesa) || 0);
+
+                    return (
+                      <div
+                        key={mesa.id}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "minmax(150px, 1fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(120px, 1fr) 40px",
+                          gap: "10px",
+                          alignItems: "center",
+                          marginTop: "8px",
+                        }}
+                      >
+                        <input
+                          type="date"
+                          value={mesa.fecha || ""}
+                          onChange={(e) =>
+                            cambiarMesa(
+                              fila.id,
+                              mesa.id,
+                              "fecha",
+                              e.target.value
+                            )
+                          }
+                          style={estiloInputMesa}
+                        />
+
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="Mesas"
+                          value={mesa.cantidad_mesas}
+                          onChange={(e) =>
+                            cambiarMesa(
+                              fila.id,
+                              mesa.id,
+                              "cantidad_mesas",
+                              e.target.value
+                            )
+                          }
+                          style={estiloInputMesa}
+                        />
+
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Tarifa"
+                          value={mesa.tarifa_mesa}
+                          onChange={(e) =>
+                            cambiarMesa(
+                              fila.id,
+                              mesa.id,
+                              "tarifa_mesa",
+                              e.target.value
+                            )
+                          }
+                          style={estiloInputMesa}
+                        />
+
+                        <div
+                          style={{
+                            textAlign: "right",
+                            fontWeight: 700,
+                            fontSize: "13px",
+                          }}
+                        >
+                          {subtotal.toLocaleString("es-MX", {
+                            style: "currency",
+                            currency: "MXN",
+                          })}
+                        </div>
+
+                        <button
+                          type="button"
+                          title="Eliminar fecha"
+                          onClick={() =>
+                            eliminarMesa(
+                              fila.id,
+                              mesa.id
+                            )
+                          }
+                          style={{
+                            border: "none",
+                            background: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </td>
+          </tr>
+        )}
+      </React.Fragment>
+    );
+  })}
+</tbody>
+
           </table>
         </div>
 
@@ -488,40 +1057,27 @@ onVolver();
   />
 </div>
 
-        <button
-          onClick={() =>
-            setFilas([
-              ...filas,
-              {
-  id: Date.now(),
-  nombre: "",
-  puesto: "",
-  ingreso: "",
-  cuenta: "",
-  dias: 0,
-  costo: 0,
-  prima: 0,
-  descuento: 0,
-  total: 0,
-  tipo_nomina: "Operativa",
-  metodo_pago_nomina: "Efectivo",
-  comentario_pago: "",
-},
-            ])
-          }
-          style={{
-            background: "none",
-            border: "1px dashed #ccc",
-            width: "100%",
-            padding: "10px",
-            color: "#888",
-            cursor: "pointer",
-            borderRadius: "8px",
-            marginBottom: "30px",
-          }}
-        >
-          + AGREGAR NUEVA LÍNEA
-        </button>
+<button
+  type="button"
+  onClick={() =>
+    setFilas((filasActuales) => [
+      ...filasActuales,
+      crearFilaVacia(),
+    ])
+  }
+  style={{
+    background: "none",
+    border: "1px dashed #ccc",
+    width: "100%",
+    padding: "10px",
+    color: "#888",
+    cursor: "pointer",
+    borderRadius: "8px",
+    marginBottom: "30px",
+  }}
+>
+  + AGREGAR NUEVA LÍNEA
+</button>
 
         <div
           style={{
@@ -573,7 +1129,9 @@ onVolver();
               transition: "all 0.3s ease",
             }}
           >
-            {hayDuplicados ? "REVISAR ERRORES" : "GUARDAR Y DESCARGAR EXCEL"}
+            {hayDuplicados
+  ? "REVISAR ERRORES"
+  : "ENVIAR A APROBACIÓN"}
           </button>
         </div>
       </div>

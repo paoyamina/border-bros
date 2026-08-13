@@ -5,6 +5,7 @@ const { google } = require('googleapis');
 const path = require('path');
 const multer = require('multer'); 
 const fs = require('fs');
+const ExcelJS = require('exceljs');
 const app = express();
 
 // Configuración de CORS más robusta
@@ -3830,54 +3831,92 @@ app.post('/api/prenomina', async (req, res) => {
 
   const empleado = empleadoResult.rows[0];
 
+  const detalleInsertadoResult = await client.query(
+  `
+    INSERT INTO prenomina_detalle (
+      prenomina_id,
+      empleado_id,
+      puesto_id,
+      puesto_nombre,
+      dias,
+      costo_unitario,
+      prima,
+      descuento,
+      total,
+      tipo_nomina,
+      metodo_pago_nomina,
+      modalidad_pago,
+      hoja_excel,
+      seccion_nomina,
+      comentario_pago,
+      nota
+    )
+    VALUES (
+      $1, $2, $3, $4,
+      $5, $6, $7, $8,
+      $9, $10, $11, $12,
+      $13, $14, $15, $16
+    )
+    RETURNING id;
+  `,
+  [
+    prenomina.id,
+    fila.empleado_id,
+    empleado.puesto_id || null,
+    empleado.puesto_nombre || null,
+    Number(fila.dias) || 0,
+    Number(fila.costo_unitario) || 0,
+    Number(fila.prima) || 0,
+    Number(fila.descuento) || 0,
+    Number(fila.total) || 0,
+    empleado.tipo_nomina || "Operativa",
+    fila.metodo_pago_nomina ||
+      empleado.metodo_pago_nomina ||
+      "Efectivo",
+    empleado.modalidad_pago || "DIARIO",
+    empleado.hoja_excel || "PRINCIPAL",
+    empleado.seccion_nomina || "GENERAL",
+    fila.comentario_pago || null,
+    fila.nota || null,
+  ]
+);
+
+const prenominaDetalleId =
+  detalleInsertadoResult.rows[0].id;
+
+const mesas = Array.isArray(fila.mesas)
+  ? fila.mesas
+  : [];
+
+for (const mesa of mesas) {
+  const fechaMesa = mesa.fecha || null;
+  const cantidadMesas =
+    Number(mesa.cantidad_mesas) || 0;
+  const tarifaMesa =
+    Number(mesa.tarifa_mesa) || 0;
+
+  if (!fechaMesa) {
+    continue;
+  }
+
   await client.query(
     `
-      INSERT INTO prenomina_detalle (
-        prenomina_id,
-        empleado_id,
-        puesto_id,
-        puesto_nombre,
-        dias,
-        costo_unitario,
-        prima,
-        descuento,
-        total,
-        tipo_nomina,
-        metodo_pago_nomina,
-        modalidad_pago,
-        hoja_excel,
-        seccion_nomina,
-        comentario_pago,
-        nota
+      INSERT INTO prenomina_detalle_mesas (
+        prenomina_detalle_id,
+        fecha,
+        cantidad_mesas,
+        tarifa_mesa
       )
-      VALUES (
-        $1, $2, $3, $4,
-        $5, $6, $7, $8,
-        $9, $10, $11, $12,
-        $13, $14, $15, $16
-      )
+      VALUES ($1, $2, $3, $4);
     `,
     [
-      prenomina.id,
-      fila.empleado_id,
-      empleado.puesto_id || null,
-      empleado.puesto_nombre || null,
-      Number(fila.dias) || 0,
-      Number(fila.costo_unitario) || 0,
-      Number(fila.prima) || 0,
-      Number(fila.descuento) || 0,
-      Number(fila.total) || 0,
-      empleado.tipo_nomina || "Operativa",
-      fila.metodo_pago_nomina ||
-        empleado.metodo_pago_nomina ||
-        "Efectivo",
-      empleado.modalidad_pago || "DIARIO",
-      empleado.hoja_excel || "PRINCIPAL",
-      empleado.seccion_nomina || "GENERAL",
-      fila.comentario_pago || null,
-      fila.nota || null,
+      prenominaDetalleId,
+      fechaMesa,
+      cantidadMesas,
+      tarifaMesa,
     ]
   );
+}
 }
 
     await client.query(
@@ -4049,6 +4088,851 @@ app.get('/api/prenomina/:id/detalle', async (req, res) => {
   }
 });
 
+// Descargar Excel de una prenómina aprobada
+app.get('/api/prenomina/:id/excel', async (req, res) => {
+  try {
+    const prenominaId = Number(req.params.id);
+
+    if (!Number.isInteger(prenominaId) || prenominaId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El id de la prenómina no es válido.",
+      });
+    }
+
+    // ============================================================
+    // 1. CONSULTAR PRENÓMINA
+    // ============================================================
+
+    const prenominaResult = await pool.query(
+      `
+        SELECT
+          p.*,
+          creador.nombre AS usuario_crea,
+          aprobador.nombre AS usuario_aprueba
+        FROM prenomina p
+        LEFT JOIN usuarios creador
+          ON creador.id = p.usuario_crea_id
+        LEFT JOIN usuarios aprobador
+          ON aprobador.id = p.usuario_aprueba_id
+        WHERE p.id = $1
+        LIMIT 1;
+      `,
+      [prenominaId]
+    );
+
+    if (prenominaResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Prenómina no encontrada.",
+      });
+    }
+
+    const prenomina = prenominaResult.rows[0];
+
+    if (prenomina.estatus !== "APROBADA") {
+      return res.status(400).json({
+        success: false,
+        error:
+          "El Excel solamente puede descargarse cuando la prenómina está aprobada.",
+      });
+    }
+
+    // ============================================================
+    // 2. CONSULTAR DETALLE
+    // ============================================================
+
+    const detalleResult = await pool.query(
+      `
+        SELECT
+          pd.id,
+          pd.prenomina_id,
+          pd.empleado_id,
+
+          COALESCE(
+            e.nombre,
+            'Empleado no disponible'
+          ) AS empleado,
+
+          e.fecha_ingreso,
+          e.cuenta_bancaria,
+
+          pd.puesto_id,
+
+          COALESCE(
+            pd.puesto_nombre,
+            p.nombre,
+            e.puesto,
+            'Sin puesto'
+          ) AS puesto,
+
+          COALESCE(
+            pd.tipo_nomina,
+            p.tipo_nomina,
+            e.tipo_nomina,
+            'Operativa'
+          ) AS tipo_nomina,
+
+          COALESCE(
+            pd.metodo_pago_nomina,
+            e.metodo_pago_nomina,
+            'Efectivo'
+          ) AS metodo_pago_nomina,
+
+          COALESCE(
+            pd.modalidad_pago,
+            p.modalidad_pago,
+            'DIARIO'
+          ) AS modalidad_pago,
+
+          COALESCE(
+            pd.hoja_excel,
+            p.hoja_excel,
+            'PRINCIPAL'
+          ) AS hoja_excel,
+
+          COALESCE(
+            pd.seccion_nomina,
+            p.seccion_nomina,
+            'GENERAL'
+          ) AS seccion_nomina,
+
+          pd.dias,
+          pd.costo_unitario,
+          pd.prima,
+          pd.descuento,
+          pd.total,
+          pd.comentario_pago,
+          pd.nota
+
+        FROM prenomina_detalle pd
+
+        LEFT JOIN empleados e
+          ON e.id = pd.empleado_id
+
+        LEFT JOIN puestos p
+          ON p.id = pd.puesto_id
+
+        WHERE pd.prenomina_id = $1
+
+        ORDER BY pd.id ASC;
+      `,
+      [prenominaId]
+    );
+
+    const detalle = detalleResult.rows;
+
+    // ============================================================
+    // 3. CONSULTAR MESAS RP
+    // ============================================================
+
+    const mesasResult = await pool.query(
+      `
+        SELECT
+          pdm.id,
+          pdm.prenomina_detalle_id,
+          pdm.fecha,
+          pdm.cantidad_mesas,
+          pdm.tarifa_mesa,
+          pdm.subtotal
+        FROM prenomina_detalle_mesas pdm
+        INNER JOIN prenomina_detalle pd
+          ON pd.id = pdm.prenomina_detalle_id
+        WHERE pd.prenomina_id = $1
+        ORDER BY
+          pdm.prenomina_detalle_id ASC,
+          pdm.fecha ASC,
+          pdm.id ASC;
+      `,
+      [prenominaId]
+    );
+
+    const mesas = mesasResult.rows;
+
+    // ============================================================
+    // 4. ABRIR MACHOTE
+    // ============================================================
+
+    const plantillaPath = path.join(
+      __dirname,
+      "templates",
+      "nomina_machote.xlsx"
+    );
+
+    if (!fs.existsSync(plantillaPath)) {
+      return res.status(500).json({
+        success: false,
+        error:
+          "No se encontró templates/nomina_machote.xlsx en el servidor.",
+      });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+
+    await workbook.xlsx.readFile(plantillaPath);
+
+    const hojaPrincipal =
+      workbook.getWorksheet("19.20 JUNIO");
+
+    const hojaNominaOp =
+      workbook.getWorksheet("Nómina Op.");
+
+    const hojaRP =
+      workbook.getWorksheet("RP");
+
+    if (!hojaPrincipal || !hojaNominaOp || !hojaRP) {
+      throw new Error(
+        "El machote no contiene las hojas esperadas: 19.20 JUNIO, Nómina Op. y RP."
+      );
+    }
+
+    // ============================================================
+    // 5. FUNCIONES AUXILIARES
+    // ============================================================
+
+    const mesesNombre = [
+      "ENERO",
+      "FEBRERO",
+      "MARZO",
+      "ABRIL",
+      "MAYO",
+      "JUNIO",
+      "JULIO",
+      "AGOSTO",
+      "SEPTIEMBRE",
+      "OCTUBRE",
+      "NOVIEMBRE",
+      "DICIEMBRE",
+    ];
+
+    const convertirFecha = (fecha) => {
+      if (!fecha) return null;
+
+      const texto = String(fecha).split("T")[0];
+      const [anio, mes, dia] = texto
+        .split("-")
+        .map(Number);
+
+      if (!anio || !mes || !dia) {
+        return null;
+      }
+
+      return new Date(anio, mes - 1, dia);
+    };
+
+    const crearTituloPeriodo = () => {
+      const inicio = convertirFecha(
+        prenomina.fecha_inicio
+      );
+
+      const fin = convertirFecha(
+        prenomina.fecha_fin
+      );
+
+      if (!inicio && !fin) {
+        return "NÓMINA";
+      }
+
+      if (inicio && fin) {
+        const diaInicio = inicio.getDate();
+        const diaFin = fin.getDate();
+
+        const mesInicio =
+          mesesNombre[inicio.getMonth()];
+
+        const mesFin =
+          mesesNombre[fin.getMonth()];
+
+        if (
+          inicio.getMonth() === fin.getMonth() &&
+          inicio.getFullYear() === fin.getFullYear()
+        ) {
+          return `${diaInicio}.${diaFin} ${mesInicio}`;
+        }
+
+        return `${diaInicio} ${mesInicio} - ${diaFin} ${mesFin}`;
+      }
+
+      const fecha = inicio || fin;
+
+      return `${fecha.getDate()} ${
+        mesesNombre[fecha.getMonth()]
+      }`;
+    };
+
+    const normalizarTexto = (valor) =>
+      String(valor || "")
+        .trim()
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    const tituloPeriodo = crearTituloPeriodo();
+
+    hojaPrincipal.getCell("B5").value =
+      tituloPeriodo;
+
+    hojaNominaOp.getCell("B6").value =
+      tituloPeriodo;
+
+    hojaRP.getCell("B6").value =
+      tituloPeriodo;
+
+    // ============================================================
+    // 6. LIMPIAR DATOS DEL MACHOTE SIN BORRAR FORMATO
+    // ============================================================
+
+    const limpiarCeldas = (
+      hoja,
+      filaInicio,
+      filaFin,
+      columnas
+    ) => {
+      for (
+        let fila = filaInicio;
+        fila <= filaFin;
+        fila += 1
+      ) {
+        for (const columna of columnas) {
+          hoja.getCell(
+            `${columna}${fila}`
+          ).value = null;
+        }
+      }
+    };
+
+    // Hoja principal
+    limpiarCeldas(
+      hojaPrincipal,
+      9,
+      15,
+      ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+    );
+
+    limpiarCeldas(
+      hojaPrincipal,
+      17,
+      30,
+      ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+    );
+
+    limpiarCeldas(
+      hojaPrincipal,
+      32,
+      54,
+      ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+    );
+
+    limpiarCeldas(
+      hojaPrincipal,
+      56,
+      60,
+      ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+    );
+
+    limpiarCeldas(
+      hojaPrincipal,
+      62,
+      88,
+      ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+    );
+
+    limpiarCeldas(
+      hojaPrincipal,
+      90,
+      100,
+      ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+    );
+
+    limpiarCeldas(
+      hojaPrincipal,
+      102,
+      102,
+      ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+    );
+
+    limpiarCeldas(
+      hojaPrincipal,
+      104,
+      105,
+      ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+    );
+
+    limpiarCeldas(
+      hojaPrincipal,
+      107,
+      113,
+      ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
+    );
+
+    // Nómina Op.
+    limpiarCeldas(
+      hojaNominaOp,
+      9,
+      13,
+      ["B", "C", "D", "E", "F"]
+    );
+
+    // RP
+    limpiarCeldas(
+      hojaRP,
+      9,
+      22,
+      [
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "J",
+        "K",
+      ]
+    );
+
+    // ============================================================
+    // 7. LLENAR HOJA PRINCIPAL
+    // ============================================================
+
+    const seccionesPrincipal = {
+      GENERAL: {
+        inicio: 9,
+        fin: 15,
+        numerar: false,
+      },
+
+      MESEROS: {
+        inicio: 17,
+        fin: 30,
+        numerar: true,
+      },
+
+      AYUDANTES: {
+        inicio: 32,
+        fin: 54,
+        numerar: true,
+      },
+
+      BARRA: {
+        inicio: 56,
+        fin: 60,
+        numerar: true,
+      },
+
+      SEGURIDAD: {
+        inicio: 62,
+        fin: 88,
+        numerar: true,
+      },
+
+      HOSTESS: {
+        inicio: 90,
+        fin: 100,
+        numerar: true,
+      },
+
+      CADENA: {
+        inicio: 102,
+        fin: 102,
+        numerar: false,
+      },
+
+      BANOS: {
+        inicio: 104,
+        fin: 105,
+        numerar: false,
+      },
+
+      DJ: {
+        inicio: 107,
+        fin: 113,
+        numerar: false,
+      },
+    };
+
+    const detallePrincipal = detalle.filter(
+      (item) =>
+        normalizarTexto(item.hoja_excel) ===
+        "PRINCIPAL"
+    );
+
+    const agrupadosPrincipal = {};
+
+    for (const item of detallePrincipal) {
+      let seccion = normalizarTexto(
+        item.seccion_nomina
+      );
+
+      if (seccion === "MESERO") {
+        seccion = "MESEROS";
+      }
+
+      if (seccion === "AYUDANTE") {
+        seccion = "AYUDANTES";
+      }
+
+      if (seccion === "BANO") {
+        seccion = "BANOS";
+      }
+
+      if (!seccionesPrincipal[seccion]) {
+        seccion = "GENERAL";
+      }
+
+      if (!agrupadosPrincipal[seccion]) {
+        agrupadosPrincipal[seccion] = [];
+      }
+
+      agrupadosPrincipal[seccion].push(item);
+    }
+
+    for (const [
+      nombreSeccion,
+      configuracion,
+    ] of Object.entries(seccionesPrincipal)) {
+      const empleados =
+        agrupadosPrincipal[nombreSeccion] || [];
+
+      const capacidad =
+        configuracion.fin -
+        configuracion.inicio +
+        1;
+
+      if (empleados.length > capacidad) {
+        throw new Error(
+          `La sección ${nombreSeccion} tiene ${empleados.length} empleados y el machote solo tiene espacio para ${capacidad}.`
+        );
+      }
+
+      empleados.forEach((item, index) => {
+        const fila =
+          configuracion.inicio + index;
+
+        if (configuracion.numerar) {
+          hojaPrincipal.getCell(
+            `A${fila}`
+          ).value = index + 1;
+        }
+
+        hojaPrincipal.getCell(
+          `B${fila}`
+        ).value = item.empleado || "";
+
+        hojaPrincipal.getCell(
+          `C${fila}`
+        ).value = convertirFecha(
+          item.fecha_ingreso
+        );
+
+        hojaPrincipal.getCell(
+          `D${fila}`
+        ).value =
+          item.cuenta_bancaria || "";
+
+        hojaPrincipal.getCell(
+          `E${fila}`
+        ).value = item.puesto || "";
+
+        if (
+          normalizarTexto(
+            item.modalidad_pago
+          ) === "SEMANAL"
+        ) {
+          hojaPrincipal.getCell(
+            `F${fila}`
+          ).value = "SEMANA";
+        } else {
+          hojaPrincipal.getCell(
+            `F${fila}`
+          ).value =
+            Number(item.dias) || 0;
+        }
+
+        hojaPrincipal.getCell(
+          `G${fila}`
+        ).value =
+          Number(item.costo_unitario) ||
+          0;
+
+        hojaPrincipal.getCell(
+          `I${fila}`
+        ).value =
+          Number(item.total) || 0;
+
+        hojaPrincipal.getCell(
+          `C${fila}`
+        ).numFmt = "dd/mm/yyyy";
+
+        hojaPrincipal.getCell(
+          `G${fila}`
+        ).numFmt = '$#,##0.00';
+
+        hojaPrincipal.getCell(
+          `I${fila}`
+        ).numFmt = '$#,##0.00';
+      });
+    }
+
+    const totalPrincipal =
+      detallePrincipal.reduce(
+        (acumulado, item) =>
+          acumulado +
+          (Number(item.total) || 0),
+        0
+      );
+
+    hojaPrincipal.getCell("I114").value =
+      totalPrincipal;
+
+    hojaPrincipal.getCell("I114").numFmt =
+      '$#,##0.00';
+
+    // ============================================================
+    // 8. LLENAR NÓMINA OP.
+    // ============================================================
+
+    const detalleNominaOp = detalle.filter(
+      (item) =>
+        normalizarTexto(item.hoja_excel) ===
+        "NOMINA_OP"
+    );
+
+    if (detalleNominaOp.length > 5) {
+      throw new Error(
+        `Nómina Op. tiene ${detalleNominaOp.length} empleados y el machote actualmente tiene espacio para 5.`
+      );
+    }
+
+    detalleNominaOp.forEach(
+      (item, index) => {
+        const fila = 9 + index;
+
+        hojaNominaOp.getCell(
+          `B${fila}`
+        ).value = item.empleado || "";
+
+        hojaNominaOp.getCell(
+          `C${fila}`
+        ).value = convertirFecha(
+          item.fecha_ingreso
+        );
+
+        hojaNominaOp.getCell(
+          `D${fila}`
+        ).value = item.puesto || "";
+
+        hojaNominaOp.getCell(
+          `E${fila}`
+        ).value =
+          Number(item.total) || 0;
+
+        hojaNominaOp.getCell(
+          `C${fila}`
+        ).numFmt = "dd/mm/yyyy";
+
+        hojaNominaOp.getCell(
+          `E${fila}`
+        ).numFmt = '$#,##0.00';
+      }
+    );
+
+    const totalNominaOp =
+      detalleNominaOp.reduce(
+        (acumulado, item) =>
+          acumulado +
+          (Number(item.total) || 0),
+        0
+      );
+
+    hojaNominaOp.getCell("E14").value =
+      totalNominaOp;
+
+    hojaNominaOp.getCell("E14").numFmt =
+      '$#,##0.00';
+
+    // ============================================================
+    // 9. LLENAR RP
+    // ============================================================
+
+    const detalleRP = detalle.filter(
+      (item) =>
+        normalizarTexto(item.hoja_excel) ===
+          "RP" ||
+        normalizarTexto(
+          item.modalidad_pago
+        ) === "POR_MESA"
+    );
+
+    if (detalleRP.length > 14) {
+      throw new Error(
+        `RP tiene ${detalleRP.length} empleados y el machote actualmente tiene espacio para 14.`
+      );
+    }
+
+    let totalViernes = 0;
+    let totalSabado = 0;
+
+    detalleRP.forEach((item, index) => {
+      const fila = 9 + index;
+
+      const mesasEmpleado = mesas
+        .filter(
+          (mesa) =>
+            Number(
+              mesa.prenomina_detalle_id
+            ) === Number(item.id)
+        )
+        .sort(
+          (a, b) =>
+            String(a.fecha).localeCompare(
+              String(b.fecha)
+            )
+        );
+
+      const primeraMesa =
+        mesasEmpleado[0] || null;
+
+      const segundaMesa =
+        mesasEmpleado[1] || null;
+
+      const tarifaPrimera =
+        Number(
+          primeraMesa?.tarifa_mesa
+        ) || 300;
+
+      const cantidadPrimera =
+        Number(
+          primeraMesa?.cantidad_mesas
+        ) || 0;
+
+      const subtotalPrimera =
+        cantidadPrimera *
+        tarifaPrimera;
+
+      const tarifaSegunda =
+        Number(
+          segundaMesa?.tarifa_mesa
+        ) || 200;
+
+      const cantidadSegunda =
+        Number(
+          segundaMesa?.cantidad_mesas
+        ) || 0;
+
+      const subtotalSegunda =
+        cantidadSegunda *
+        tarifaSegunda;
+
+      totalViernes += subtotalPrimera;
+      totalSabado += subtotalSegunda;
+
+      hojaRP.getCell(
+        `B${fila}`
+      ).value = item.empleado || "";
+
+      hojaRP.getCell(
+        `C${fila}`
+      ).value = item.puesto || "RP";
+
+      hojaRP.getCell(
+        `D${fila}`
+      ).value = tarifaPrimera;
+
+      hojaRP.getCell(
+        `E${fila}`
+      ).value = cantidadPrimera;
+
+      hojaRP.getCell(
+        `F${fila}`
+      ).value = subtotalPrimera;
+
+      hojaRP.getCell(
+        `G${fila}`
+      ).value = tarifaSegunda;
+
+      hojaRP.getCell(
+        `H${fila}`
+      ).value = cantidadSegunda;
+
+      hojaRP.getCell(
+        `I${fila}`
+      ).value = subtotalSegunda;
+
+      hojaRP.getCell(
+        `J${fila}`
+      ).value =
+        Number(item.total) ||
+        subtotalPrimera +
+          subtotalSegunda;
+
+      ["D", "F", "G", "I", "J"].forEach(
+        (columna) => {
+          hojaRP.getCell(
+            `${columna}${fila}`
+          ).numFmt = '$#,##0.00';
+        }
+      );
+    });
+
+    hojaRP.getCell("F24").value =
+      totalViernes;
+
+    hojaRP.getCell("I24").value =
+      totalSabado;
+
+    hojaRP.getCell("J24").value =
+      totalViernes + totalSabado;
+
+    hojaRP.getCell("F24").numFmt =
+      '$#,##0.00';
+
+    hojaRP.getCell("I24").numFmt =
+      '$#,##0.00';
+
+    hojaRP.getCell("J24").numFmt =
+      '$#,##0.00';
+
+    // ============================================================
+    // 10. GENERAR ARCHIVO
+    // ============================================================
+
+    const buffer =
+      await workbook.xlsx.writeBuffer();
+
+    const nombreArchivo = `Nomina ${tituloPeriodo
+      .toLowerCase()
+      .replace(/\b\w/g, (letra) =>
+        letra.toUpperCase()
+      )}.xlsx`;
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${nombreArchivo}"`
+    );
+
+    return res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error(
+      "Error generando Excel de nómina:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No se pudo generar el Excel.",
+    });
+  }
+});
+
 // Obtener prenóminas pendientes
 app.get('/api/prenomina/pendientes', async (req, res) => {
 
@@ -4083,169 +4967,89 @@ app.get('/api/prenomina/pendientes', async (req, res) => {
   }
 });
 
-// Aprobar prenómina
+// Aprobar prenómina sin generar egreso automático
 app.put('/api/prenomina/:id/aprobar', async (req, res) => {
   const client = await pool.connect();
 
   try {
-    const { id } = req.params;
+    const prenominaId = Number(req.params.id);
     const { usuario_aprueba_id, comentario } = req.body;
 
-    await client.query('BEGIN');
+    if (!Number.isInteger(prenominaId) || prenominaId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El id de la prenómina no es válido.",
+      });
+    }
+
+    await client.query("BEGIN");
 
     const result = await client.query(
       `
-      UPDATE prenomina
-      SET
-        estatus = 'APROBADA',
-        usuario_aprueba_id = $1,
-        fecha_aprobacion = NOW()
-      WHERE id = $2
-        AND estatus = 'PENDIENTE'
-      RETURNING *
+        UPDATE prenomina
+        SET
+          estatus = 'APROBADA',
+          usuario_aprueba_id = $1,
+          fecha_aprobacion = NOW(),
+          comentarios = COALESCE($2, comentarios)
+        WHERE id = $3
+          AND estatus = 'PENDIENTE'
+        RETURNING *;
       `,
-      [usuario_aprueba_id || null, id]
+      [
+        usuario_aprueba_id || null,
+        comentario || null,
+        prenominaId,
+      ]
     );
 
     if (result.rows.length === 0) {
-      throw new Error('La prenómina no existe o ya fue procesada.');
+      await client.query("ROLLBACK");
+
+      return res.status(400).json({
+        success: false,
+        error:
+          "La prenómina no existe o ya fue aprobada/rechazada.",
+      });
     }
 
     const prenomina = result.rows[0];
 
     await client.query(
       `
-      INSERT INTO prenomina_logs (
-        prenomina_id,
-        accion,
-        usuario_id,
-        comentario,
-        created_at
-      )
-      VALUES ($1, 'APROBADA', $2, $3, NOW())
-      `,
-      [id, usuario_aprueba_id || null, comentario || 'Prenómina aprobada']
-    );
-
-    const categoriaResult = await client.query(
-    `
-    SELECT id
-    FROM categorias
-    WHERE LOWER(REPLACE(TRIM(nombre), 'ó', 'o')) IN ('nomina', 'nominas')
-    ORDER BY id
-    LIMIT 1
-    `
-  );
-
-    const categoriaId =
-      categoriaResult.rows.length > 0 ? categoriaResult.rows[0].id : null;
-
-    const proveedorResult = await client.query(
-      `
-      SELECT id
-      FROM proveedores
-      WHERE LOWER(nombre) = LOWER('Nómina Boca Negra')
-      LIMIT 1
-      `
-    );
-
-    const proveedorId =
-      proveedorResult.rows.length > 0 ? proveedorResult.rows[0].id : null;
-
-    const resumenResult = await client.query(
-      `
-      SELECT
-        COALESCE(tipo_nomina, 'Operativa') AS tipo_nomina,
-        COALESCE(metodo_pago_nomina, 'Efectivo') AS metodo_pago_nomina,
-        SUM(total) AS total
-      FROM prenomina_detalle
-      WHERE prenomina_id = $1
-      GROUP BY
-        COALESCE(tipo_nomina, 'Operativa'),
-        COALESCE(metodo_pago_nomina, 'Efectivo')
-      `,
-      [id]
-    );
-
-    for (const grupo of resumenResult.rows) {
-      const totalGrupo = Number(grupo.total) || 0;
-
-      if (totalGrupo <= 0) continue;
-
-      const tipoEgreso =
-        grupo.metodo_pago_nomina === 'Banco' ? 'banco' : 'efectivo';
-
-      const referencia = `PRENOMINA-${id}-${grupo.tipo_nomina}-${grupo.metodo_pago_nomina}`;
-
-      const egresoExistente = await client.query(
-        `
-        SELECT id
-        FROM egresos
-        WHERE referencia = $1
-        LIMIT 1
-        `,
-        [referencia]
-      );
-
-      if (egresoExistente.rows.length > 0) continue;
-
-      await client.query(
-        `
-        INSERT INTO egresos (
-          tipo_egreso,
-          fecha,
-          divisa,
-          tipo_cambio,
-          monto_original,
-          monto_mxn,
-          categoria_id,
-          proveedor_id,
-          concepto,
-          cuenta_id,
-          referencia,
-          usuario_crea_id,
-          estatus
+        INSERT INTO prenomina_logs (
+          prenomina_id,
+          accion,
+          usuario_id,
+          comentario,
+          created_at
         )
-        VALUES (
-          $1, CURRENT_DATE, 'MXN', 1,
-          $2, $3,
-          $4, $5, $6,
-          NULL,
-          $7,
-          $8,
-          'REGISTRADO'
-        )
-        `,
-        [
-          tipoEgreso,
-          totalGrupo,
-          totalGrupo,
-          categoriaId,
-          proveedorId,
-          `Nómina aprobada #${id} - ${grupo.tipo_nomina} / ${grupo.metodo_pago_nomina}`,
-          referencia,
-          usuario_aprueba_id || null
-        ]
-      );
-    }
+        VALUES ($1, 'APROBADA', $2, $3, NOW());
+      `,
+      [
+        prenominaId,
+        usuario_aprueba_id || null,
+        comentario || "Prenómina aprobada desde BOSSE",
+      ]
+    );
 
-    await client.query('COMMIT');
+    await client.query("COMMIT");
 
-    res.json({
+    return res.json({
       success: true,
-      prenomina
+      message:
+        "Prenómina aprobada. No se generó ningún egreso automático.",
+      prenomina,
     });
-
   } catch (error) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
 
-    console.error('Error aprobando prenómina:', error);
+    console.error("Error aprobando prenómina:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
-
   } finally {
     client.release();
   }
