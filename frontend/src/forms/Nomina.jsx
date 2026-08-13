@@ -67,6 +67,7 @@ const [filas, setFilas] = useState([
   const [comentariosExtraordinarios, setComentariosExtraordinarios] = useState("");
   const [fechaInicio, setFechaInicio] = useState("");
 const [fechaFin, setFechaFin] = useState("");
+const [pestanaActiva, setPestanaActiva] = useState("DIARIO");
   useEffect(() => {
   const cargarEmpleados = async () => {
     try {
@@ -383,6 +384,26 @@ const eliminarMesa = (filaId, mesaId) => {
     (nombre, index) => nombresOcupados.indexOf(nombre) !== index
   );
 
+const filasDiarias = filas.filter(
+  (fila) => fila.modalidad_pago === "DIARIO"
+);
+
+const filasSemanales = filas.filter(
+  (fila) => fila.modalidad_pago === "SEMANAL"
+);
+
+const filasPorMesa = filas.filter(
+  (fila) => fila.modalidad_pago === "POR_MESA"
+);
+
+const filasPestanaActiva =
+  pestanaActiva === "DIARIO"
+    ? filasDiarias
+    : pestanaActiva === "SEMANAL"
+    ? filasSemanales
+    : filasPorMesa;
+
+
   const totalGlobal = filas.reduce(
   (acumulado, fila) =>
     acumulado + (Number(fila.total) || 0),
@@ -579,464 +600,723 @@ onVolver();
   </div>
 </div>
 
-        <div style={{ overflowX: "auto", marginBottom: "20px" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-  <tr style={{ borderBottom: "1px solid #000" }}>
-    <th style={thBosse}>Empleado</th>
-    <th style={thBosse}>Puesto</th>
-    <th style={thBosse}>Modalidad</th>
-    <th style={thBosse}>Método pago</th>
-    <th style={thBosse}>Cantidad / mesas</th>
-    <th style={thBosse}>Tarifa</th>
-    <th style={thBosse}>Prima (+)</th>
-    <th style={thBosse}>Desc. (-)</th>
-    <th style={thBosse}>Comentario</th>
-    <th
+        <div
+  style={{
+    marginBottom: "22px",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      gap: "8px",
+      flexWrap: "wrap",
+      marginBottom: "18px",
+      borderBottom: "1px solid #ddd",
+    }}
+  >
+    {[
+      {
+        id: "DIARIO",
+        label: `DIARIA (${filasDiarias.length})`,
+      },
+      {
+        id: "SEMANAL",
+        label: `SEMANAL (${filasSemanales.length})`,
+      },
+      {
+        id: "POR_MESA",
+        label: `RP / POR MESA (${filasPorMesa.length})`,
+      },
+    ].map((pestana) => (
+      <button
+        key={pestana.id}
+        type="button"
+        onClick={() => setPestanaActiva(pestana.id)}
+        style={{
+          padding: "12px 18px",
+          background:
+            pestanaActiva === pestana.id
+              ? "#111"
+              : "#fff",
+          color:
+            pestanaActiva === pestana.id
+              ? "#fff"
+              : "#555",
+          border: "none",
+          borderBottom:
+            pestanaActiva === pestana.id
+              ? "3px solid #111"
+              : "3px solid transparent",
+          cursor: "pointer",
+          fontSize: "12px",
+          fontWeight: "700",
+          letterSpacing: "0.5px",
+        }}
+      >
+        {pestana.label}
+      </button>
+    ))}
+  </div>
+
+  <div
+    style={{
+      marginBottom: "12px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: "10px",
+      flexWrap: "wrap",
+    }}
+  >
+    <div>
+      <h3
+        style={{
+          margin: 0,
+          fontSize: "16px",
+        }}
+      >
+        {pestanaActiva === "DIARIO"
+          ? "Nómina diaria"
+          : pestanaActiva === "SEMANAL"
+          ? "Nómina semanal"
+          : "RP / Pago por mesa"}
+      </h3>
+
+      <p
+        style={{
+          margin: "5px 0 0",
+          fontSize: "12px",
+          color: "#777",
+        }}
+      >
+        {pestanaActiva === "DIARIO"
+          ? "Personal calculado por días trabajados."
+          : pestanaActiva === "SEMANAL"
+          ? "Personal calculado por semanas."
+          : "Personal pagado por número de mesas y fecha."}
+      </p>
+    </div>
+
+    <div
       style={{
-        ...thBosse,
-        textAlign: "right",
+        fontSize: "12px",
+        color: "#666",
       }}
     >
-      Total
-    </th>
-    <th style={thBosse}></th>
-  </tr>
-</thead>
+      {filasPestanaActiva.length} empleado(s)
+    </div>
+  </div>
 
-<tbody>
-  {filas.map((fila) => {
-    const esPorMesa =
-      fila.modalidad_pago === "POR_MESA";
-
-    const etiquetaCantidad =
-      fila.modalidad_pago === "SEMANAL"
-        ? "Semanas"
-        : "Días";
-
-    return (
-      <React.Fragment key={fila.id}>
+  <div
+    style={{
+      overflowX: "auto",
+      border: "1px solid #e5e5e5",
+      borderRadius: "10px",
+    }}
+  >
+    <table
+      style={{
+        width: "100%",
+        borderCollapse: "collapse",
+        minWidth: "1050px",
+      }}
+    >
+      <thead>
         <tr
           style={{
-            borderBottom: esPorMesa
-              ? "none"
-              : "1px solid #eee",
+            background: "#fafafa",
+            borderBottom: "1px solid #ddd",
           }}
         >
-          <td style={{ padding: "5px", minWidth: 190 }}>
-            <select
-              value={fila.empleado_id || ""}
-              onChange={(e) =>
-                seleccionarEmpleado(
-                  fila.id,
-                  e.target.value
-                )
-              }
-              style={estiloInputTabla}
-            >
-              <option value="">
-                Seleccionar empleado
-              </option>
+          <th style={thBosse}>Empleado</th>
+          <th style={thBosse}>Puesto</th>
+          <th style={thBosse}>Método pago</th>
 
-              {empleadosDisponibles.map((empleado) => (
-                <option
-                  key={empleado.id}
-                  value={empleado.id}
-                >
-                  {empleado.nombre}
-                </option>
-              ))}
-            </select>
-          </td>
+          {pestanaActiva !== "POR_MESA" && (
+            <>
+              <th style={thBosse}>
+                {pestanaActiva === "SEMANAL"
+                  ? "Semanas"
+                  : "Días"}
+              </th>
 
-          <td
+              <th style={thBosse}>
+                Tarifa
+              </th>
+            </>
+          )}
+
+          {pestanaActiva === "POR_MESA" && (
+            <th style={thBosse}>
+              Fechas / Mesas
+            </th>
+          )}
+
+          <th style={thBosse}>Prima (+)</th>
+          <th style={thBosse}>Desc. (-)</th>
+          <th style={thBosse}>Comentario</th>
+
+          <th
             style={{
-              padding: "10px",
-              minWidth: 130,
-              fontSize: "13px",
-            }}
-          >
-            <div style={{ fontWeight: 600 }}>
-              {fila.puesto || "Sin puesto"}
-            </div>
-
-            <div
-              style={{
-                color: "#888",
-                fontSize: "11px",
-                marginTop: "4px",
-              }}
-            >
-              {fila.tipo_nomina || "Operativa"}
-            </div>
-          </td>
-
-          <td
-            style={{
-              padding: "10px",
-              minWidth: 105,
-              fontSize: "12px",
-              fontWeight: 600,
-            }}
-          >
-            {fila.modalidad_pago === "POR_MESA"
-              ? "Por mesa"
-              : fila.modalidad_pago === "SEMANAL"
-              ? "Semanal"
-              : "Diario"}
-          </td>
-
-          <td style={{ minWidth: 110 }}>
-            <select
-              value={
-                fila.metodo_pago_nomina ||
-                "Efectivo"
-              }
-              onChange={(e) =>
-                manejarCambioFila(
-                  fila.id,
-                  "metodo_pago_nomina",
-                  e.target.value
-                )
-              }
-              style={estiloInputTabla}
-            >
-              <option value="Efectivo">
-                Efectivo
-              </option>
-              <option value="Banco">Banco</option>
-              <option value="Banca">Banca</option>
-            </select>
-          </td>
-
-          <td
-            style={{
-              minWidth: esPorMesa ? 130 : 90,
-              padding: "5px",
-            }}
-          >
-            {esPorMesa ? (
-              <span
-                style={{
-                  fontSize: "12px",
-                  color: "#666",
-                }}
-              >
-                {(fila.mesas || []).length} fecha(s)
-              </span>
-            ) : (
-              <input
-                type="number"
-                min="0"
-                step={
-                  fila.modalidad_pago === "SEMANAL"
-                    ? "0.01"
-                    : "1"
-                }
-                placeholder={etiquetaCantidad}
-                value={fila.cantidad}
-                onChange={(e) =>
-                  manejarCambioFila(
-                    fila.id,
-                    "cantidad",
-                    e.target.value
-                  )
-                }
-                style={estiloInputTabla}
-              />
-            )}
-          </td>
-
-          <td style={{ minWidth: 95 }}>
-            {esPorMesa ? (
-              <span
-                style={{
-                  fontSize: "12px",
-                  color: "#777",
-                }}
-              >
-                Por fecha
-              </span>
-            ) : (
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={fila.tarifa}
-                onChange={(e) =>
-                  manejarCambioFila(
-                    fila.id,
-                    "tarifa",
-                    e.target.value
-                  )
-                }
-                style={estiloInputTabla}
-              />
-            )}
-          </td>
-
-          <td style={{ minWidth: 90 }}>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={fila.prima}
-              onChange={(e) =>
-                manejarCambioFila(
-                  fila.id,
-                  "prima",
-                  e.target.value
-                )
-              }
-              style={estiloInputTabla}
-            />
-          </td>
-
-          <td style={{ minWidth: 90 }}>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={fila.descuento}
-              onChange={(e) =>
-                manejarCambioFila(
-                  fila.id,
-                  "descuento",
-                  e.target.value
-                )
-              }
-              style={estiloInputTabla}
-            />
-          </td>
-
-          <td style={{ minWidth: 150 }}>
-            <input
-              placeholder="Comentario"
-              value={fila.comentario_pago || ""}
-              onChange={(e) =>
-                manejarCambioFila(
-                  fila.id,
-                  "comentario_pago",
-                  e.target.value
-                )
-              }
-              style={estiloInputTabla}
-            />
-          </td>
-
-          <td
-            style={{
+              ...thBosse,
               textAlign: "right",
-              fontWeight: "700",
-              padding: "12px",
-              whiteSpace: "nowrap",
             }}
           >
-            {Number(fila.total || 0).toLocaleString(
-              "es-MX",
-              {
-                style: "currency",
-                currency: "MXN",
-              }
-            )}
-          </td>
+            Total
+          </th>
 
-          <td style={{ textAlign: "center" }}>
-            <button
-              type="button"
-              title="Eliminar línea"
-              onClick={() => {
-                if (filas.length === 1) {
-                  alert(
-                    "⚠️ Debe existir al menos una línea."
-                  );
-                  return;
-                }
+          <th style={thBosse}></th>
+        </tr>
+      </thead>
 
-                setFilas((filasActuales) =>
-                  filasActuales.filter(
-                    (item) => item.id !== fila.id
-                  )
-                );
-              }}
+      <tbody>
+        {filasPestanaActiva.length === 0 ? (
+          <tr>
+            <td
+              colSpan="10"
               style={{
-                border: "none",
-                background: "none",
-                color: "#999",
-                cursor: "pointer",
+                padding: "30px",
+                textAlign: "center",
+                color: "#777",
               }}
             >
-              ✕
-            </button>
-          </td>
-        </tr>
+              No hay empleados en esta modalidad.
+            </td>
+          </tr>
+        ) : (
+          filasPestanaActiva.map((fila) => {
+            const esPorMesa =
+              fila.modalidad_pago === "POR_MESA";
 
-        {esPorMesa && (
-          <tr style={{ borderBottom: "1px solid #eee" }}>
-            <td colSpan="11" style={{ padding: "0 12px 18px" }}>
-              <div
-                style={{
-                  padding: "14px",
-                  background: "#fafafa",
-                  border: "1px solid #e5e5e5",
-                  borderRadius: "9px",
-                }}
-              >
-                <div
+            return (
+              <React.Fragment key={fila.id}>
+                <tr
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "10px",
+                    borderBottom: esPorMesa
+                      ? "none"
+                      : "1px solid #eee",
                   }}
                 >
-                  <strong
+                  <td
                     style={{
-                      fontSize: "12px",
-                      textTransform: "uppercase",
+                      padding: "5px",
+                      minWidth: 190,
                     }}
                   >
-                    Mesas de {fila.nombre || "RP"}
-                  </strong>
+                    <select
+                      value={fila.empleado_id || ""}
+                      onChange={(e) =>
+                        seleccionarEmpleado(
+                          fila.id,
+                          e.target.value
+                        )
+                      }
+                      style={estiloInputTabla}
+                    >
+                      <option value="">
+                        Seleccionar empleado
+                      </option>
 
-                  <button
-                    type="button"
-                    onClick={() => agregarMesa(fila.id)}
+                     {empleadosDisponibles
+  .filter((empleado) => {
+    const modalidadEmpleado =
+      empleado.modalidad_pago || "DIARIO";
+
+    return modalidadEmpleado === pestanaActiva;
+  })
+  .map((empleado) => (
+    <option
+      key={empleado.id}
+      value={empleado.id}
+    >
+      {empleado.nombre}
+    </option>
+  ))}
+                    </select>
+                  </td>
+
+                  <td
                     style={{
-                      border: "1px solid #111",
-                      background: "#fff",
-                      borderRadius: "6px",
-                      padding: "6px 10px",
-                      cursor: "pointer",
-                      fontSize: "11px",
+                      padding: "10px",
+                      minWidth: 150,
+                      fontSize: "13px",
                     }}
                   >
-                    + Agregar fecha
-                  </button>
-                </div>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                      }}
+                    >
+                      {fila.puesto || "Sin puesto"}
+                    </div>
 
-                {(fila.mesas || []).length === 0 ? (
-                  <p
+                    <div
+                      style={{
+                        color: "#888",
+                        fontSize: "11px",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {fila.tipo_nomina ||
+                        "Operativa"}
+                    </div>
+                  </td>
+
+                  <td
                     style={{
-                      color: "#777",
-                      fontSize: "12px",
-                      margin: 0,
+                      minWidth: 110,
                     }}
                   >
-                    Agrega al menos una fecha para registrar
-                    las mesas.
-                  </p>
-                ) : (
-                  (fila.mesas || []).map((mesa) => {
-                    const subtotal =
-                      (Number(mesa.cantidad_mesas) || 0) *
-                      (Number(mesa.tarifa_mesa) || 0);
+                    <select
+                      value={
+                        fila.metodo_pago_nomina ||
+                        "Efectivo"
+                      }
+                      onChange={(e) =>
+                        manejarCambioFila(
+                          fila.id,
+                          "metodo_pago_nomina",
+                          e.target.value
+                        )
+                      }
+                      style={estiloInputTabla}
+                    >
+                      <option value="Efectivo">
+                        Efectivo
+                      </option>
 
-                    return (
-                      <div
-                        key={mesa.id}
+                      <option value="Banco">
+                        Banco
+                      </option>
+
+                      <option value="Banca">
+                        Banca
+                      </option>
+                    </select>
+                  </td>
+
+                  {!esPorMesa && (
+                    <>
+                      <td
                         style={{
-                          display: "grid",
-                          gridTemplateColumns:
-                            "minmax(150px, 1fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(120px, 1fr) 40px",
-                          gap: "10px",
-                          alignItems: "center",
-                          marginTop: "8px",
+                          minWidth: 85,
                         }}
                       >
                         <input
-                          type="date"
-                          value={mesa.fecha || ""}
-                          onChange={(e) =>
-                            cambiarMesa(
-                              fila.id,
-                              mesa.id,
-                              "fecha",
-                              e.target.value
-                            )
-                          }
-                          style={estiloInputMesa}
-                        />
-
-                        <input
                           type="number"
                           min="0"
-                          step="1"
-                          placeholder="Mesas"
-                          value={mesa.cantidad_mesas}
+                          step={
+                            fila.modalidad_pago ===
+                            "SEMANAL"
+                              ? "0.01"
+                              : "1"
+                          }
+                          value={fila.cantidad}
                           onChange={(e) =>
-                            cambiarMesa(
+                            manejarCambioFila(
                               fila.id,
-                              mesa.id,
-                              "cantidad_mesas",
+                              "cantidad",
                               e.target.value
                             )
                           }
-                          style={estiloInputMesa}
+                          style={estiloInputTabla}
                         />
+                      </td>
 
+                      <td
+                        style={{
+                          minWidth: 95,
+                        }}
+                      >
                         <input
                           type="number"
                           min="0"
                           step="0.01"
-                          placeholder="Tarifa"
-                          value={mesa.tarifa_mesa}
+                          value={fila.tarifa}
                           onChange={(e) =>
-                            cambiarMesa(
+                            manejarCambioFila(
                               fila.id,
-                              mesa.id,
-                              "tarifa_mesa",
+                              "tarifa",
                               e.target.value
                             )
                           }
-                          style={estiloInputMesa}
+                          style={estiloInputTabla}
                         />
+                      </td>
+                    </>
+                  )}
 
+                  {esPorMesa && (
+                    <td
+                      style={{
+                        minWidth: 170,
+                        padding: "10px",
+                        fontSize: "12px",
+                      }}
+                    >
+                      {(fila.mesas || []).length}
+                      {" fecha(s)"}
+                    </td>
+                  )}
+
+                  <td
+                    style={{
+                      minWidth: 90,
+                    }}
+                  >
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={fila.prima}
+                      onChange={(e) =>
+                        manejarCambioFila(
+                          fila.id,
+                          "prima",
+                          e.target.value
+                        )
+                      }
+                      style={estiloInputTabla}
+                    />
+                  </td>
+
+                  <td
+                    style={{
+                      minWidth: 90,
+                    }}
+                  >
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={fila.descuento}
+                      onChange={(e) =>
+                        manejarCambioFila(
+                          fila.id,
+                          "descuento",
+                          e.target.value
+                        )
+                      }
+                      style={estiloInputTabla}
+                    />
+                  </td>
+
+                  <td
+                    style={{
+                      minWidth: 150,
+                    }}
+                  >
+                    <input
+                      placeholder="Comentario"
+                      value={
+                        fila.comentario_pago || ""
+                      }
+                      onChange={(e) =>
+                        manejarCambioFila(
+                          fila.id,
+                          "comentario_pago",
+                          e.target.value
+                        )
+                      }
+                      style={estiloInputTabla}
+                    />
+                  </td>
+
+                  <td
+                    style={{
+                      textAlign: "right",
+                      fontWeight: "700",
+                      padding: "12px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {Number(
+                      fila.total || 0
+                    ).toLocaleString("es-MX", {
+                      style: "currency",
+                      currency: "MXN",
+                    })}
+                  </td>
+
+                  <td
+                    style={{
+                      textAlign: "center",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      title="Eliminar línea"
+                      onClick={() => {
+                        if (filas.length === 1) {
+                          alert(
+                            "⚠️ Debe existir al menos una línea."
+                          );
+                          return;
+                        }
+
+                        setFilas(
+                          (filasActuales) =>
+                            filasActuales.filter(
+                              (item) =>
+                                item.id !== fila.id
+                            )
+                        );
+                      }}
+                      style={{
+                        border: "none",
+                        background: "none",
+                        color: "#999",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+
+                {esPorMesa && (
+                  <tr
+                    style={{
+                      borderBottom:
+                        "1px solid #eee",
+                    }}
+                  >
+                    <td
+                      colSpan="9"
+                      style={{
+                        padding:
+                          "0 12px 18px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: "14px",
+                          background:
+                            "#fafafa",
+                          border:
+                            "1px solid #e5e5e5",
+                          borderRadius: "9px",
+                        }}
+                      >
                         <div
                           style={{
-                            textAlign: "right",
-                            fontWeight: 700,
-                            fontSize: "13px",
+                            display: "flex",
+                            justifyContent:
+                              "space-between",
+                            alignItems:
+                              "center",
+                            marginBottom:
+                              "10px",
                           }}
                         >
-                          {subtotal.toLocaleString("es-MX", {
-                            style: "currency",
-                            currency: "MXN",
-                          })}
+                          <strong
+                            style={{
+                              fontSize:
+                                "12px",
+                              textTransform:
+                                "uppercase",
+                            }}
+                          >
+                            Mesas de{" "}
+                            {fila.nombre ||
+                              "RP"}
+                          </strong>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              agregarMesa(
+                                fila.id
+                              )
+                            }
+                            style={{
+                              border:
+                                "1px solid #111",
+                              background:
+                                "#fff",
+                              borderRadius:
+                                "6px",
+                              padding:
+                                "6px 10px",
+                              cursor:
+                                "pointer",
+                              fontSize:
+                                "11px",
+                            }}
+                          >
+                            + Agregar fecha
+                          </button>
                         </div>
 
-                        <button
-                          type="button"
-                          title="Eliminar fecha"
-                          onClick={() =>
-                            eliminarMesa(
-                              fila.id,
-                              mesa.id
-                            )
-                          }
-                          style={{
-                            border: "none",
-                            background: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </td>
-          </tr>
-        )}
-      </React.Fragment>
-    );
-  })}
-</tbody>
+                        {(fila.mesas || [])
+                          .length === 0 ? (
+                          <p
+                            style={{
+                              color: "#777",
+                              fontSize:
+                                "12px",
+                              margin: 0,
+                            }}
+                          >
+                            Sin mesas
+                            capturadas.
+                          </p>
+                        ) : (
+                          (
+                            fila.mesas || []
+                          ).map((mesa) => {
+                            const subtotal =
+                              (Number(
+                                mesa.cantidad_mesas
+                              ) || 0) *
+                              (Number(
+                                mesa.tarifa_mesa
+                              ) || 0);
 
-          </table>
-        </div>
+                            return (
+                              <div
+                                key={
+                                  mesa.id
+                                }
+                                style={{
+                                  display:
+                                    "grid",
+                                  gridTemplateColumns:
+                                    "minmax(150px, 1fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(120px, 1fr) 40px",
+                                  gap: "10px",
+                                  alignItems:
+                                    "center",
+                                  marginTop:
+                                    "8px",
+                                }}
+                              >
+                                <input
+                                  type="date"
+                                  value={
+                                    mesa.fecha ||
+                                    ""
+                                  }
+                                  onChange={(
+                                    e
+                                  ) =>
+                                    cambiarMesa(
+                                      fila.id,
+                                      mesa.id,
+                                      "fecha",
+                                      e.target
+                                        .value
+                                    )
+                                  }
+                                  style={
+                                    estiloInputMesa
+                                  }
+                                />
+
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  placeholder="Mesas"
+                                  value={
+                                    mesa.cantidad_mesas
+                                  }
+                                  onChange={(
+                                    e
+                                  ) =>
+                                    cambiarMesa(
+                                      fila.id,
+                                      mesa.id,
+                                      "cantidad_mesas",
+                                      e.target
+                                        .value
+                                    )
+                                  }
+                                  style={
+                                    estiloInputMesa
+                                  }
+                                />
+
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="Tarifa"
+                                  value={
+                                    mesa.tarifa_mesa
+                                  }
+                                  onChange={(
+                                    e
+                                  ) =>
+                                    cambiarMesa(
+                                      fila.id,
+                                      mesa.id,
+                                      "tarifa_mesa",
+                                      e.target
+                                        .value
+                                    )
+                                  }
+                                  style={
+                                    estiloInputMesa
+                                  }
+                                />
+
+                                <div
+                                  style={{
+                                    textAlign:
+                                      "right",
+                                    fontWeight:
+                                      700,
+                                    fontSize:
+                                      "13px",
+                                  }}
+                                >
+                                  {subtotal.toLocaleString(
+                                    "es-MX",
+                                    {
+                                      style:
+                                        "currency",
+                                      currency:
+                                        "MXN",
+                                    }
+                                  )}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  title="Eliminar fecha"
+                                  onClick={() =>
+                                    eliminarMesa(
+                                      fila.id,
+                                      mesa.id
+                                    )
+                                  }
+                                  style={{
+                                    border:
+                                      "none",
+                                    background:
+                                      "none",
+                                    cursor:
+                                      "pointer",
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
 
         <div style={{ marginBottom: "20px" }}>
   <label style={estilos.panelLabel}>
@@ -1059,12 +1339,21 @@ onVolver();
 
 <button
   type="button"
-  onClick={() =>
-    setFilas((filasActuales) => [
-      ...filasActuales,
-      crearFilaVacia(),
-    ])
+  onClick={() => {
+  const nuevaFila = crearFilaVacia();
+
+  nuevaFila.modalidad_pago = pestanaActiva;
+
+  if (pestanaActiva === "POR_MESA") {
+    nuevaFila.hoja_excel = "RP";
+    nuevaFila.mesas = crearMesasIniciales();
   }
+
+  setFilas((filasActuales) => [
+    ...filasActuales,
+    nuevaFila,
+  ]);
+}}
   style={{
     background: "none",
     border: "1px dashed #ccc",
@@ -1076,7 +1365,11 @@ onVolver();
     marginBottom: "30px",
   }}
 >
-  + AGREGAR NUEVA LÍNEA
+  {pestanaActiva === "DIARIO"
+  ? "+ AGREGAR EMPLEADO DIARIO"
+  : pestanaActiva === "SEMANAL"
+  ? "+ AGREGAR EMPLEADO SEMANAL"
+  : "+ AGREGAR RP"}
 </button>
 
         <div

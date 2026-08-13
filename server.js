@@ -3754,14 +3754,16 @@ app.post('/api/prenomina', async (req, res) => {
 
   try {
     const {
-      fecha_inicio,
-      fecha_fin,
-      total,
-      usuario_crea_id,
-      comentarios_extraordinarios,
-      comentarios,
-      detalle
-    } = req.body;
+  fecha_inicio,
+  fecha_fin,
+  total,
+  usuario_crea_id,
+  comentarios_extraordinarios,
+  comentarios,
+  detalle
+} = req.body;
+
+const negocioId = 1; // BOSSE
 
     if (!detalle || !Array.isArray(detalle) || detalle.length === 0) {
       return res.status(400).json({
@@ -3775,26 +3777,38 @@ app.post('/api/prenomina', async (req, res) => {
     const prenominaResult = await client.query(
       `
       INSERT INTO prenomina (
-        fecha_inicio,
-        fecha_fin,
-        total,
-        estatus,
-        usuario_crea_id,
-        comentarios_extraordinarios,
-        comentarios,
-        fecha_creacion
-      )
-      VALUES ($1, $2, $3, 'PENDIENTE', $4, $5, $6, NOW())
+  fecha_inicio,
+  fecha_fin,
+  total,
+  estatus,
+  usuario_crea_id,
+  comentarios_extraordinarios,
+  comentarios,
+  fecha_creacion,
+  negocio_id
+)
+VALUES (
+  $1,
+  $2,
+  $3,
+  'PENDIENTE',
+  $4,
+  $5,
+  $6,
+  NOW(),
+  $7
+)
       RETURNING *
       `,
       [
-        fecha_inicio || null,
-        fecha_fin || null,
-        total || 0,
-        usuario_crea_id || null,
-        comentarios_extraordinarios || null,
-        comentarios || null
-      ]
+  fecha_inicio || null,
+  fecha_fin || null,
+  total || 0,
+  usuario_crea_id || null,
+  comentarios_extraordinarios || null,
+  comentarios || null,
+  negocioId
+]
     );
 
     const prenomina = prenominaResult.rows[0];
