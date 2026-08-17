@@ -37,20 +37,27 @@ const permisosPorRol = {
     "puestos",
   ],
   administrador: [
-    "egresos_caja",
-    "egresos_bancos",
-    "egresos_banca",
-    "nomina",
-    "empleados",
-    "historial_nomina",
-    "puestos",
-  ],
-  cajero: [
-    "egresos_caja",
-    "egresos_bancos",
-    "egresos_banca",
-    "caja",
-  ],
+  "egresos_caja",
+  "egresos_bancos",
+  "egresos_banca",
+  "nomina",
+  "empleados",
+  "aprobaciones_nomina",
+  "historial_nomina",
+  "puestos",
+],
+
+cajero: [
+  "egresos_caja",
+  "egresos_bancos",
+  "egresos_banca",
+  "caja",
+  "nomina",
+  "empleados",
+  "aprobaciones_nomina",
+  "historial_nomina",
+  "puestos",
+],
 };
 
 function normalizarRol(rol) {
