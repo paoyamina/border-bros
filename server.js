@@ -3973,6 +3973,295 @@ for (const mesa of mesas) {
   }
 });
 
+// Editar prenómina existente
+app.put('/api/prenomina/:id', async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const prenominaId = Number(req.params.id);
+
+    if (!Number.isInteger(prenominaId) || prenominaId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El id de la prenómina no es válido.",
+      });
+    }
+
+    const {
+      fecha_inicio,
+      fecha_fin,
+      total,
+      usuario_edita_id,
+      comentarios_extraordinarios,
+      comentarios,
+      detalle,
+    } = req.body;
+
+    if (!detalle || !Array.isArray(detalle) || detalle.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "La prenómina debe tener al menos un empleado.",
+      });
+    }
+
+    await client.query("BEGIN");
+
+    const prenominaAnteriorResult = await client.query(
+      `
+        SELECT *
+        FROM prenomina
+        WHERE id = $1
+        FOR UPDATE;
+      `,
+      [prenominaId]
+    );
+
+    if (prenominaAnteriorResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+
+      return res.status(404).json({
+        success: false,
+        error: "Prenómina no encontrada.",
+      });
+    }
+
+    const prenominaAnterior = prenominaAnteriorResult.rows[0];
+
+    const prenominaActualizadaResult = await client.query(
+      `
+        UPDATE prenomina
+        SET
+          fecha_inicio = $1,
+          fecha_fin = $2,
+          total = $3,
+          comentarios_extraordinarios = $4,
+          comentarios = $5
+        WHERE id = $6
+        RETURNING *;
+      `,
+      [
+        fecha_inicio || null,
+        fecha_fin || null,
+        Number(total) || 0,
+        comentarios_extraordinarios || null,
+        comentarios || null,
+        prenominaId,
+      ]
+    );
+
+    // Guardamos los IDs de detalle actuales
+    const detallesAnterioresResult = await client.query(
+      `
+        SELECT id
+        FROM prenomina_detalle
+        WHERE prenomina_id = $1;
+      `,
+      [prenominaId]
+    );
+
+    const idsDetalleAnteriores =
+      detallesAnterioresResult.rows.map((fila) => fila.id);
+
+    // Primero eliminar las mesas asociadas
+    if (idsDetalleAnteriores.length > 0) {
+      await client.query(
+        `
+          DELETE FROM prenomina_detalle_mesas
+          WHERE prenomina_detalle_id = ANY($1::int[]);
+        `,
+        [idsDetalleAnteriores]
+      );
+    }
+
+    // Luego reemplazamos todo el detalle
+    await client.query(
+      `
+        DELETE FROM prenomina_detalle
+        WHERE prenomina_id = $1;
+      `,
+      [prenominaId]
+    );
+
+    for (const fila of detalle) {
+      const empleadoResult = await client.query(
+        `
+          SELECT
+            e.id,
+            e.puesto_id,
+            COALESCE(p.nombre, e.puesto) AS puesto_nombre,
+            COALESCE(
+              p.tipo_nomina,
+              e.tipo_nomina,
+              'Operativa'
+            ) AS tipo_nomina,
+            p.modalidad_pago,
+            p.hoja_excel,
+            p.seccion_nomina,
+            COALESCE(
+              e.metodo_pago_nomina,
+              'Efectivo'
+            ) AS metodo_pago_nomina
+          FROM empleados e
+          LEFT JOIN puestos p
+            ON p.id = e.puesto_id
+          WHERE e.id = $1
+          LIMIT 1;
+        `,
+        [fila.empleado_id]
+      );
+
+      if (empleadoResult.rows.length === 0) {
+        throw new Error(
+          `No se encontró el empleado con id ${fila.empleado_id}.`
+        );
+      }
+
+      const empleado = empleadoResult.rows[0];
+
+      const detalleInsertadoResult = await client.query(
+        `
+          INSERT INTO prenomina_detalle (
+            prenomina_id,
+            empleado_id,
+            puesto_id,
+            puesto_nombre,
+            dias,
+            costo_unitario,
+            prima,
+            descuento,
+            total,
+            tipo_nomina,
+            metodo_pago_nomina,
+            modalidad_pago,
+            hoja_excel,
+            seccion_nomina,
+            comentario_pago,
+            nota
+          )
+          VALUES (
+            $1, $2, $3, $4,
+            $5, $6, $7, $8,
+            $9, $10, $11, $12,
+            $13, $14, $15, $16
+          )
+          RETURNING id;
+        `,
+        [
+          prenominaId,
+          fila.empleado_id,
+          empleado.puesto_id || null,
+          empleado.puesto_nombre || null,
+          Number(fila.dias) || 0,
+          Number(fila.costo_unitario) || 0,
+          Number(fila.prima) || 0,
+          Number(fila.descuento) || 0,
+          Number(fila.total) || 0,
+          fila.tipo_nomina ||
+            empleado.tipo_nomina ||
+            "Operativa",
+          fila.metodo_pago_nomina ||
+            empleado.metodo_pago_nomina ||
+            "Efectivo",
+          fila.modalidad_pago ||
+            empleado.modalidad_pago ||
+            "DIARIO",
+          fila.hoja_excel ||
+            empleado.hoja_excel ||
+            "PRINCIPAL",
+          fila.seccion_nomina ||
+            empleado.seccion_nomina ||
+            "GENERAL",
+          fila.comentario_pago || null,
+          fila.nota || null,
+        ]
+      );
+
+      const prenominaDetalleId =
+        detalleInsertadoResult.rows[0].id;
+
+      const mesas = Array.isArray(fila.mesas)
+        ? fila.mesas
+        : [];
+
+      for (const mesa of mesas) {
+        const fechaMesa = mesa.fecha || null;
+        const cantidadMesas =
+          Number(mesa.cantidad_mesas) || 0;
+        const tarifaMesa =
+          Number(mesa.tarifa_mesa) || 0;
+
+        if (!fechaMesa) {
+          continue;
+        }
+
+        await client.query(
+          `
+            INSERT INTO prenomina_detalle_mesas (
+              prenomina_detalle_id,
+              fecha,
+              cantidad_mesas,
+              tarifa_mesa
+            )
+            VALUES ($1, $2, $3, $4);
+          `,
+          [
+            prenominaDetalleId,
+            fechaMesa,
+            cantidadMesas,
+            tarifaMesa,
+          ]
+        );
+      }
+    }
+
+    await client.query(
+      `
+        INSERT INTO prenomina_logs (
+          prenomina_id,
+          accion,
+          usuario_id,
+          comentario,
+          created_at
+        )
+        VALUES (
+          $1,
+          'EDITADA',
+          $2,
+          $3,
+          NOW()
+        );
+      `,
+      [
+        prenominaId,
+        usuario_edita_id || null,
+        comentarios ||
+          `Prenómina editada. Total anterior: ${prenominaAnterior.total}`,
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    return res.json({
+      success: true,
+      message: "Prenómina actualizada correctamente.",
+      prenomina: prenominaActualizadaResult.rows[0],
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+
+    console.error("Error editando prenómina:", error);
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible actualizar la prenómina.",
+    });
+  } finally {
+    client.release();
+  }
+});
+
 // Obtener detalle histórico de una prenómina
 app.get('/api/prenomina/:id/detalle', async (req, res) => {
   try {

@@ -63,71 +63,87 @@ const [filas, setFilas] = useState([
 ]);
 
   const [statusNomina, setStatusNomina] = useState("CAPTURA");
+  const [prenominasPendientes, setPrenominasPendientes] = useState([]);
+
+const [detallePendienteAbierto, setDetallePendienteAbierto] =
+  useState(null);
+
+const [detallePendientes, setDetallePendientes] = useState({});
   const [empleadosDisponibles, setEmpleadosDisponibles] = useState([]);
   const [comentariosExtraordinarios, setComentariosExtraordinarios] = useState("");
   const [fechaInicio, setFechaInicio] = useState("");
 const [fechaFin, setFechaFin] = useState("");
 const [pestanaActiva, setPestanaActiva] = useState("DIARIO");
+const [pestanaPrincipal, setPestanaPrincipal] = useState("CAPTURA");
+const [historialNomina, setHistorialNomina] = useState([]);
+const [detalleHistorialAbierto, setDetalleHistorialAbierto] = useState(null);
+const [detallesHistorial, setDetallesHistorial] = useState({});
+const [cargandoHistorial, setCargandoHistorial] = useState(false);
+const [prenominaEditandoId, setPrenominaEditandoId] = useState(null);
+const [cargandoEdicion, setCargandoEdicion] = useState(false);
   useEffect(() => {
   const cargarEmpleados = async () => {
     try {
-      const respuesta = await fetch(`${API_BASE_URL}/api/empleados?activos=true`);
+      const respuesta = await fetch(
+        `${API_BASE_URL}/api/empleados?activos=true`
+      );
+
       const resultado = await respuesta.json();
 
       if (resultado.success) {
         setEmpleadosDisponibles(resultado.empleados);
 
         const filasIniciales = resultado.empleados.map((emp) => ({
-  ...crearFilaVacia(emp.id),
+          ...crearFilaVacia(emp.id),
 
-  id: emp.id,
-  empleado_id: emp.id,
-  nombre: emp.nombre || "",
+          id: emp.id,
+          empleado_id: emp.id,
+          nombre: emp.nombre || "",
 
-  puesto_id: emp.puesto_id || "",
-  puesto:
-    emp.puesto_nombre ||
-    emp.puesto_catalogo ||
-    emp.puesto ||
-    "",
+          puesto_id: emp.puesto_id || "",
+          puesto:
+            emp.puesto_nombre ||
+            emp.puesto_catalogo ||
+            emp.puesto ||
+            "",
 
-  ingreso: emp.fecha_ingreso || "",
-  cuenta: emp.cuenta_bancaria || "",
+          ingreso: emp.fecha_ingreso || "",
+          cuenta: emp.cuenta_bancaria || "",
 
-  tipo_nomina:
-    emp.tipo_nomina_puesto ||
-    emp.tipo_nomina ||
-    "Operativa",
+          tipo_nomina:
+            emp.tipo_nomina_puesto ||
+            emp.tipo_nomina ||
+            "Operativa",
 
-  metodo_pago_nomina:
-    emp.metodo_pago_nomina ||
-    "Efectivo",
+          metodo_pago_nomina:
+            emp.metodo_pago_nomina ||
+            "Efectivo",
 
-  modalidad_pago:
-    emp.modalidad_pago ||
-    "DIARIO",
+          modalidad_pago:
+            emp.modalidad_pago ||
+            "DIARIO",
 
-  hoja_excel:
-    emp.hoja_excel ||
-    "PRINCIPAL",
+          hoja_excel:
+            emp.hoja_excel ||
+            "PRINCIPAL",
 
-  seccion_nomina:
-    emp.seccion_nomina ||
-    "GENERAL",
+          seccion_nomina:
+            emp.seccion_nomina ||
+            "GENERAL",
 
-  cantidad: 0,
+          cantidad: 0,
 
-  tarifa:
-    Number(emp.sueldo_diario) ||
-    Number(emp.sueldo_base) ||
-    0,
+          tarifa:
+            Number(emp.sueldo_diario) ||
+            Number(emp.sueldo_base) ||
+            0,
 
-  prima: 0,
-  descuento: 0,
-  total: 0,
-  comentario_pago: "",
-  mesas: [],
-}));
+          prima: 0,
+          descuento: 0,
+          total: 0,
+          comentario_pago: "",
+          mesas: [],
+        }));
 
         setFilas(filasIniciales);
       }
@@ -138,6 +154,166 @@ const [pestanaActiva, setPestanaActiva] = useState("DIARIO");
 
   cargarEmpleados();
 }, []);
+
+
+useEffect(() => {
+  const cargarPendientes = async () => {
+    try {
+      const respuesta = await fetch(
+        `${API_BASE_URL}/api/prenomina/pendientes`
+      );
+
+      const resultado = await respuesta.json();
+
+      if (resultado.success) {
+        setPrenominasPendientes(resultado.prenominas);
+      }
+    } catch (error) {
+      console.error("Error cargando prenóminas pendientes:", error);
+    }
+  };
+
+  cargarPendientes();
+}, []);
+
+useEffect(() => {
+  const cargarHistorialNomina = async () => {
+    try {
+      setCargandoHistorial(true);
+
+      const respuesta = await fetch(
+        `${API_BASE_URL}/api/prenomina`
+      );
+
+      const resultado = await respuesta.json();
+
+      if (!resultado.success) {
+        throw new Error(
+          resultado.error || "No se pudo cargar el historial."
+        );
+      }
+
+      setHistorialNomina(resultado.prenominas || []);
+    } catch (error) {
+      console.error("Error cargando historial de nómina:", error);
+    } finally {
+      setCargandoHistorial(false);
+    }
+  };
+
+  cargarHistorialNomina();
+}, []);
+
+const cargarPrenominaParaEditar = async (prenominaId) => {
+  try {
+    setCargandoEdicion(true);
+
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/prenomina/${prenominaId}/detalle`
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(
+        resultado.error || "No se pudo cargar la prenómina."
+      );
+    }
+
+    const prenomina = resultado.prenomina;
+    const detalle = resultado.detalle || [];
+
+    setPrenominaEditandoId(prenominaId);
+
+    setFechaInicio(
+      prenomina.fecha_inicio
+        ? String(prenomina.fecha_inicio).split("T")[0]
+        : ""
+    );
+
+    setFechaFin(
+      prenomina.fecha_fin
+        ? String(prenomina.fecha_fin).split("T")[0]
+        : ""
+    );
+
+    setComentariosExtraordinarios(
+      prenomina.comentarios_extraordinarios || ""
+    );
+
+    const filasEditables = detalle.map((d) => ({
+      ...crearFilaVacia(d.id),
+
+      id: d.id,
+      empleado_id: d.empleado_id,
+      nombre: d.empleado || "",
+
+      puesto_id: d.puesto_id || "",
+      puesto: d.puesto || "",
+
+      tipo_nomina: d.tipo_nomina || "Operativa",
+      metodo_pago_nomina:
+        d.metodo_pago_nomina || "Efectivo",
+
+      modalidad_pago:
+        d.modalidad_pago || "DIARIO",
+
+      hoja_excel:
+        d.hoja_excel || "PRINCIPAL",
+
+      seccion_nomina:
+        d.seccion_nomina || "GENERAL",
+
+      cantidad:
+        d.modalidad_pago === "SEMANAL"
+          ? Number(d.dias) || 0
+          : Number(d.dias) || 0,
+
+      tarifa:
+        Number(d.costo_unitario) || 0,
+
+      prima:
+        Number(d.prima) || 0,
+
+      descuento:
+        Number(d.descuento) || 0,
+
+      total:
+        Number(d.total) || 0,
+
+      comentario_pago:
+        d.comentario_pago || "",
+
+      mesas: Array.isArray(d.mesas)
+        ? d.mesas
+        : [],
+    }));
+
+    setFilas(
+      filasEditables.length > 0
+        ? filasEditables
+        : [crearFilaVacia()]
+    );
+
+    setPestanaPrincipal("CAPTURA");
+
+    const primeraModalidad =
+      filasEditables[0]?.modalidad_pago || "DIARIO";
+
+    setPestanaActiva(primeraModalidad);
+
+    setStatusNomina(
+      `EDITANDO #${prenominaId}`
+    );
+  } catch (error) {
+    alert(
+      "🚨 Error cargando prenómina para editar: " +
+        error.message
+    );
+  } finally {
+    setCargandoEdicion(false);
+  }
+};
 
   const calcularTotalFila = (fila) => {
   const prima = Number(fila.prima) || 0;
@@ -516,6 +692,109 @@ onVolver();
     }
   };
 
+  const guardarCambiosPrenomina = async () => {
+  if (!prenominaEditandoId) return;
+
+  const errorValidacion = validarNomina(filas);
+
+  if (errorValidacion) {
+    alert(`⚠️ ${errorValidacion}`);
+    return;
+  }
+
+  try {
+    const detallePrenomina = filas
+      .filter((fila) => fila.empleado_id)
+      .map((fila) => ({
+        empleado_id: fila.empleado_id,
+
+        dias:
+          fila.modalidad_pago === "POR_MESA"
+            ? 0
+            : Number(fila.cantidad) || 0,
+
+        costo_unitario:
+          Number(fila.tarifa) || 0,
+
+        prima:
+          Number(fila.prima) || 0,
+
+        descuento:
+          Number(fila.descuento) || 0,
+
+        total:
+          Number(fila.total) || 0,
+
+        tipo_nomina:
+          fila.tipo_nomina || "Operativa",
+
+        metodo_pago_nomina:
+          fila.metodo_pago_nomina || "Efectivo",
+
+        modalidad_pago:
+          fila.modalidad_pago || "DIARIO",
+
+        hoja_excel:
+          fila.hoja_excel || "PRINCIPAL",
+
+        seccion_nomina:
+          fila.seccion_nomina || "GENERAL",
+
+        comentario_pago:
+          fila.comentario_pago || null,
+
+        nota: null,
+
+        mesas:
+          fila.modalidad_pago === "POR_MESA"
+            ? fila.mesas || []
+            : [],
+      }));
+
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/prenomina/${prenominaEditandoId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+          total: totalGlobal,
+          usuario_edita_id: usuarioId,
+          comentarios_extraordinarios:
+            comentariosExtraordinarios,
+          comentarios:
+            "Prenómina editada desde BOSSE",
+          detalle: detallePrenomina,
+        }),
+      }
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(
+        resultado.error ||
+          "No se pudo guardar la prenómina."
+      );
+    }
+
+    alert("✅ Prenómina actualizada correctamente.");
+
+    setPrenominaEditandoId(null);
+    setStatusNomina("CAPTURA");
+
+    setPestanaPrincipal("HISTORIAL");
+  } catch (error) {
+    alert(
+      "🚨 Error guardando cambios: " +
+        error.message
+    );
+  }
+};
+
   return (
     <div style={estilos.container}>
       <div style={{ ...estilos.card, maxWidth: "1100px", width: "95%" }}>
@@ -546,9 +825,66 @@ onVolver();
             <p style={{ ...estilos.p, margin: 0 }}>Gestión Semanal de Staff</p>
             <p style={{ ...estilos.p, marginTop: "6px" }}>
               Estado: {statusNomina}
+              {prenominaEditandoId && (
+  <p
+    style={{
+      margin: "5px 0 0",
+      fontSize: "12px",
+      fontWeight: 700,
+    }}
+  >
+    Editando prenómina #{prenominaEditandoId}
+    {cargandoEdicion ? "..." : ""}
+  </p>
+)}
             </p>
           </div>
         </div>
+
+        <div
+  style={{
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    marginBottom: "28px",
+    borderBottom: "1px solid #e5e5e5",
+    paddingBottom: "10px",
+  }}
+>
+  {[
+    { id: "CAPTURA", texto: "CAPTURA" },
+    { id: "PENDIENTES", texto: "PENDIENTES" },
+    { id: "HISTORIAL", texto: "HISTORIAL" },
+  ].map((pestana) => (
+    <button
+      key={pestana.id}
+      type="button"
+      onClick={() => setPestanaPrincipal(pestana.id)}
+      style={{
+        padding: "12px 18px",
+        border: "1px solid #111",
+        borderRadius: "7px",
+        cursor: "pointer",
+        fontSize: "12px",
+        fontWeight: "700",
+        letterSpacing: "0.7px",
+        background:
+          pestanaPrincipal === pestana.id
+            ? "#111"
+            : "#fff",
+        color:
+          pestanaPrincipal === pestana.id
+            ? "#fff"
+            : "#111",
+      }}
+    >
+      {pestana.texto}
+    </button>
+  ))}
+</div>
+
+{pestanaPrincipal === "CAPTURA" && (
+  <>
             
             <div
   style={{
@@ -1409,7 +1745,11 @@ onVolver();
           </div>
 
           <button
-            onClick={enviarNominaADrive}
+  onClick={
+    prenominaEditandoId
+      ? guardarCambiosPrenomina
+      : enviarNominaADrive
+  }
             style={{
               backgroundColor: hayDuplicados ? "#eee" : "#000",
               color: hayDuplicados ? "#999" : "#fff",
@@ -1422,11 +1762,905 @@ onVolver();
               transition: "all 0.3s ease",
             }}
           >
-            {hayDuplicados
+           {hayDuplicados
   ? "REVISAR ERRORES"
+  : prenominaEditandoId
+  ? "GUARDAR CAMBIOS"
   : "ENVIAR A APROBACIÓN"}
           </button>
         </div>
+        </>
+)}
+
+{pestanaPrincipal === "PENDIENTES" && (
+  <div
+    style={{
+      padding: "20px",
+      background: "#fafafa",
+      border: "1px solid #e5e5e5",
+      borderRadius: "12px",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "18px",
+      }}
+    >
+      <div>
+        <h2 style={{ margin: 0 }}>
+          Pendientes de aprobación
+        </h2>
+
+        <p
+          style={{
+            margin: "6px 0 0",
+            color: "#777",
+            fontSize: "13px",
+          }}
+        >
+          Prenóminas pendientes de revisión.
+        </p>
+      </div>
+
+      <span
+        style={{
+          fontSize: "12px",
+          color: "#666",
+        }}
+      >
+        {prenominasPendientes.length} pendiente(s)
+      </span>
+    </div>
+
+    {prenominasPendientes.length === 0 ? (
+      <div
+        style={{
+          padding: "30px",
+          textAlign: "center",
+          color: "#777",
+          background: "#fff",
+          borderRadius: "8px",
+        }}
+      >
+        No hay prenóminas pendientes.
+      </div>
+    ) : (
+      <div style={{ overflowX: "auto" }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            minWidth: "900px",
+            background: "#fff",
+          }}
+        >
+          <thead>
+            <tr
+              style={{
+                background: "#f5f5f5",
+                borderBottom: "1px solid #ddd",
+              }}
+            >
+              <th style={thBosse}></th>
+              <th style={thBosse}>ID</th>
+              <th style={thBosse}>Fecha creación</th>
+              <th style={thBosse}>Creador</th>
+              <th style={thBosse}>Total</th>
+              <th style={thBosse}>Estatus</th>
+              <th style={thBosse}>Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {prenominasPendientes.map((p) => (
+              <React.Fragment key={p.id}>
+                <tr
+                  style={{
+                    borderBottom: "1px solid #eee",
+                  }}
+                >
+                  <td
+                    style={{
+                      padding: "10px",
+                      textAlign: "center",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (detallePendienteAbierto === p.id) {
+                          setDetallePendienteAbierto(null);
+                          return;
+                        }
+
+                        if (!detallePendientes[p.id]) {
+                          try {
+                            const respuesta = await fetch(
+                              `${API_BASE_URL}/api/prenomina/${p.id}/detalle`
+                            );
+
+                            const resultado = await respuesta.json();
+
+                            if (!resultado.success) {
+                              throw new Error(
+                                resultado.error ||
+                                  "No se pudo cargar el detalle."
+                              );
+                            }
+
+                            setDetallePendientes((actuales) => ({
+                              ...actuales,
+                              [p.id]: resultado,
+                            }));
+                          } catch (error) {
+                            alert(
+                              "🚨 Error cargando detalle: " +
+                                error.message
+                            );
+                            return;
+                          }
+                        }
+
+                        setDetallePendienteAbierto(p.id);
+                      }}
+                      style={{
+                        border: "1px solid #ccc",
+                        background: "#fff",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        width: "30px",
+                        height: "30px",
+                      }}
+                    >
+                      {detallePendienteAbierto === p.id
+                        ? "−"
+                        : "+"}
+                    </button>
+                  </td>
+
+                  <td style={{ padding: "10px" }}>
+                    {p.id}
+                  </td>
+
+                  <td style={{ padding: "10px" }}>
+                    {p.fecha_creacion
+                      ? String(p.fecha_creacion).split("T")[0]
+                      : "—"}
+                  </td>
+
+                  <td style={{ padding: "10px" }}>
+                    {p.usuario_crea || "Sin usuario"}
+                  </td>
+
+                  <td
+                    style={{
+                      padding: "10px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {Number(p.total || 0).toLocaleString(
+                      "es-MX",
+                      {
+                        style: "currency",
+                        currency: "MXN",
+                      }
+                    )}
+                  </td>
+
+                  <td style={{ padding: "10px" }}>
+                    {p.estatus}
+                  </td>
+
+                  <td style={{ padding: "10px" }}>
+                    <button
+                      type="button"
+                      onClick={() => cargarPrenominaParaEditar(p.id)}
+                      style={{
+                        marginRight: "8px",
+                        padding: "7px 10px",
+                        border: "1px solid #111",
+                        background: "#fff",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Editar
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const confirmar = window.confirm(
+                          `¿Aprobar prenómina #${p.id}?`
+                        );
+
+                        if (!confirmar) return;
+
+                        try {
+                          const respuesta = await fetch(
+                            `${API_BASE_URL}/api/prenomina/${p.id}/aprobar`,
+                            {
+                              method: "PUT",
+                              headers: {
+                                "Content-Type":
+                                  "application/json",
+                              },
+                              body: JSON.stringify({
+                                usuario_aprueba_id:
+                                  usuarioId,
+                                comentario:
+                                  "Prenómina aprobada desde BOSSE",
+                              }),
+                            }
+                          );
+
+                          const resultado =
+                            await respuesta.json();
+
+                          if (!resultado.success) {
+                            throw new Error(
+                              resultado.error ||
+                                "Error al aprobar."
+                            );
+                          }
+
+                          setPrenominasPendientes(
+                            (actuales) =>
+                              actuales.filter(
+                                (item) =>
+                                  item.id !== p.id
+                              )
+                          );
+
+                          alert(
+                            "✅ Prenómina aprobada."
+                          );
+                        } catch (error) {
+                          alert(
+                            "🚨 Error: " +
+                              error.message
+                          );
+                        }
+                      }}
+                      style={{
+                        marginRight: "8px",
+                        padding: "7px 10px",
+                        border: "none",
+                        background: "#111",
+                        color: "#fff",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Aprobar
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const comentario = window.prompt(
+                          `Motivo de rechazo para prenómina #${p.id}:`
+                        );
+
+                        if (comentario === null) return;
+
+                        try {
+                          const respuesta = await fetch(
+                            `${API_BASE_URL}/api/prenomina/${p.id}/rechazar`,
+                            {
+                              method: "PUT",
+                              headers: {
+                                "Content-Type":
+                                  "application/json",
+                              },
+                              body: JSON.stringify({
+                                usuario_aprueba_id:
+                                  usuarioId,
+                                comentario,
+                              }),
+                            }
+                          );
+
+                          const resultado =
+                            await respuesta.json();
+
+                          if (!resultado.success) {
+                            throw new Error(
+                              resultado.error ||
+                                "Error al rechazar."
+                            );
+                          }
+
+                          setPrenominasPendientes(
+                            (actuales) =>
+                              actuales.filter(
+                                (item) =>
+                                  item.id !== p.id
+                              )
+                          );
+
+                          alert(
+                            "✅ Prenómina rechazada."
+                          );
+                        } catch (error) {
+                          alert(
+                            "🚨 Error: " +
+                              error.message
+                          );
+                        }
+                      }}
+                      style={{
+                        padding: "7px 10px",
+                        border: "1px solid #999",
+                        background: "#fff",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Rechazar
+                    </button>
+                  </td>
+                </tr>
+
+                {detallePendienteAbierto === p.id && (
+                  <tr>
+                    <td colSpan="7">
+                      <div
+                        style={{
+                          padding: "16px",
+                          background: "#fafafa",
+                        }}
+                      >
+                        <h4 style={{ marginTop: 0 }}>
+                          Detalle prenómina #{p.id}
+                        </h4>
+
+                        <div style={{ overflowX: "auto" }}>
+                          <table
+                            style={{
+                              width: "100%",
+                              borderCollapse: "collapse",
+                              background: "#fff",
+                              minWidth: "850px",
+                            }}
+                          >
+                            <thead>
+                              <tr>
+                                <th style={thBosse}>
+                                  Empleado
+                                </th>
+                                <th style={thBosse}>
+                                  Puesto
+                                </th>
+                                <th style={thBosse}>
+                                  Tipo
+                                </th>
+                                <th style={thBosse}>
+                                  Método
+                                </th>
+                                <th style={thBosse}>
+                                  Cantidad
+                                </th>
+                                <th style={thBosse}>
+                                  Tarifa
+                                </th>
+                                <th style={thBosse}>
+                                  Prima
+                                </th>
+                                <th style={thBosse}>
+                                  Descuento
+                                </th>
+                                <th style={thBosse}>
+                                  Total
+                                </th>
+                              </tr>
+                            </thead>
+
+                            <tbody>
+                              {(
+                                detallePendientes[p.id]
+                                  ?.detalle || []
+                              ).map((d) => (
+                                <tr key={d.id}>
+                                  <td
+                                    style={{
+                                      padding: "8px",
+                                    }}
+                                  >
+                                    {d.empleado || "—"}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding: "8px",
+                                    }}
+                                  >
+                                    {d.puesto || "—"}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding: "8px",
+                                    }}
+                                  >
+                                    {d.tipo_nomina || "—"}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding: "8px",
+                                    }}
+                                  >
+                                    {d.metodo_pago_nomina ||
+                                      "—"}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding: "8px",
+                                    }}
+                                  >
+                                    {d.dias ?? 0}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding: "8px",
+                                    }}
+                                  >
+                                    {Number(
+                                      d.costo_unitario || 0
+                                    ).toLocaleString(
+                                      "es-MX",
+                                      {
+                                        style:
+                                          "currency",
+                                        currency: "MXN",
+                                      }
+                                    )}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding: "8px",
+                                    }}
+                                  >
+                                    {Number(
+                                      d.prima || 0
+                                    ).toLocaleString(
+                                      "es-MX",
+                                      {
+                                        style:
+                                          "currency",
+                                        currency: "MXN",
+                                      }
+                                    )}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding: "8px",
+                                    }}
+                                  >
+                                    {Number(
+                                      d.descuento || 0
+                                    ).toLocaleString(
+                                      "es-MX",
+                                      {
+                                        style:
+                                          "currency",
+                                        currency: "MXN",
+                                      }
+                                    )}
+                                  </td>
+
+                                  <td
+                                    style={{
+                                      padding: "8px",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {Number(
+                                      d.total || 0
+                                    ).toLocaleString(
+                                      "es-MX",
+                                      {
+                                        style:
+                                          "currency",
+                                        currency: "MXN",
+                                      }
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+)}
+
+{pestanaPrincipal === "HISTORIAL" && (
+  <div
+    style={{
+      padding: "20px",
+      background: "#fafafa",
+      border: "1px solid #e5e5e5",
+      borderRadius: "12px",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "18px",
+      }}
+    >
+      <div>
+        <h2 style={{ margin: 0 }}>Historial de nómina</h2>
+
+        <p
+          style={{
+            margin: "6px 0 0",
+            color: "#777",
+            fontSize: "13px",
+          }}
+        >
+          Todas las prenóminas registradas en BOSSE.
+        </p>
+      </div>
+
+      <span style={{ fontSize: "12px", color: "#666" }}>
+        {historialNomina.length} registro(s)
+      </span>
+    </div>
+
+    {cargandoHistorial ? (
+      <div
+        style={{
+          padding: "30px",
+          textAlign: "center",
+          color: "#777",
+        }}
+      >
+        Cargando historial...
+      </div>
+    ) : historialNomina.length === 0 ? (
+      <div
+        style={{
+          padding: "30px",
+          textAlign: "center",
+          color: "#777",
+          background: "#fff",
+          borderRadius: "8px",
+        }}
+      >
+        No hay registros de nómina.
+      </div>
+    ) : (
+      <div style={{ overflowX: "auto" }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            minWidth: "1000px",
+            background: "#fff",
+          }}
+        >
+          <thead>
+            <tr
+              style={{
+                background: "#f5f5f5",
+                borderBottom: "1px solid #ddd",
+              }}
+            >
+              <th style={thBosse}></th>
+              <th style={thBosse}>ID</th>
+              <th style={thBosse}>Fecha creación</th>
+              <th style={thBosse}>Total</th>
+              <th style={thBosse}>Estatus</th>
+              <th style={thBosse}>Creó</th>
+              <th style={thBosse}>Aprobó / Rechazó</th>
+              <th style={thBosse}>Fecha aprobación</th>
+              <th style={thBosse}>Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {historialNomina.map((p) => (
+              <React.Fragment key={p.id}>
+                <tr style={{ borderBottom: "1px solid #eee" }}>
+                  <td
+                    style={{
+                      padding: "10px",
+                      textAlign: "center",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (detalleHistorialAbierto === p.id) {
+                          setDetalleHistorialAbierto(null);
+                          return;
+                        }
+
+                        if (!detallesHistorial[p.id]) {
+                          try {
+                            const respuesta = await fetch(
+                              `${API_BASE_URL}/api/prenomina/${p.id}/detalle`
+                            );
+
+                            const resultado = await respuesta.json();
+
+                            if (!resultado.success) {
+                              throw new Error(
+                                resultado.error ||
+                                  "No se pudo cargar el detalle."
+                              );
+                            }
+
+                            setDetallesHistorial((actuales) => ({
+                              ...actuales,
+                              [p.id]: resultado,
+                            }));
+                          } catch (error) {
+                            alert(
+                              "🚨 Error cargando detalle: " +
+                                error.message
+                            );
+                            return;
+                          }
+                        }
+
+                        setDetalleHistorialAbierto(p.id);
+                      }}
+                      style={{
+                        border: "1px solid #ccc",
+                        background: "#fff",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        width: "30px",
+                        height: "30px",
+                      }}
+                    >
+                      {detalleHistorialAbierto === p.id ? "−" : "+"}
+                    </button>
+                  </td>
+
+                  <td style={{ padding: "10px" }}>{p.id}</td>
+
+                  <td style={{ padding: "10px" }}>
+                    {p.fecha_creacion
+                      ? String(p.fecha_creacion).split("T")[0]
+                      : "—"}
+                  </td>
+
+                  <td
+                    style={{
+                      padding: "10px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {Number(p.total || 0).toLocaleString("es-MX", {
+                      style: "currency",
+                      currency: "MXN",
+                    })}
+                  </td>
+
+                  <td style={{ padding: "10px" }}>
+                    {p.estatus || "—"}
+                  </td>
+
+                  <td style={{ padding: "10px" }}>
+                    {p.usuario_crea || "—"}
+                  </td>
+
+                  <td style={{ padding: "10px" }}>
+                    {p.usuario_aprueba || "—"}
+                  </td>
+
+                  <td style={{ padding: "10px" }}>
+                    {p.fecha_aprobacion
+                      ? String(p.fecha_aprobacion).split("T")[0]
+                      : "—"}
+                  </td>
+
+                  <td style={{ padding: "10px", whiteSpace: "nowrap" }}>
+                    <button
+                      type="button"
+                      onClick={() => cargarPrenominaParaEditar(p.id)}
+                      style={{
+                        marginRight: "8px",
+                        padding: "7px 10px",
+                        border: "1px solid #111",
+                        background: "#fff",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Editar
+                    </button>
+
+                    {String(p.estatus || "").toUpperCase() ===
+                      "APROBADA" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.open(
+                            `${API_BASE_URL}/api/prenomina/${p.id}/excel`,
+                            "_blank"
+                          );
+                        }}
+                        style={{
+                          padding: "7px 10px",
+                          border: "none",
+                          background: "#111",
+                          color: "#fff",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Descargar Excel
+                      </button>
+                    )}
+                  </td>
+                </tr>
+
+                {detalleHistorialAbierto === p.id && (
+                  <tr>
+                    <td colSpan="9">
+                      <div
+                        style={{
+                          padding: "16px",
+                          background: "#fafafa",
+                        }}
+                      >
+                        <h4 style={{ marginTop: 0 }}>
+                          Detalle prenómina #{p.id}
+                        </h4>
+
+                        <div style={{ overflowX: "auto" }}>
+                          <table
+                            style={{
+                              width: "100%",
+                              borderCollapse: "collapse",
+                              background: "#fff",
+                              minWidth: "850px",
+                            }}
+                          >
+                            <thead>
+                              <tr>
+                                <th style={thBosse}>Empleado</th>
+                                <th style={thBosse}>Puesto</th>
+                                <th style={thBosse}>Tipo</th>
+                                <th style={thBosse}>Método</th>
+                                <th style={thBosse}>Cantidad</th>
+                                <th style={thBosse}>Tarifa</th>
+                                <th style={thBosse}>Prima</th>
+                                <th style={thBosse}>Descuento</th>
+                                <th style={thBosse}>Total</th>
+                              </tr>
+                            </thead>
+
+                            <tbody>
+                              {(detallesHistorial[p.id]?.detalle || []).map(
+                                (d) => (
+                                  <tr key={d.id}>
+                                    <td style={{ padding: "8px" }}>
+                                      {d.empleado || "—"}
+                                    </td>
+
+                                    <td style={{ padding: "8px" }}>
+                                      {d.puesto || "—"}
+                                    </td>
+
+                                    <td style={{ padding: "8px" }}>
+                                      {d.tipo_nomina || "—"}
+                                    </td>
+
+                                    <td style={{ padding: "8px" }}>
+                                      {d.metodo_pago_nomina || "—"}
+                                    </td>
+
+                                    <td style={{ padding: "8px" }}>
+                                      {d.dias ?? 0}
+                                    </td>
+
+                                    <td style={{ padding: "8px" }}>
+                                      {Number(
+                                        d.costo_unitario || 0
+                                      ).toLocaleString("es-MX", {
+                                        style: "currency",
+                                        currency: "MXN",
+                                      })}
+                                    </td>
+
+                                    <td style={{ padding: "8px" }}>
+                                      {Number(
+                                        d.prima || 0
+                                      ).toLocaleString("es-MX", {
+                                        style: "currency",
+                                        currency: "MXN",
+                                      })}
+                                    </td>
+
+                                    <td style={{ padding: "8px" }}>
+                                      {Number(
+                                        d.descuento || 0
+                                      ).toLocaleString("es-MX", {
+                                        style: "currency",
+                                        currency: "MXN",
+                                      })}
+                                    </td>
+
+                                    <td
+                                      style={{
+                                        padding: "8px",
+                                        fontWeight: 700,
+                                      }}
+                                    >
+                                      {Number(
+                                        d.total || 0
+                                      ).toLocaleString("es-MX", {
+                                        style: "currency",
+                                        currency: "MXN",
+                                      })}
+                                    </td>
+                                  </tr>
+                                )
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {detallesHistorial[p.id]?.prenomina
+                          ?.comentarios_extraordinarios && (
+                          <div style={{ marginTop: "15px" }}>
+                            <strong>
+                              Comentarios extraordinarios:
+                            </strong>
+
+                            <div
+                              style={{
+                                marginTop: "6px",
+                                padding: "10px",
+                                background: "#fff",
+                                border: "1px solid #ddd",
+                                borderRadius: "6px",
+                              }}
+                            >
+                              {
+                                detallesHistorial[p.id].prenomina
+                                  .comentarios_extraordinarios
+                              }
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+)}
       </div>
     </div>
   );
