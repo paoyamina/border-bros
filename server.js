@@ -4376,11 +4376,55 @@ app.get('/api/prenomina/:id/detalle', async (req, res) => {
       [prenominaId]
     );
 
+        const mesasResult = await pool.query(
+      `
+        SELECT
+          pdm.id,
+          pdm.prenomina_detalle_id,
+          pdm.fecha,
+          pdm.cantidad_mesas,
+          pdm.tarifa_mesa,
+          pdm.subtotal
+        FROM prenomina_detalle_mesas pdm
+        INNER JOIN prenomina_detalle pd
+          ON pd.id = pdm.prenomina_detalle_id
+        WHERE pd.prenomina_id = $1
+        ORDER BY
+          pdm.prenomina_detalle_id ASC,
+          pdm.fecha ASC,
+          pdm.id ASC;
+      `,
+      [prenominaId]
+    );
+
+    const mesasPorDetalle = {};
+
+    for (const mesa of mesasResult.rows) {
+      const detalleId = Number(mesa.prenomina_detalle_id);
+
+      if (!mesasPorDetalle[detalleId]) {
+        mesasPorDetalle[detalleId] = [];
+      }
+
+      mesasPorDetalle[detalleId].push({
+        id: mesa.id,
+        fecha: mesa.fecha,
+        cantidad_mesas: Number(mesa.cantidad_mesas) || 0,
+        tarifa_mesa: Number(mesa.tarifa_mesa) || 0,
+        subtotal: Number(mesa.subtotal) || 0,
+      });
+    }
+
+    const detalleConMesas = detalleResult.rows.map((fila) => ({
+      ...fila,
+      mesas: mesasPorDetalle[Number(fila.id)] || [],
+    }));
+
     return res.json({
-      success: true,
-      prenomina: prenominaResult.rows[0],
-      detalle: detalleResult.rows,
-    });
+  success: true,
+  prenomina: prenominaResult.rows[0],
+  detalle: detalleConMesas,
+});
   } catch (error) {
     console.error("Error detalle prenómina:", error);
 
