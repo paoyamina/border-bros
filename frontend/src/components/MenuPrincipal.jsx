@@ -158,26 +158,11 @@ function MenuPrincipal({ usuarioActivo, rol, onSeleccionarFormulario, onLogout }
           )}
 
                   {puedeVer(rol, "nomina") && (
-                    <button onClick={() => onSeleccionarFormulario("nomina")} style={estiloBotonMenu}>
-                      RESUMEN NÓMINA
-                    </button>
-                  )}
-
-                  {puedeVer(rol, "aprobaciones_nomina") && (
-            <button
-              onClick={() => onSeleccionarFormulario("aprobaciones_nomina")}
-              style={estiloBotonMenu}
-            >
-    APROBACIONES NÓMINA
-  </button>
-)}
-
-{puedeVer(rol, "historial_nomina") && (
   <button
-    onClick={() => onSeleccionarFormulario("historial_nomina")}
+    onClick={() => onSeleccionarFormulario("nomina")}
     style={estiloBotonMenu}
   >
-    HISTORIAL NÓMINA
+    GESTIÓN DE NÓMINA
   </button>
 )}
 
