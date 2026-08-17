@@ -35,6 +35,7 @@ const permisosPorRol = {
     "historial_nomina",
     "inversiones_socios",
     "puestos",
+    "cambio_divisas",
   ],
   administrador: [
   "egresos_caja",
@@ -45,6 +46,7 @@ const permisosPorRol = {
   "aprobaciones_nomina",
   "historial_nomina",
   "puestos",
+  "cambio_divisas",
 ],
 
 cajero: [
@@ -57,6 +59,7 @@ cajero: [
   "aprobaciones_nomina",
   "historial_nomina",
   "puestos",
+  "cambio_divisas",
 ],
 };
 
@@ -147,6 +150,15 @@ function MenuPrincipal({ usuarioActivo, rol, onSeleccionarFormulario, onLogout }
             CORTE DE CAJA (INGRESOS)
           </button>
         )}
+
+        {puedeVer(rol, "cambio_divisas") && (
+  <button
+    onClick={() => onSeleccionarFormulario("cambio_divisas")}
+    style={estiloBotonMenu}
+  >
+    CAMBIO DE DIVISAS
+  </button>
+)}
 
         {puedeVerEgresos(rol) && (
             <button

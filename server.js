@@ -2112,6 +2112,655 @@ app.put("/api/cortes/:id/reactivar", async (req, res) => {
   }
 });
 
+// ============================================================
+// CAMBIO DE DIVISAS
+// ============================================================
+
+
+// Obtener cortes con USD disponibles
+app.get("/api/cambios-divisa/cortes-disponibles", async (req, res) => {
+  try {
+    const negocioId = Number(req.query.negocio_id);
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El negocio_id es obligatorio.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          corte_id,
+          negocio_id,
+          fecha,
+          folio,
+          usd_originales,
+          usd_cambiados,
+          usd_disponibles,
+          mxn_equivalente_cambiado
+        FROM vw_cortes_usd_disponible
+        WHERE negocio_id = $1
+          AND usd_disponibles > 0
+        ORDER BY fecha DESC, corte_id DESC;
+      `,
+      [negocioId]
+    );
+
+    return res.json({
+      success: true,
+      cortes: result.rows,
+    });
+  } catch (error) {
+    console.error(
+      "Error consultando cortes disponibles para cambio de divisa:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible consultar los dólares disponibles.",
+    });
+  }
+});
+
+
+// Registrar un cambio de divisas
+app.post("/api/cambios-divisa", async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const {
+      negocio_id,
+      fecha,
+      monto_origen,
+      tipo_cambio,
+      monto_destino,
+      casa_cambio,
+      comentarios,
+      usuario_crea_id,
+      cortes,
+    } = req.body;
+
+    const negocioId = Number(negocio_id);
+    const montoOrigen = Number(monto_origen);
+    const tipoCambio = Number(tipo_cambio);
+    const montoDestino = Number(monto_destino);
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El negocio_id no es válido.",
+      });
+    }
+
+    if (!fecha) {
+      return res.status(400).json({
+        success: false,
+        error: "La fecha del cambio es obligatoria.",
+      });
+    }
+
+    if (!Number.isFinite(montoOrigen) || montoOrigen <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El monto USD debe ser mayor a cero.",
+      });
+    }
+
+    if (!Number.isFinite(tipoCambio) || tipoCambio <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El tipo de cambio debe ser mayor a cero.",
+      });
+    }
+
+    if (!Number.isFinite(montoDestino) || montoDestino <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El monto recibido en MXN debe ser mayor a cero.",
+      });
+    }
+
+    if (!Array.isArray(cortes) || cortes.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Debes seleccionar al menos un corte de donde saldrán los dólares.",
+      });
+    }
+
+    // Normalizamos los cortes seleccionados.
+    // Si accidentalmente llega el mismo corte dos veces,
+    // sumamos ambos montos antes de guardar.
+    const cortesMap = new Map();
+
+    for (const item of cortes) {
+      const corteId = Number(item.corte_id);
+      const montoUsd = Number(item.monto_usd);
+
+      if (!Number.isInteger(corteId) || corteId <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: "Uno de los cortes seleccionados no es válido.",
+        });
+      }
+
+      if (!Number.isFinite(montoUsd) || montoUsd <= 0) {
+        return res.status(400).json({
+          success: false,
+          error:
+            `El monto USD asignado al corte ${corteId} no es válido.`,
+        });
+      }
+
+      cortesMap.set(
+        corteId,
+        (cortesMap.get(corteId) || 0) + montoUsd
+      );
+    }
+
+    const cortesNormalizados = Array.from(
+      cortesMap.entries()
+    ).map(([corte_id, monto_usd]) => ({
+      corte_id,
+      monto_usd,
+    }));
+
+    const sumaCortes = cortesNormalizados.reduce(
+      (total, item) => total + Number(item.monto_usd || 0),
+      0
+    );
+
+    // Tolerancia de un centavo por decimales.
+    if (Math.abs(sumaCortes - montoOrigen) > 0.01) {
+      return res.status(400).json({
+        success: false,
+        error:
+          `La suma de los cortes (${sumaCortes.toFixed(2)} USD) ` +
+          `no coincide con el monto total del cambio ` +
+          `(${montoOrigen.toFixed(2)} USD).`,
+      });
+    }
+
+    await client.query("BEGIN");
+
+    const corteIds = cortesNormalizados
+      .map((item) => item.corte_id)
+      .sort((a, b) => a - b);
+
+    // Bloqueamos los cortes involucrados.
+    // Esto evita que dos operaciones usen simultáneamente
+    // los mismos dólares.
+    const cortesResult = await client.query(
+      `
+        SELECT
+          id,
+          negocio_id,
+          fecha,
+          folio,
+          total_efectivo_usd,
+          estatus
+        FROM corte_caja
+        WHERE id = ANY($1::int[])
+        ORDER BY id ASC
+        FOR UPDATE;
+      `,
+      [corteIds]
+    );
+
+    if (cortesResult.rows.length !== corteIds.length) {
+      await client.query("ROLLBACK");
+
+      return res.status(400).json({
+        success: false,
+        error:
+          "Uno o más cortes seleccionados ya no existen.",
+      });
+    }
+
+    // Consultamos cuánto USD ya se utilizó de esos cortes.
+    const usadosResult = await client.query(
+      `
+        SELECT
+          cdd.corte_id,
+          COALESCE(SUM(cdd.monto_usd), 0) AS usd_usados
+        FROM cambios_divisa_detalle cdd
+        INNER JOIN cambios_divisa cd
+          ON cd.id = cdd.cambio_divisa_id
+        WHERE cdd.corte_id = ANY($1::int[])
+          AND cd.estatus = 'REGISTRADO'
+        GROUP BY cdd.corte_id;
+      `,
+      [corteIds]
+    );
+
+    const usadosPorCorte = new Map();
+
+    for (const fila of usadosResult.rows) {
+      usadosPorCorte.set(
+        Number(fila.corte_id),
+        Number(fila.usd_usados) || 0
+      );
+    }
+
+    const cortesDb = new Map(
+      cortesResult.rows.map((corte) => [
+        Number(corte.id),
+        corte,
+      ])
+    );
+
+    // Validar negocio, estatus y saldo de cada corte.
+    for (const item of cortesNormalizados) {
+      const corte = cortesDb.get(item.corte_id);
+
+      if (Number(corte.negocio_id) !== negocioId) {
+        await client.query("ROLLBACK");
+
+        return res.status(403).json({
+          success: false,
+          error:
+            `El corte ${item.corte_id} no pertenece al negocio indicado.`,
+        });
+      }
+
+      if (
+        String(corte.estatus || "REGISTRADO").toUpperCase() ===
+        "CANCELADO"
+      ) {
+        await client.query("ROLLBACK");
+
+        return res.status(400).json({
+          success: false,
+          error:
+            `El corte ${item.corte_id} está cancelado y no puede utilizarse.`,
+        });
+      }
+
+      const usdOriginales =
+        Number(corte.total_efectivo_usd) || 0;
+
+      const usdUsados =
+        usadosPorCorte.get(item.corte_id) || 0;
+
+      const usdDisponibles =
+        usdOriginales - usdUsados;
+
+      if (Number(item.monto_usd) - usdDisponibles > 0.01) {
+        await client.query("ROLLBACK");
+
+        return res.status(400).json({
+          success: false,
+          error:
+            `El corte ${corte.folio || corte.id} solo tiene ` +
+            `${usdDisponibles.toFixed(2)} USD disponibles, ` +
+            `pero intentas utilizar ` +
+            `${Number(item.monto_usd).toFixed(2)} USD.`,
+        });
+      }
+    }
+
+    // Guardar cabecera del cambio
+    const cambioResult = await client.query(
+      `
+        INSERT INTO cambios_divisa (
+          negocio_id,
+          fecha,
+          divisa_origen,
+          monto_origen,
+          divisa_destino,
+          tipo_cambio,
+          monto_destino,
+          casa_cambio,
+          comentarios,
+          estatus,
+          usuario_crea_id,
+          created_at
+        )
+        VALUES (
+          $1,
+          $2,
+          'USD',
+          $3,
+          'MXN',
+          $4,
+          $5,
+          $6,
+          $7,
+          'REGISTRADO',
+          $8,
+          NOW()
+        )
+        RETURNING *;
+      `,
+      [
+        negocioId,
+        fecha,
+        montoOrigen,
+        tipoCambio,
+        montoDestino,
+        casa_cambio || null,
+        comentarios || null,
+        usuario_crea_id || null,
+      ]
+    );
+
+    const cambio = cambioResult.rows[0];
+
+    // Guardar de qué cortes salieron los USD
+    for (const item of cortesNormalizados) {
+      await client.query(
+        `
+          INSERT INTO cambios_divisa_detalle (
+            cambio_divisa_id,
+            corte_id,
+            monto_usd,
+            created_at
+          )
+          VALUES ($1, $2, $3, NOW());
+        `,
+        [
+          cambio.id,
+          item.corte_id,
+          Number(item.monto_usd),
+        ]
+      );
+    }
+
+    // Auditoría
+    await client.query(
+      `
+        INSERT INTO cambios_divisa_historial (
+          cambio_divisa_id,
+          accion,
+          usuario_id,
+          fecha,
+          datos_anteriores,
+          datos_nuevos
+        )
+        VALUES (
+          $1,
+          'CREADO',
+          $2,
+          NOW(),
+          NULL,
+          $3::jsonb
+        );
+      `,
+      [
+        cambio.id,
+        usuario_crea_id || null,
+        JSON.stringify({
+          ...cambio,
+          cortes: cortesNormalizados,
+        }),
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    return res.json({
+      success: true,
+      message: "Cambio de divisas registrado correctamente.",
+      cambio: {
+        ...cambio,
+        cortes: cortesNormalizados,
+      },
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+
+    console.error(
+      "Error registrando cambio de divisas:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible registrar el cambio de divisas.",
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// Obtener historial de cambios de divisa
+app.get("/api/cambios-divisa", async (req, res) => {
+  try {
+    const negocioId = Number(req.query.negocio_id);
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El negocio_id es obligatorio.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          cd.id,
+          cd.negocio_id,
+          cd.fecha,
+          cd.divisa_origen,
+          cd.monto_origen,
+          cd.divisa_destino,
+          cd.tipo_cambio,
+          cd.monto_destino,
+          cd.casa_cambio,
+          cd.comentarios,
+          cd.estatus,
+          cd.usuario_crea_id,
+          cd.usuario_edita_id,
+          cd.created_at,
+          cd.updated_at,
+          cd.fecha_cancelacion,
+
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'id', cdd.id,
+                'corte_id', cdd.corte_id,
+                'folio', cc.folio,
+                'fecha_corte', cc.fecha,
+                'monto_usd', cdd.monto_usd
+              )
+              ORDER BY cc.fecha, cdd.corte_id
+            ) FILTER (WHERE cdd.id IS NOT NULL),
+            '[]'::json
+          ) AS cortes
+
+        FROM cambios_divisa cd
+
+        LEFT JOIN cambios_divisa_detalle cdd
+          ON cdd.cambio_divisa_id = cd.id
+
+        LEFT JOIN corte_caja cc
+          ON cc.id = cdd.corte_id
+
+        WHERE cd.negocio_id = $1
+
+        GROUP BY cd.id
+
+        ORDER BY cd.fecha DESC, cd.id DESC;
+      `,
+      [negocioId]
+    );
+
+    return res.json({
+      success: true,
+      cambios: result.rows,
+    });
+  } catch (error) {
+    console.error(
+      "Error consultando historial de cambios de divisa:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible consultar el historial de cambios.",
+    });
+  }
+});
+
+
+// Cancelar un cambio de divisa
+app.put("/api/cambios-divisa/:id/cancelar", async (req, res) => {
+  const cambioId = Number(req.params.id);
+  const usuarioId = Number(req.body.usuario_id);
+
+  if (!Number.isInteger(cambioId) || cambioId <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: "El id del cambio no es válido.",
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const cambioResult = await client.query(
+      `
+        SELECT *
+        FROM cambios_divisa
+        WHERE id = $1
+        FOR UPDATE;
+      `,
+      [cambioId]
+    );
+
+    if (cambioResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+
+      return res.status(404).json({
+        success: false,
+        error: "El cambio de divisa no existe.",
+      });
+    }
+
+    const cambioAnterior = cambioResult.rows[0];
+
+    if (cambioAnterior.estatus === "CANCELADO") {
+      await client.query("ROLLBACK");
+
+      return res.status(400).json({
+        success: false,
+        error: "Este cambio ya está cancelado.",
+      });
+    }
+
+    const detalleResult = await client.query(
+      `
+        SELECT
+          cdd.id,
+          cdd.corte_id,
+          cdd.monto_usd,
+          cc.folio
+        FROM cambios_divisa_detalle cdd
+        LEFT JOIN corte_caja cc
+          ON cc.id = cdd.corte_id
+        WHERE cdd.cambio_divisa_id = $1
+        ORDER BY cdd.id;
+      `,
+      [cambioId]
+    );
+
+    const actualizadoResult = await client.query(
+      `
+        UPDATE cambios_divisa
+        SET
+          estatus = 'CANCELADO',
+          usuario_edita_id = $2,
+          updated_at = NOW(),
+          fecha_cancelacion = NOW()
+        WHERE id = $1
+        RETURNING *;
+      `,
+      [
+        cambioId,
+        Number.isInteger(usuarioId) && usuarioId > 0
+          ? usuarioId
+          : null,
+      ]
+    );
+
+    const cambioNuevo = actualizadoResult.rows[0];
+
+    await client.query(
+      `
+        INSERT INTO cambios_divisa_historial (
+          cambio_divisa_id,
+          accion,
+          usuario_id,
+          fecha,
+          datos_anteriores,
+          datos_nuevos
+        )
+        VALUES (
+          $1,
+          'CANCELADO',
+          $2,
+          NOW(),
+          $3::jsonb,
+          $4::jsonb
+        );
+      `,
+      [
+        cambioId,
+        Number.isInteger(usuarioId) && usuarioId > 0
+          ? usuarioId
+          : null,
+        JSON.stringify({
+          ...cambioAnterior,
+          cortes: detalleResult.rows,
+        }),
+        JSON.stringify({
+          ...cambioNuevo,
+          cortes: detalleResult.rows,
+        }),
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    return res.json({
+      success: true,
+      message: "Cambio de divisa cancelado correctamente.",
+      cambio: {
+        ...cambioNuevo,
+        cortes: detalleResult.rows,
+      },
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+
+    console.error(
+      "Error cancelando cambio de divisa:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      error:
+        error.message ||
+        "No fue posible cancelar el cambio de divisa.",
+    });
+  } finally {
+    client.release();
+  }
+});
+
 // Obtener egresos registrados por negocio
 app.get('/api/egresos', async (req, res) => {
   try {

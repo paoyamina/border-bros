@@ -14,6 +14,7 @@ import Puestos from "./forms/Puestos";
 import InversionesSocios from "./components/InversionesSocios";
 import AnalisisFinanciero from "./components/AnalisisFinanciero";
 import GestionCortes from "./components/cortes/GestionCortes";
+import CambioDivisas from "./forms/CambioDivisas";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -518,6 +519,17 @@ if (formularioActivo === "inversiones_socios") {
     <InversionesSocios
       usuarioActivo={usuarioActivo}
       usuarioId={usuarioId}
+      onVolver={volverAlMenu}
+    />
+  );
+}
+
+if (formularioActivo === "cambio_divisas") {
+  return (
+    <CambioDivisas
+      usuarioActivo={usuarioActivo}
+      usuarioId={usuarioId}
+      negocioId={negocioId}
       onVolver={volverAlMenu}
     />
   );
