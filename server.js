@@ -2132,18 +2132,66 @@ app.get("/api/cambios-divisa/cortes-disponibles", async (req, res) => {
     const result = await pool.query(
       `
         SELECT
-          corte_id,
-          negocio_id,
-          fecha,
-          folio,
-          usd_originales,
-          usd_cambiados,
-          usd_disponibles,
-          mxn_equivalente_cambiado
-        FROM vw_cortes_usd_disponible
-        WHERE negocio_id = $1
-          AND usd_disponibles > 0
-        ORDER BY fecha DESC, corte_id DESC;
+          cc.id AS corte_id,
+          cc.negocio_id,
+          cc.fecha,
+          cc.folio,
+
+          COALESCE(cc.total_efectivo_usd, 0) AS usd_corte,
+          COALESCE(cc.cover_usd, 0) AS usd_cover,
+
+          (
+            COALESCE(cc.total_efectivo_usd, 0)
+            +
+            COALESCE(cc.cover_usd, 0)
+          ) AS usd_originales,
+
+          COALESCE(usados.usd_cambiados, 0) AS usd_cambiados,
+
+          (
+            COALESCE(cc.total_efectivo_usd, 0)
+            +
+            COALESCE(cc.cover_usd, 0)
+            -
+            COALESCE(usados.usd_cambiados, 0)
+          ) AS usd_disponibles
+
+        FROM corte_caja cc
+
+        LEFT JOIN (
+          SELECT
+            cdd.corte_id,
+            SUM(cdd.monto_usd) AS usd_cambiados
+
+          FROM cambios_divisa_detalle cdd
+
+          INNER JOIN cambios_divisa cd
+            ON cd.id = cdd.cambio_divisa_id
+
+          WHERE cd.estatus = 'REGISTRADO'
+
+          GROUP BY cdd.corte_id
+        ) usados
+          ON usados.corte_id = cc.id
+
+        WHERE cc.negocio_id = $1
+
+          AND COALESCE(
+            cc.estatus,
+            'REGISTRADO'
+          ) <> 'CANCELADO'
+
+          AND (
+            COALESCE(cc.total_efectivo_usd, 0)
+            +
+            COALESCE(cc.cover_usd, 0)
+            -
+            COALESCE(usados.usd_cambiados, 0)
+          ) > 0.01
+
+        ORDER BY
+          cc.fecha DESC,
+          cc.id DESC;
       `,
       [negocioId]
     );
@@ -2152,6 +2200,7 @@ app.get("/api/cambios-divisa/cortes-disponibles", async (req, res) => {
       success: true,
       cortes: result.rows,
     });
+
   } catch (error) {
     console.error(
       "Error consultando cortes disponibles para cambio de divisa:",
@@ -2296,15 +2345,16 @@ app.post("/api/cambios-divisa", async (req, res) => {
     // Esto evita que dos operaciones usen simultáneamente
     // los mismos dólares.
     const cortesResult = await client.query(
-      `
-        SELECT
-          id,
-          negocio_id,
-          fecha,
-          folio,
-          total_efectivo_usd,
-          estatus
-        FROM corte_caja
+  `
+    SELECT
+      id,
+      negocio_id,
+      fecha,
+      folio,
+      total_efectivo_usd,
+      cover_usd,
+      estatus
+    FROM corte_caja
         WHERE id = ANY($1::int[])
         ORDER BY id ASC
         FOR UPDATE;
@@ -2382,7 +2432,8 @@ app.post("/api/cambios-divisa", async (req, res) => {
       }
 
       const usdOriginales =
-        Number(corte.total_efectivo_usd) || 0;
+  (Number(corte.total_efectivo_usd) || 0) +
+  (Number(corte.cover_usd) || 0);
 
       const usdUsados =
         usadosPorCorte.get(item.corte_id) || 0;
@@ -6109,336 +6160,1103 @@ app.put('/api/prenomina/:id/rechazar', async (req, res) => {
   }
 });
 
-// Análisis financiero
+// ============================================================
+// HELPERS DE COMPARACIÓN FINANCIERA
+// ============================================================
+
+function fechaUTC(fechaTexto) {
+  const [anio, mes, dia] = String(fechaTexto)
+    .split("-")
+    .map(Number);
+
+  return new Date(
+    Date.UTC(anio, mes - 1, dia)
+  );
+}
+
+function fechaISO(fecha) {
+  return fecha
+    .toISOString()
+    .split("T")[0];
+}
+
+function sumarDias(fecha, dias) {
+  const nueva = new Date(fecha);
+
+  nueva.setUTCDate(
+    nueva.getUTCDate() + dias
+  );
+
+  return nueva;
+}
+
+function ultimoDiaMesUTC(anio, mesBaseCero) {
+  return new Date(
+    Date.UTC(anio, mesBaseCero + 1, 0)
+  ).getUTCDate();
+}
+
+function obtenerPeriodoComparable(
+  fechaInicioTexto,
+  fechaFinTexto
+) {
+  const inicio =
+    fechaUTC(fechaInicioTexto);
+
+  const fin =
+    fechaUTC(fechaFinTexto);
+
+  const diferenciaDias =
+    Math.round(
+      (fin - inicio) /
+        (1000 * 60 * 60 * 24)
+    );
+
+  // ----------------------------------------------------------
+  // CASO 1:
+  // Semana financiera completa viernes -> jueves
+  // ----------------------------------------------------------
+
+  const esSemanaFinanciera =
+    diferenciaDias === 6 &&
+    inicio.getUTCDay() === 5;
+
+  if (esSemanaFinanciera) {
+    return {
+      tipo: "SEMANA_ANTERIOR",
+
+      fecha_inicio:
+        fechaISO(
+          sumarDias(inicio, -7)
+        ),
+
+      fecha_fin:
+        fechaISO(
+          sumarDias(fin, -7)
+        ),
+
+      descripcion:
+        "Semana financiera anterior",
+    };
+  }
+
+  // ----------------------------------------------------------
+  // CASO 2:
+  // Periodo que comienza el día 1 del mes.
+  //
+  // 1-19 agosto -> 1-19 julio
+  // 1-31 agosto -> 1-31 julio
+  // ----------------------------------------------------------
+
+  if (inicio.getUTCDate() === 1) {
+    const anioAnterior =
+      inicio.getUTCMonth() === 0
+        ? inicio.getUTCFullYear() - 1
+        : inicio.getUTCFullYear();
+
+    const mesAnterior =
+      inicio.getUTCMonth() === 0
+        ? 11
+        : inicio.getUTCMonth() - 1;
+
+    const inicioAnterior =
+      new Date(
+        Date.UTC(
+          anioAnterior,
+          mesAnterior,
+          1
+        )
+      );
+
+    const ultimoDiaAnterior =
+      ultimoDiaMesUTC(
+        anioAnterior,
+        mesAnterior
+      );
+
+    const diaComparable =
+      Math.min(
+        fin.getUTCDate(),
+        ultimoDiaAnterior
+      );
+
+    const finAnterior =
+      new Date(
+        Date.UTC(
+          anioAnterior,
+          mesAnterior,
+          diaComparable
+        )
+      );
+
+    return {
+      tipo: "MES_COMPARABLE",
+
+      fecha_inicio:
+        fechaISO(inicioAnterior),
+
+      fecha_fin:
+        fechaISO(finAnterior),
+
+      descripcion:
+        "Mismo punto del mes anterior",
+    };
+  }
+
+  // ----------------------------------------------------------
+  // CASO 3:
+  // Rango personalizado
+  // ----------------------------------------------------------
+
+  const finAnterior =
+    sumarDias(inicio, -1);
+
+  const inicioAnterior =
+    sumarDias(
+      finAnterior,
+      -diferenciaDias
+    );
+
+  return {
+    tipo: "RANGO_ANTERIOR",
+
+    fecha_inicio:
+      fechaISO(inicioAnterior),
+
+    fecha_fin:
+      fechaISO(finAnterior),
+
+    descripcion:
+      "Periodo anterior equivalente",
+  };
+}
+
+function calcularVariacion(
+  actual,
+  anterior
+) {
+  const a = Number(actual || 0);
+  const b = Number(anterior || 0);
+
+  const diferencia = a - b;
+
+  let porcentaje = null;
+
+  if (b !== 0) {
+    porcentaje =
+      (diferencia / Math.abs(b)) *
+      100;
+  } else if (a === 0) {
+    porcentaje = 0;
+  }
+
+  return {
+    actual: a,
+    anterior: b,
+    diferencia,
+    porcentaje,
+  };
+}
+
+// ============================================================
+// ANÁLISIS FINANCIERO BOSSE
+// ============================================================
 
 app.get('/api/analisis-financiero', async (req, res) => {
   try {
-    const { fecha_inicio, fecha_fin } = req.query;
+    const {
+      negocio_id,
+      fecha_inicio,
+      fecha_fin,
+    } = req.query;
+
+    const negocioId = Number(negocio_id);
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'El negocio_id es obligatorio.',
+      });
+    }
 
     const hoy = new Date();
-    const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+
+    const primerDiaMes = new Date(
+      hoy.getFullYear(),
+      hoy.getMonth(),
+      1
+    )
       .toISOString()
-      .split("T")[0];
+      .split('T')[0];
+
+    const fechaHoy = hoy
+      .toISOString()
+      .split('T')[0];
 
     const fechaInicio = fecha_inicio || primerDiaMes;
-    const fechaFin = fecha_fin || hoy.toISOString().split("T")[0];
+    const fechaFin = fecha_fin || fechaHoy;
+    const periodoComparable =
+  obtenerPeriodoComparable(
+    fechaInicio,
+    fechaFin
+  );
 
-    const ingresosResult = await pool.query(
+const fechaInicioAnterior =
+  periodoComparable.fecha_inicio;
+
+const fechaFinAnterior =
+  periodoComparable.fecha_fin;
+
+    // ========================================================
+    // 1. RESUMEN PRINCIPAL
+    // ========================================================
+
+    const resumenResult = await pool.query(
       `
       SELECT
-  COALESCE(SUM(total_general + total_cover), 0) AS total_ingresos,
-  COALESCE(SUM(total_general), 0) AS total_general_sin_cover,
-  COALESCE(SUM(total_cover), 0) AS total_cover,
-  COALESCE(SUM(total_tarjetas), 0) AS total_tarjetas,
-  COALESCE(SUM(total_vales), 0) AS total_vales,
-  COALESCE(SUM(gastos_corte), 0) AS total_gastos_corte,
-  COALESCE(SUM(reglamentos), 0) AS total_reglamentos,
-  COALESCE(SUM(total_cxc), 0) AS total_cxc,
-  COALESCE(SUM(total_efectivo_mxn), 0) AS total_efectivo_mxn,
-  COALESCE(SUM(total_efectivo_usd * tipo_cambio), 0) AS total_efectivo_usd_mxn,
-  COALESCE(SUM(venta_ticket), 0) AS total_venta_ticket,
-  COALESCE(SUM(diferencia), 0) AS total_diferencia
-FROM corte_caja
-WHERE fecha BETWEEN $1 AND $2
-      `,
-      [fechaInicio, fechaFin]
-    );
-
-    const egresosResult = await pool.query(
-      `
-      SELECT
-        COALESCE(SUM(e.monto_mxn), 0) AS total_egresos,
         COALESCE(SUM(
           CASE
-            WHEN LOWER(COALESCE(c.nombre, '')) = LOWER('Nómina')
-              OR e.referencia LIKE 'PRENOMINA-%'
-            THEN e.monto_mxn
+            WHEN naturaleza = 'INGRESO'
+            THEN monto_mxn
+            ELSE 0
+          END
+        ), 0) AS total_ingresos,
+
+        COALESCE(SUM(
+          CASE
+            WHEN naturaleza = 'EGRESO'
+            THEN monto_mxn
+            ELSE 0
+          END
+        ), 0) AS total_egresos,
+
+        COALESCE(SUM(
+          CASE
+            WHEN naturaleza = 'EGRESO'
+              AND es_nomina = TRUE
+            THEN monto_mxn
             ELSE 0
           END
         ), 0) AS total_nomina,
+
         COALESCE(SUM(
           CASE
-            WHEN LOWER(COALESCE(c.nombre, '')) = LOWER('Nómina')
-              OR e.referencia LIKE 'PRENOMINA-%'
-            THEN 0
-            ELSE e.monto_mxn
+            WHEN naturaleza = 'RESULTADO_CAMBIARIO'
+            THEN monto_con_signo
+            ELSE 0
           END
-        ), 0) AS total_egresos_operativos
-      FROM egresos e
-      LEFT JOIN categorias c
-        ON c.id = e.categoria_id
-      WHERE e.fecha BETWEEN $1 AND $2
-        AND COALESCE(e.estatus, 'REGISTRADO') <> 'CANCELADO'
+        ), 0) AS resultado_cambiario,
+
+        COALESCE(SUM(monto_con_signo), 0) AS gm
+
+      FROM vw_analisis_movimientos
+
+      WHERE negocio_id = $1
+        AND fecha_financiera BETWEEN $2::date AND $3::date
+        AND incluir_calculo = TRUE
       `,
-      [fechaInicio, fechaFin]
+      [
+        negocioId,
+        fechaInicio,
+        fechaFin,
+      ]
     );
+
+    // ========================================================
+// 1B. RESUMEN DEL PERIODO COMPARABLE
+// ========================================================
+
+const resumenAnteriorResult =
+  await pool.query(
+    `
+    SELECT
+      COALESCE(SUM(
+        CASE
+          WHEN naturaleza = 'INGRESO'
+          THEN monto_mxn
+          ELSE 0
+        END
+      ), 0) AS total_ingresos,
+
+      COALESCE(SUM(
+        CASE
+          WHEN naturaleza = 'EGRESO'
+          THEN monto_mxn
+          ELSE 0
+        END
+      ), 0) AS total_egresos,
+
+      COALESCE(SUM(
+        CASE
+          WHEN naturaleza = 'EGRESO'
+            AND es_nomina = TRUE
+          THEN monto_mxn
+          ELSE 0
+        END
+      ), 0) AS total_nomina,
+
+      COALESCE(SUM(
+        CASE
+          WHEN naturaleza = 'RESULTADO_CAMBIARIO'
+          THEN monto_con_signo
+          ELSE 0
+        END
+      ), 0) AS resultado_cambiario,
+
+      COALESCE(
+        SUM(monto_con_signo),
+        0
+      ) AS gm
+
+    FROM vw_analisis_movimientos
+
+    WHERE negocio_id = $1
+
+      AND fecha_financiera
+        BETWEEN $2::date
+        AND $3::date
+
+      AND incluir_calculo = TRUE
+    `,
+    [
+      negocioId,
+      fechaInicioAnterior,
+      fechaFinAnterior,
+    ]
+  );
+
+    const resumenDb = resumenResult.rows[0];
+
+    const resumenAnteriorDb =
+  resumenAnteriorResult.rows[0];
+
+    const totalIngresos =
+      Number(resumenDb.total_ingresos) || 0;
+
+    const totalEgresos =
+      Number(resumenDb.total_egresos) || 0;
+
+    const totalNomina =
+      Number(resumenDb.total_nomina) || 0;
+
+    const resultadoCambiario =
+      Number(resumenDb.resultado_cambiario) || 0;
+
+    const gm =
+      Number(resumenDb.gm) || 0;
+
+    const gpm =
+      totalIngresos > 0
+        ? (gm / totalIngresos) * 100
+        : 0;
+
+        // ========================================================
+// MÉTRICAS DEL PERIODO ANTERIOR
+// ========================================================
+
+const ingresosAnterior =
+  Number(
+    resumenAnteriorDb.total_ingresos
+  ) || 0;
+
+const egresosAnterior =
+  Number(
+    resumenAnteriorDb.total_egresos
+  ) || 0;
+
+const nominaAnterior =
+  Number(
+    resumenAnteriorDb.total_nomina
+  ) || 0;
+
+const resultadoCambiarioAnterior =
+  Number(
+    resumenAnteriorDb.resultado_cambiario
+  ) || 0;
+
+const gmAnterior =
+  Number(
+    resumenAnteriorDb.gm
+  ) || 0;
+
+const gpmAnterior =
+  ingresosAnterior > 0
+    ? (
+        gmAnterior /
+        ingresosAnterior
+      ) * 100
+    : 0;
+
+
+// ========================================================
+// VARIACIONES
+// ========================================================
+
+const variacionIngresos =
+  calcularVariacion(
+    totalIngresos,
+    ingresosAnterior
+  );
+
+const variacionEgresos =
+  calcularVariacion(
+    totalEgresos,
+    egresosAnterior
+  );
+
+const variacionNomina =
+  calcularVariacion(
+    totalNomina,
+    nominaAnterior
+  );
+
+const variacionResultadoCambiario =
+  calcularVariacion(
+    resultadoCambiario,
+    resultadoCambiarioAnterior
+  );
+
+const variacionGM =
+  calcularVariacion(
+    gm,
+    gmAnterior
+  );
+
+const variacionGPM = {
+  actual: gpm,
+  anterior: gpmAnterior,
+
+  // GPM se compara en puntos porcentuales,
+  // no como crecimiento porcentual.
+  diferencia_pp:
+    gpm - gpmAnterior,
+};
+
+    // ========================================================
+    // 2. EGRESOS POR CATEGORÍA
+    // ========================================================
 
     const categoriasResult = await pool.query(
       `
       SELECT
-        COALESCE(c.nombre, 'Sin categoría') AS categoria,
-        COALESCE(SUM(e.monto_mxn), 0) AS total
-      FROM egresos e
-      LEFT JOIN categorias c
-        ON c.id = e.categoria_id
-      WHERE e.fecha BETWEEN $1 AND $2
-        AND COALESCE(e.estatus, 'REGISTRADO') <> 'CANCELADO'
-      GROUP BY COALESCE(c.nombre, 'Sin categoría')
+        COALESCE(categoria, 'Sin categoría') AS categoria,
+
+        SUM(monto_mxn) AS total,
+
+        CASE
+          WHEN SUM(SUM(monto_mxn)) OVER () = 0
+          THEN 0
+          ELSE
+            (
+              SUM(monto_mxn)
+              /
+              SUM(SUM(monto_mxn)) OVER ()
+            ) * 100
+        END AS porcentaje
+
+      FROM vw_analisis_movimientos
+
+      WHERE negocio_id = $1
+        AND fecha_financiera BETWEEN $2::date AND $3::date
+        AND naturaleza = 'EGRESO'
+        AND incluir_calculo = TRUE
+
+      GROUP BY
+        COALESCE(categoria, 'Sin categoría')
+
       ORDER BY total DESC
       `,
-      [fechaInicio, fechaFin]
+      [
+        negocioId,
+        fechaInicio,
+        fechaFin,
+      ]
     );
 
-    const tipoEgresoResult = await pool.query(
+    // ========================================================
+// 2B. CATEGORÍAS DEL PERIODO ANTERIOR
+// ========================================================
+
+const categoriasAnteriorResult =
+  await pool.query(
+    `
+    SELECT
+      COALESCE(
+        categoria,
+        'Sin categoría'
+      ) AS categoria,
+
+      COALESCE(
+        SUM(monto_mxn),
+        0
+      ) AS total
+
+    FROM vw_analisis_movimientos
+
+    WHERE negocio_id = $1
+
+      AND fecha_financiera
+        BETWEEN $2::date
+        AND $3::date
+
+      AND naturaleza = 'EGRESO'
+
+      AND incluir_calculo = TRUE
+
+    GROUP BY
+      COALESCE(
+        categoria,
+        'Sin categoría'
+      )
+    `,
+    [
+      negocioId,
+      fechaInicioAnterior,
+      fechaFinAnterior,
+    ]
+  );
+
+  // ========================================================
+// EXPLICACIÓN DE CAMBIOS POR CATEGORÍA
+// ========================================================
+
+const mapaCategoriasActual =
+  new Map();
+
+const mapaCategoriasAnterior =
+  new Map();
+
+categoriasResult.rows.forEach(
+  (fila) => {
+    mapaCategoriasActual.set(
+      fila.categoria,
+      Number(fila.total || 0)
+    );
+  }
+);
+
+categoriasAnteriorResult.rows.forEach(
+  (fila) => {
+    mapaCategoriasAnterior.set(
+      fila.categoria,
+      Number(fila.total || 0)
+    );
+  }
+);
+
+const todasCategorias =
+  new Set([
+    ...mapaCategoriasActual.keys(),
+    ...mapaCategoriasAnterior.keys(),
+  ]);
+
+const cambiosCategorias =
+  Array.from(todasCategorias)
+    .map((categoria) => {
+      const actual =
+        mapaCategoriasActual.get(
+          categoria
+        ) || 0;
+
+      const anterior =
+        mapaCategoriasAnterior.get(
+          categoria
+        ) || 0;
+
+      const diferencia =
+        actual - anterior;
+
+      const porcentaje =
+        anterior !== 0
+          ? (
+              diferencia /
+              Math.abs(anterior)
+            ) * 100
+          : actual === 0
+          ? 0
+          : null;
+
+      return {
+        categoria,
+        actual,
+        anterior,
+        diferencia,
+        porcentaje,
+
+        direccion:
+          diferencia > 0
+            ? "SUBIO"
+            : diferencia < 0
+            ? "BAJO"
+            : "SIN_CAMBIO",
+      };
+    })
+    .sort(
+      (a, b) =>
+        Math.abs(b.diferencia) -
+        Math.abs(a.diferencia)
+    );
+
+const principalesCambiosEgresos =
+  cambiosCategorias
+    .filter(
+      (item) =>
+        item.diferencia !== 0
+    )
+    .slice(0, 5);
+
+    // ========================================================
+    // 3. EGRESOS POR TIPO
+    // ========================================================
+
+    const tiposResult = await pool.query(
       `
       SELECT
         COALESCE(tipo_egreso, 'Sin tipo') AS tipo_egreso,
-        COALESCE(SUM(monto_mxn), 0) AS total
-      FROM egresos
-      WHERE fecha BETWEEN $1 AND $2
-        AND COALESCE(estatus, 'REGISTRADO') <> 'CANCELADO'
-      GROUP BY COALESCE(tipo_egreso, 'Sin tipo')
+        SUM(monto_mxn) AS total
+
+      FROM vw_analisis_egresos
+
+      WHERE negocio_id = $1
+        AND fecha_financiera BETWEEN $2::date AND $3::date
+        AND incluir_calculo = TRUE
+
+      GROUP BY
+        COALESCE(tipo_egreso, 'Sin tipo')
+
       ORDER BY total DESC
       `,
-      [fechaInicio, fechaFin]
+      [
+        negocioId,
+        fechaInicio,
+        fechaFin,
+      ]
     );
 
-    const movimientosSociosResult = await pool.query(
+    // ========================================================
+    // 4. EVOLUCIÓN DIARIA
+    // ========================================================
+
+    const diarioResult = await pool.query(
+      `
+      SELECT *
+      FROM vw_analisis_resumen_diario
+
+      WHERE negocio_id = $1
+        AND fecha_financiera BETWEEN $2::date AND $3::date
+
+      ORDER BY fecha_financiera
+      `,
+      [
+        negocioId,
+        fechaInicio,
+        fechaFin,
+      ]
+    );
+
+    // ========================================================
+    // 5. EVOLUCIÓN SEMANAL
+    // ========================================================
+
+    const semanalResult = await pool.query(
+      `
+      SELECT *
+      FROM vw_analisis_resumen_semanal
+
+      WHERE negocio_id = $1
+        AND semana_inicio <= $3::date
+        AND semana_fin >= $2::date
+
+      ORDER BY semana_inicio
+      `,
+      [
+        negocioId,
+        fechaInicio,
+        fechaFin,
+      ]
+    );
+
+    // ========================================================
+    // 6. DETALLE DE INGRESOS
+    // ========================================================
+
+    const ingresosDetalleResult = await pool.query(
       `
       SELECT
-        COALESCE(SUM(
-          CASE
-            WHEN COALESCE(tipo_movimiento, 'Adelanto') = 'Adelanto'
-            THEN monto
-            ELSE 0
-          END
-        ), 0) AS total_adelantos_socios,
+        corte_id,
+        fecha_registro,
+        fecha_financiera,
+        semana_inicio,
+        semana_fin,
+        folio,
+        total_general,
+        total_cover,
+        total_ingresos,
+        venta_ticket,
+        diferencia,
+        total_tarjetas,
+        total_efectivo_mxn,
+        total_efectivo_usd,
+        tipo_cambio,
+        usuario_nombre,
+        estatus
 
-        COALESCE(SUM(
-          CASE
-            WHEN tipo_movimiento = 'Devolución'
-            THEN monto
-            ELSE 0
-          END
-        ), 0) AS total_devoluciones_socios
-      FROM inversiones_socios
-      WHERE fecha BETWEEN $1 AND $2
+      FROM vw_analisis_ingresos
+
+      WHERE negocio_id = $1
+        AND fecha_financiera BETWEEN $2::date AND $3::date
+
+      ORDER BY fecha_financiera DESC, corte_id DESC
       `,
-      [fechaInicio, fechaFin]
+      [
+        negocioId,
+        fechaInicio,
+        fechaFin,
+      ]
     );
 
-    const inversionesSociosResult = await pool.query(
+    // ========================================================
+    // 7. DETALLE DE EGRESOS
+    // ========================================================
+
+    const egresosDetalleResult = await pool.query(
       `
       SELECT
-        i.socio_id,
-        COALESCE(s.nombre, 'Sin socio') AS socio,
+        egreso_id,
+        fecha_registro,
+        fecha_financiera,
+        semana_inicio,
+        semana_fin,
+        tipo_egreso,
+        divisa,
+        tipo_cambio,
+        monto_original,
+        monto_mxn,
+        categoria_id,
+        categoria,
+        proveedor_id,
+        proveedor,
+        concepto,
+        referencia,
+        cuenta,
+        usuario_nombre,
+        es_nomina,
+        estatus
 
-        COALESCE(SUM(
-          CASE
-            WHEN COALESCE(i.tipo_movimiento, 'Adelanto') = 'Adelanto'
-            THEN i.monto
-            ELSE 0
-          END
-        ), 0) AS total_adelantos,
+      FROM vw_analisis_egresos
 
-        COALESCE(SUM(
-          CASE
-            WHEN i.tipo_movimiento = 'Devolución'
-            THEN i.monto
-            ELSE 0
-          END
-        ), 0) AS total_devoluciones,
+      WHERE negocio_id = $1
+        AND fecha_financiera BETWEEN $2::date AND $3::date
 
-        COALESCE(SUM(
-          CASE
-            WHEN i.tipo_movimiento = 'Devolución'
-            THEN -i.monto
-            ELSE i.monto
-          END
-        ), 0) AS saldo_adelantos,
-
-        COALESCE(SUM(
-          CASE
-            WHEN i.tipo_movimiento = 'Devolución'
-            THEN -i.monto
-            ELSE i.monto
-          END
-        ), 0) AS total
-
-      FROM inversiones_socios i
-      LEFT JOIN socios s
-        ON s.id = i.socio_id
-      WHERE i.fecha BETWEEN $1 AND $2
-      GROUP BY
-        i.socio_id,
-        COALESCE(s.nombre, 'Sin socio')
-      ORDER BY saldo_adelantos DESC
+      ORDER BY fecha_financiera DESC, egreso_id DESC
       `,
-      [fechaInicio, fechaFin]
+      [
+        negocioId,
+        fechaInicio,
+        fechaFin,
+      ]
     );
 
-    const sociosDistribucionResult = await pool.query(
+    // ========================================================
+    // 8. RESULTADO CAMBIARIO
+    // ========================================================
+
+    const cambiosResult = await pool.query(
+      `
+      SELECT
+        cambio_divisa_id,
+        detalle_id,
+        corte_id,
+        corte_folio,
+        fecha_corte,
+        fecha_registro,
+        fecha_financiera,
+        monto_usd,
+        tipo_cambio_corte,
+        tipo_cambio_realizado,
+        valor_original_mxn,
+        valor_realizado_mxn,
+        resultado_cambiario_mxn,
+        casa_cambio,
+        estatus
+
+      FROM vw_analisis_resultado_cambiario
+
+      WHERE negocio_id = $1
+        AND fecha_financiera BETWEEN $2::date AND $3::date
+
+      ORDER BY fecha_financiera DESC, cambio_divisa_id DESC
+      `,
+      [
+        negocioId,
+        fechaInicio,
+        fechaFin,
+      ]
+    );
+
+    // ========================================================
+    // 9. SOCIOS
+    // Adelantos son informativos.
+    // NO se descuentan de la participación.
+    // ========================================================
+
+    const sociosResult = await pool.query(
       `
       SELECT
         s.id,
         s.nombre AS socio,
         COALESCE(s.porcentaje_participacion, 0) AS porcentaje_participacion,
 
-        COALESCE(mov.adelantos, 0) AS adelantos,
-        COALESCE(mov.devoluciones, 0) AS devoluciones
+        COALESCE(
+          SUM(
+            CASE
+              WHEN i.tipo_movimiento = 'Adelanto'
+              THEN i.monto
+              ELSE 0
+            END
+          ),
+          0
+        ) AS adelantos,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN i.tipo_movimiento = 'Devolución'
+              THEN i.monto
+              ELSE 0
+            END
+          ),
+          0
+        ) AS devoluciones
 
       FROM socios s
 
-      LEFT JOIN (
-        SELECT
-          socio_id,
+      LEFT JOIN inversiones_socios i
+        ON i.socio_id = s.id
+        AND i.negocio_id = $1
+        AND i.fecha BETWEEN $2::date AND $3::date
 
-          SUM(
-            CASE
-              WHEN COALESCE(tipo_movimiento, 'Adelanto') = 'Adelanto'
-              THEN monto
-              ELSE 0
-            END
-          ) AS adelantos,
+      WHERE s.activo = TRUE
 
-          SUM(
-            CASE
-              WHEN tipo_movimiento = 'Devolución'
-              THEN monto
-              ELSE 0
-            END
-          ) AS devoluciones
+      GROUP BY
+        s.id,
+        s.nombre,
+        s.porcentaje_participacion
 
-        FROM inversiones_socios
-        WHERE fecha BETWEEN $1 AND $2
-        GROUP BY socio_id
-      ) mov
-        ON mov.socio_id = s.id
-
-      WHERE s.activo = true
-
-      ORDER BY s.nombre ASC
+      ORDER BY s.nombre
       `,
-      [fechaInicio, fechaFin]
+      [
+        negocioId,
+        fechaInicio,
+        fechaFin,
+      ]
     );
 
-    const ingresos = ingresosResult.rows[0];
-    const egresos = egresosResult.rows[0];
-    const movimientosSocios = movimientosSociosResult.rows[0];
+    const distribucionSocios =
+      sociosResult.rows.map((socio) => {
+        const porcentaje =
+          Number(socio.porcentaje_participacion) || 0;
 
-    const totalIngresos = Number(ingresos.total_ingresos) || 0;
-    const totalEgresos = Number(egresos.total_egresos) || 0;
+        const participacion =
+          gm * (porcentaje / 100);
 
-    const totalAdelantosSocios =
-      Number(movimientosSocios.total_adelantos_socios) || 0;
+        const adelantos =
+          Number(socio.adelantos) || 0;
 
-    const totalDevolucionesSocios =
-      Number(movimientosSocios.total_devoluciones_socios) || 0;
+        const devoluciones =
+          Number(socio.devoluciones) || 0;
 
-    const saldoAdelantosSocios =
-      totalAdelantosSocios - totalDevolucionesSocios;
+        return {
+          id: socio.id,
+          socio: socio.socio,
 
-    const utilidadOperativa = totalIngresos - totalEgresos;
+          porcentaje_participacion:
+            porcentaje,
 
-    const flujoConAdelantos =
-      utilidadOperativa - saldoAdelantosSocios;
+          participacion_gm:
+            participacion,
 
-    const porcentajeEgresos =
-      totalIngresos > 0 ? (totalEgresos / totalIngresos) * 100 : 0;
+          adelantos,
+          devoluciones,
 
-    const margenGanancia =
-      totalIngresos > 0 ? (utilidadOperativa / totalIngresos) * 100 : 0;
+          saldo_adelantos:
+            adelantos - devoluciones,
 
-    const porcentajeNominaSobreEgresos =
-      totalEgresos > 0
-        ? ((Number(egresos.total_nomina) || 0) / totalEgresos) * 100
-        : 0;
+          tiene_adelanto:
+            adelantos > devoluciones,
+        };
+      });
 
-    const porcentajeEgresosOperativosSobreEgresos =
-      totalEgresos > 0
-        ? ((Number(egresos.total_egresos_operativos) || 0) / totalEgresos) * 100
-        : 0;
+    // ========================================================
+// 10. PRENÓMINA DE REFERENCIA
+// NO afecta los cálculos.
+// ========================================================
 
-    const distribucionSocios = sociosDistribucionResult.rows.map((socio) => {
-      const porcentaje = Number(socio.porcentaje_participacion) || 0;
-      const utilidadAsignada = utilidadOperativa * (porcentaje / 100);
+const prenominaResult = await pool.query(
+  `
+  SELECT
+    id,
+    fecha_inicio,
+    fecha_fin,
+    total,
+    estatus,
+    fecha_creacion
 
-      const adelantos = Number(socio.adelantos) || 0;
-      const devoluciones = Number(socio.devoluciones) || 0;
-      const saldoAdelantos = adelantos - devoluciones;
+  FROM prenomina
 
-      return {
-        socio: socio.socio,
-        porcentaje_participacion: porcentaje,
-        utilidad_asignada: utilidadAsignada,
+  WHERE fecha_inicio <= $2::date
+    AND fecha_fin >= $1::date
 
-        adelantos,
-        devoluciones,
-        saldo_adelantos: saldoAdelantos,
+  ORDER BY fecha_inicio DESC, id DESC
+  `,
+  [
+    fechaInicio,
+    fechaFin,
+  ]
+);
 
-        // Temporal por compatibilidad
-        inversion_aportada: saldoAdelantos,
+    // ========================================================
+    // 11. ESTADO DEL PERIODO
+    // ========================================================
 
-        result_neto: utilidadAsignada - saldoAdelantos
-      };
-    });
+    const provisional =
+      semanalResult.rows.some(
+        (fila) =>
+          fila.estado_periodo === 'PROVISIONAL'
+      );
 
-    res.json({
+    // ========================================================
+    // RESPUESTA
+    // ========================================================
+
+    return res.json({
       success: true,
+
       filtros: {
+        negocio_id: negocioId,
         fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin
+        fecha_fin: fechaFin,
       },
+
+      periodo: {
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        estado:
+          provisional
+            ? 'PROVISIONAL'
+            : 'CONSOLIDADO',
+      },
+
+      comparacion: {
+  tipo:
+    periodoComparable.tipo,
+
+  descripcion:
+    periodoComparable.descripcion,
+
+  periodo_actual: {
+    fecha_inicio:
+      fechaInicio,
+
+    fecha_fin:
+      fechaFin,
+  },
+
+  periodo_anterior: {
+    fecha_inicio:
+      fechaInicioAnterior,
+
+    fecha_fin:
+      fechaFinAnterior,
+  },
+
+  ingresos:
+    variacionIngresos,
+
+  egresos:
+    variacionEgresos,
+
+  nomina:
+    variacionNomina,
+
+  resultado_cambiario:
+    variacionResultadoCambiario,
+
+  gm:
+    variacionGM,
+
+  gpm:
+    variacionGPM,
+
+  principales_cambios_egresos:
+    principalesCambiosEgresos,
+},
+
       resumen: {
         total_ingresos: totalIngresos,
         total_egresos: totalEgresos,
-        total_nomina: Number(egresos.total_nomina) || 0,
+
+        total_nomina: totalNomina,
+
         total_egresos_operativos:
-          Number(egresos.total_egresos_operativos) || 0,
+          totalEgresos - totalNomina,
 
-        total_adelantos_socios: totalAdelantosSocios,
-        total_devoluciones_socios: totalDevolucionesSocios,
-        saldo_adelantos_socios: saldoAdelantosSocios,
+        resultado_cambiario:
+          resultadoCambiario,
 
-        // Temporal por compatibilidad
-        total_inversiones_socios: saldoAdelantosSocios,
+        gm,
+        gpm,
 
-        utilidad_operativa: utilidadOperativa,
+        porcentaje_egresos:
+          totalIngresos > 0
+            ? (totalEgresos / totalIngresos) * 100
+            : 0,
 
-        flujo_con_adelantos: flujoConAdelantos,
-
-        // Temporal por compatibilidad
-        flujo_con_inversiones: flujoConAdelantos,
-
-        porcentaje_egresos: porcentajeEgresos,
-        margen_ganancia: margenGanancia,
-        porcentaje_nomina_sobre_egresos: porcentajeNominaSobreEgresos,
-        porcentaje_egresos_operativos_sobre_egresos:
-          porcentajeEgresosOperativosSobreEgresos
+        porcentaje_nomina_sobre_egresos:
+          totalEgresos > 0
+            ? (totalNomina / totalEgresos) * 100
+            : 0,
       },
-      ingresos: {
-        total_cover: Number(ingresos.total_cover) || 0,
-        total_tarjetas: Number(ingresos.total_tarjetas) || 0,
-        total_vales: Number(ingresos.total_vales) || 0,
-        total_cxc: Number(ingresos.total_cxc) || 0,
-        total_efectivo_mxn: Number(ingresos.total_efectivo_mxn) || 0,
-        total_efectivo_usd_mxn:
-          Number(ingresos.total_efectivo_usd_mxn) || 0,
-        total_venta_ticket: Number(ingresos.total_venta_ticket) || 0,
-        total_diferencia: Number(ingresos.total_diferencia) || 0
-      },
-      egresos_por_categoria: categoriasResult.rows,
-      egresos_por_tipo: tipoEgresoResult.rows,
-      inversiones_por_socio: inversionesSociosResult.rows,
-      distribucion_socios: distribucionSocios
+
+      egresos_por_categoria:
+        categoriasResult.rows,
+
+      egresos_por_tipo:
+        tiposResult.rows,
+
+      evolucion_diaria:
+        diarioResult.rows,
+
+      evolucion_semanal:
+        semanalResult.rows,
+
+      ingresos_detalle:
+        ingresosDetalleResult.rows,
+
+      egresos_detalle:
+        egresosDetalleResult.rows,
+
+      resultado_cambiario_detalle:
+        cambiosResult.rows,
+
+      distribucion_socios:
+        distribucionSocios,
+
+      prenomina_referencia:
+        prenominaResult.rows,
     });
 
   } catch (error) {
-    console.error('Error análisis financiero:', error);
+    console.error(
+      'Error análisis financiero BOSSE:',
+      error
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: error.message
+      error:
+        error.message ||
+        'No fue posible generar el análisis financiero.',
     });
   }
 });

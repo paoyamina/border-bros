@@ -28,7 +28,7 @@ function App() {
   const [seccionSeleccionada, setSeccionSeleccionada] = useState(null);
   const [corteEditando, setCorteEditando] = useState(null);
   const puedeEntrarAnalisis = (rolUsuario) => {
-  return ["socio", "contador", "gobernador"].includes(
+  return ["socio", "contador", "gobernador", "administrador"].includes(
     String(rolUsuario || "").trim().toLowerCase()
   );
 };
@@ -586,13 +586,16 @@ if (formularioActivo === "analisis_financiero") {
   }
 
   return (
-    <AnalisisFinanciero
-      usuarioActivo={usuarioActivo}
-      onVolver={
-        seccionSeleccionada === "analisis" ? cerrarSesion : volverAlMenu
-      }
-    />
-  );
+  <AnalisisFinanciero
+    usuarioActivo={usuarioActivo}
+    usuarioId={usuarioId}
+    negocioId={negocioId}
+    rol={rol}
+    onVolver={
+      seccionSeleccionada === "analisis" ? cerrarSesion : volverAlMenu
+    }
+  />
+);
 }
 
   return null;
