@@ -6859,22 +6859,22 @@ const principalesCambiosEgresos =
     // ========================================================
 
     const semanalResult = await pool.query(
-      `
-      SELECT *
-      FROM vw_analisis_resumen_semanal
+  `
+  SELECT *
+  FROM vw_analisis_resumen_semanal
 
-      WHERE negocio_id = $1
-        AND semana_financiera_inicio <= $3::date
-        AND semana_financiera_fin >= $2::date
+  WHERE negocio_id = $1
+    AND semana_inicio <= $3::date
+    AND semana_fin >= $2::date
 
-      ORDER BY semana_financiera_inicio
-      `,
-      [
-        negocioId,
-        fechaInicio,
-        fechaFin,
-      ]
-    );
+  ORDER BY semana_inicio
+  `,
+  [
+    negocioId,
+    fechaInicio,
+    fechaFin,
+  ]
+);
 
     // ========================================================
     // 6. DETALLE DE INGRESOS
@@ -6886,8 +6886,8 @@ const principalesCambiosEgresos =
         corte_id,
         fecha_registro,
         fecha_financiera,
-        semana_financiera_inicio,
-        semana_financiera_fin,
+        semana_inicio,
+        semana_fin,
         folio,
         total_general,
         total_cover,
