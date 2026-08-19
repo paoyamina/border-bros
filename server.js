@@ -6864,10 +6864,10 @@ const principalesCambiosEgresos =
       FROM vw_analisis_resumen_semanal
 
       WHERE negocio_id = $1
-        AND semana_inicio <= $3::date
-        AND semana_fin >= $2::date
+        AND semana_financiera_inicio <= $3::date
+        AND semana_financiera_fin >= $2::date
 
-      ORDER BY semana_inicio
+      ORDER BY semana_financiera_inicio
       `,
       [
         negocioId,
@@ -6886,8 +6886,8 @@ const principalesCambiosEgresos =
         corte_id,
         fecha_registro,
         fecha_financiera,
-        semana_inicio,
-        semana_fin,
+        semana_financiera_inicio,
+        semana_financiera_fin,
         folio,
         total_general,
         total_cover,
@@ -6925,8 +6925,8 @@ const principalesCambiosEgresos =
         egreso_id,
         fecha_registro,
         fecha_financiera,
-        semana_inicio,
-        semana_fin,
+        semana_financiera_inicio AS semana_inicio,
+semana_financiera_fin AS semana_fin,
         tipo_egreso,
         divisa,
         tipo_cambio,
@@ -7104,16 +7104,46 @@ const prenominaResult = await pool.query(
 
   FROM prenomina
 
-  WHERE fecha_inicio <= $2::date
-    AND fecha_fin >= $1::date
+  WHERE negocio_id = $1
+    AND fecha_inicio <= $3::date
+    AND fecha_fin >= $2::date
 
   ORDER BY fecha_inicio DESC, id DESC
   `,
   [
+    negocioId,
     fechaInicio,
     fechaFin,
   ]
 );
+
+// ========================================================
+// 10B. COMPARACIÓN PRENÓMINA VS NÓMINA REAL
+// ========================================================
+
+const prenominaTotalReferencia =
+  prenominaResult.rows.reduce(
+    (acumulado, fila) =>
+      acumulado + Number(fila.total || 0),
+    0
+  );
+
+const nominaRealPeriodo =
+  Number(totalNomina || 0);
+
+const diferenciaNomina =
+  nominaRealPeriodo -
+  prenominaTotalReferencia;
+
+const diferenciaNominaPct =
+  prenominaTotalReferencia !== 0
+    ? (
+        diferenciaNomina /
+        Math.abs(prenominaTotalReferencia)
+      ) * 100
+    : nominaRealPeriodo === 0
+    ? 0
+    : null;
 
     // ========================================================
     // 11. ESTADO DEL PERIODO
@@ -7240,11 +7270,29 @@ const prenominaResult = await pool.query(
         cambiosResult.rows,
 
       distribucion_socios:
-        distribucionSocios,
+  distribucionSocios,
 
-      prenomina_referencia:
-        prenominaResult.rows,
+prenomina_referencia:
+  prenominaResult.rows,
+
+  comparacion_nomina: {
+        prenomina_referencia:
+          prenominaTotalReferencia,
+
+        nomina_real:
+          nominaRealPeriodo,
+
+        diferencia:
+          diferenciaNomina,
+
+        diferencia_porcentaje:
+          diferenciaNominaPct,
+
+        cantidad_prenominas:
+          prenominaResult.rows.length,
+           },
     });
+
 
   } catch (error) {
     console.error(

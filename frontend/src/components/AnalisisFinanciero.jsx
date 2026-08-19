@@ -296,6 +296,27 @@ const tooltipCambioEgresos = () => {
   const prenominaReferencia =
     analisis?.prenomina_referencia || [];
 
+    const comparacionNomina =
+  analisis?.comparacion_nomina || {};
+
+  const prenominaEsperada =
+  Number(
+    comparacionNomina.prenomina_referencia || 0
+  );
+
+const nominaRealComparacion =
+  Number(
+    comparacionNomina.nomina_real || 0
+  );
+
+const diferenciaNominaComparacion =
+  Number(
+    comparacionNomina.diferencia || 0
+  );
+
+const diferenciaNominaPct =
+  comparacionNomina.diferencia_porcentaje;
+
   const periodo =
     analisis?.periodo || {};
     const comparacion =
@@ -2196,141 +2217,187 @@ const maximoGrafica = Math.max(
               </section>
 
               <section style={tarjeta}>
-                <TituloSeccion
-                  titulo="Referencia de prenómina"
-                  subtitulo="Solo referencia. El análisis utiliza lo registrado en Egresos."
-                />
+  <TituloSeccion
+    titulo="Prenómina vs nómina real"
+    subtitulo="La prenómina es solo referencia. La contabilidad usa exclusivamente los egresos reales."
+  />
 
-                <div
-                  style={{
-                    fontSize: "27px",
-                    fontWeight: "700",
-                  }}
-                >
-                  {formatoMoneda(
-                    totalNomina
-                  )}
-                </div>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns:
+        "repeat(auto-fit, minmax(150px, 1fr))",
+      gap: "10px",
+      marginBottom: "16px",
+    }}
+  >
+    <div style={miniDato}>
+      <span style={miniLabel}>
+        Prenómina estimada
+      </span>
 
-                <div
-                  style={{
-                    marginTop: "5px",
-                    fontSize: "12px",
-                    color: "#777",
-                  }}
-                >
-                  Nómina contabilizada
-                  mediante egresos.
-                </div>
+      <strong>
+        {formatoMoneda(
+          prenominaEsperada
+        )}
+      </strong>
+    </div>
 
-                {prenominaReferencia.length >
-                  0 && (
-                  <details
-                    style={{
-                      marginTop:
-                        "14px",
-                    }}
-                  >
-                    <summary
-                      style={{
-                        cursor:
-                          "pointer",
-                        fontSize:
-                          "13px",
-                        fontWeight:
-                          "600",
-                      }}
-                    >
-                      Ver prenóminas del
-                      periodo
-                    </summary>
+    <div style={miniDato}>
+      <span style={miniLabel}>
+        Nómina real
+      </span>
 
-                    <div
-                      style={{
-                        marginTop:
-                          "10px",
-                      }}
-                    >
-                      {prenominaReferencia.map(
-                        (p) => (
-                          <div
-                            key={p.id}
-                            style={{
-                              padding:
-                                "9px 0",
-                              borderBottom:
-                                "1px solid #eee",
-                              display:
-                                "flex",
-                              justifyContent:
-                                "space-between",
-                              gap:
-                                "12px",
-                            }}
-                          >
-                            <div>
-                              <div
-                                style={{
-                                  fontWeight:
-                                    "600",
-                                  fontSize:
-                                    "13px",
-                                }}
-                              >
-                                Prenómina #
-                                {p.id}
-                              </div>
+      <strong>
+        {formatoMoneda(
+          nominaRealComparacion
+        )}
+      </strong>
+    </div>
 
-                              <div
-                                style={{
-                                  color:
-                                    "#777",
-                                  fontSize:
-                                    "11px",
-                                }}
-                              >
-                                {formatoFecha(
-                                  p.fecha_inicio
-                                )}{" "}
-                                —{" "}
-                                {formatoFecha(
-                                  p.fecha_fin
-                                )}
-                              </div>
-                            </div>
+    <div style={miniDato}>
+      <span style={miniLabel}>
+        Diferencia
+      </span>
 
-                            <div
-                              style={{
-                                textAlign:
-                                  "right",
-                              }}
-                            >
-                              <strong>
-                                {formatoMoneda(
-                                  p.total
-                                )}
-                              </strong>
+      <strong>
+        {formatoMoneda(
+          diferenciaNominaComparacion
+        )}
+      </strong>
+    </div>
 
-                              <div
-                                style={{
-                                  fontSize:
-                                    "10px",
-                                  color:
-                                    "#777",
-                                }}
-                              >
-                                {
-                                  p.estatus
-                                }
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </details>
+    <div style={miniDato}>
+      <span style={miniLabel}>
+        Variación
+      </span>
+
+      <strong>
+        {diferenciaNominaPct === null ||
+        diferenciaNominaPct === undefined
+          ? "—"
+          : formatoPorcentaje(
+              diferenciaNominaPct
+            )}
+      </strong>
+    </div>
+  </div>
+
+  <div
+    style={{
+      padding: "11px 12px",
+      borderRadius: "8px",
+      background:
+        Math.abs(
+          Number(
+            diferenciaNominaPct || 0
+          )
+        ) > 5
+          ? "#fff3cd"
+          : "#f7f7f5",
+      fontSize: "12px",
+      color: "#555",
+    }}
+  >
+    {prenominaEsperada === 0
+      ? "No hay prenómina de referencia para este periodo."
+      : Math.abs(
+          Number(
+            diferenciaNominaPct || 0
+          )
+        ) <= 5
+      ? "La nómina real está dentro de ±5% de la prenómina."
+      : diferenciaNominaComparacion > 0
+      ? "La nómina real fue mayor que la prenómina estimada."
+      : "La nómina real fue menor que la prenómina estimada."}
+  </div>
+
+  {prenominaReferencia.length > 0 && (
+    <details
+      style={{
+        marginTop: "14px",
+      }}
+    >
+      <summary
+        style={{
+          cursor: "pointer",
+          fontSize: "13px",
+          fontWeight: "600",
+        }}
+      >
+        Ver prenóminas de referencia
+      </summary>
+
+      <div
+        style={{
+          marginTop: "10px",
+        }}
+      >
+        {prenominaReferencia.map((p) => (
+          <div
+            key={p.id}
+            style={{
+              padding: "9px 0",
+              borderBottom:
+                "1px solid #eee",
+              display: "flex",
+              justifyContent:
+                "space-between",
+              gap: "12px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontWeight: "600",
+                  fontSize: "13px",
+                }}
+              >
+                Prenómina #{p.id}
+              </div>
+
+              <div
+                style={{
+                  color: "#777",
+                  fontSize: "11px",
+                }}
+              >
+                {formatoFecha(
+                  p.fecha_inicio
+                )}{" "}
+                —{" "}
+                {formatoFecha(
+                  p.fecha_fin
                 )}
-              </section>
+              </div>
+            </div>
+
+            <div
+              style={{
+                textAlign: "right",
+              }}
+            >
+              <strong>
+                {formatoMoneda(
+                  p.total
+                )}
+              </strong>
+
+              <div
+                style={{
+                  fontSize: "10px",
+                  color: "#777",
+                }}
+              >
+                {p.estatus}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </details>
+  )}
+</section>
             </div>
           </>
         )}
