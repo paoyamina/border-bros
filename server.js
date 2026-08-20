@@ -7309,6 +7309,992 @@ prenomina_referencia:
   }
 });
 
+// ============================================================
+// EXPORTAR ANÁLISIS FINANCIERO A EXCEL
+// ============================================================
+
+app.post(
+  "/api/analisis-financiero/exportar-excel",
+  async (req, res) => {
+    try {
+      const {
+        analisis,
+        hallazgos = [],
+        usuario = "",
+      } = req.body;
+
+      if (!analisis || !analisis.success) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "No se recibió un análisis financiero válido.",
+        });
+      }
+
+      const workbook = new ExcelJS.Workbook();
+
+      workbook.creator = "BOSSE";
+      workbook.created = new Date();
+
+      // ========================================================
+      // HELPERS
+      // ========================================================
+
+      const moneda = (valor) =>
+        Number(valor || 0);
+
+      const porcentaje = (valor) => {
+        if (
+          valor === null ||
+          valor === undefined ||
+          Number.isNaN(Number(valor))
+        ) {
+          return null;
+        }
+
+        return Number(valor) / 100;
+      };
+
+      const estilizarTitulo = (
+        hoja,
+        rango,
+        titulo
+      ) => {
+        hoja.mergeCells(rango);
+
+        const celda =
+          hoja.getCell(
+            rango.split(":")[0]
+          );
+
+        celda.value = titulo;
+        celda.font = {
+          bold: true,
+          size: 16,
+          color: {
+            argb: "FFFFFFFF",
+          },
+        };
+
+        celda.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: {
+            argb: "FF111111",
+          },
+        };
+
+        celda.alignment = {
+          vertical: "middle",
+          horizontal: "left",
+        };
+      };
+
+      const estilizarEncabezado = (
+        fila
+      ) => {
+        fila.eachCell((celda) => {
+          celda.font = {
+            bold: true,
+            color: {
+              argb: "FFFFFFFF",
+            },
+          };
+
+          celda.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: {
+              argb: "FF333333",
+            },
+          };
+
+          celda.alignment = {
+            vertical: "middle",
+          };
+        });
+      };
+
+      const ajustarColumnas = (
+        hoja,
+        minimo = 12,
+        maximo = 40
+      ) => {
+        hoja.columns.forEach(
+          (columna) => {
+            let longitud = minimo;
+
+            columna.eachCell(
+              { includeEmpty: true },
+              (celda) => {
+                const valor =
+                  celda.value === null ||
+                  celda.value ===
+                    undefined
+                    ? ""
+                    : String(
+                        celda.value
+                      );
+
+                longitud = Math.max(
+                  longitud,
+                  valor.length + 2
+                );
+              }
+            );
+
+            columna.width =
+              Math.min(
+                longitud,
+                maximo
+              );
+          }
+        );
+      };
+
+      // ========================================================
+      // DATOS
+      // ========================================================
+
+      const resumen =
+        analisis.resumen || {};
+
+      const periodo =
+        analisis.periodo || {};
+
+      const comparacion =
+        analisis.comparacion || {};
+
+      const categorias =
+        analisis.egresos_por_categoria ||
+        [];
+
+      const tipos =
+        analisis.egresos_por_tipo || [];
+
+      const evolucionDiaria =
+        analisis.evolucion_diaria || [];
+
+      const evolucionSemanal =
+        analisis.evolucion_semanal ||
+        [];
+
+      const ingresos =
+        analisis.ingresos_detalle || [];
+
+      const egresos =
+        analisis.egresos_detalle || [];
+
+      const socios =
+        analisis.distribucion_socios ||
+        [];
+
+      const prenominas =
+        analisis.prenomina_referencia ||
+        [];
+
+      const comparacionNomina =
+        analisis.comparacion_nomina ||
+        {};
+
+      // ========================================================
+      // 1. RESUMEN
+      // ========================================================
+
+      const hojaResumen =
+        workbook.addWorksheet(
+          "Resumen"
+        );
+
+      estilizarTitulo(
+        hojaResumen,
+        "A1:D1",
+        "BOSSE · Análisis Financiero"
+      );
+
+      hojaResumen.getCell(
+        "A3"
+      ).value = "Periodo";
+
+      hojaResumen.getCell(
+        "B3"
+      ).value =
+        `${periodo.fecha_inicio || ""} — ${periodo.fecha_fin || ""}`;
+
+      hojaResumen.getCell(
+        "A4"
+      ).value = "Estado";
+
+      hojaResumen.getCell(
+        "B4"
+      ).value =
+        periodo.estado || "";
+
+      hojaResumen.getCell(
+        "A5"
+      ).value = "Generado por";
+
+      hojaResumen.getCell(
+        "B5"
+      ).value =
+        usuario || "BOSSE";
+
+      const filaEncabezado =
+        hojaResumen.getRow(7);
+
+      filaEncabezado.values = [
+        "Indicador",
+        "Valor",
+        "Comparación",
+        "Variación",
+      ];
+
+      estilizarEncabezado(
+        filaEncabezado
+      );
+
+      const indicadores = [
+        {
+          nombre: "Ingresos",
+          valor:
+            resumen.total_ingresos,
+          comparacion:
+            comparacion.ingresos
+              ?.anterior,
+          variacion:
+            comparacion.ingresos
+              ?.porcentaje,
+          tipo: "moneda",
+        },
+        {
+          nombre: "Egresos",
+          valor:
+            resumen.total_egresos,
+          comparacion:
+            comparacion.egresos
+              ?.anterior,
+          variacion:
+            comparacion.egresos
+              ?.porcentaje,
+          tipo: "moneda",
+        },
+        {
+          nombre: "Nómina",
+          valor:
+            resumen.total_nomina,
+          comparacion:
+            comparacion.nomina
+              ?.anterior,
+          variacion:
+            comparacion.nomina
+              ?.porcentaje,
+          tipo: "moneda",
+        },
+        {
+          nombre:
+            "Otros egresos",
+          valor:
+            resumen.total_egresos_operativos,
+          comparacion: null,
+          variacion: null,
+          tipo: "moneda",
+        },
+        {
+          nombre:
+            "Resultado cambiario",
+          valor:
+            resumen.resultado_cambiario,
+          comparacion:
+            comparacion
+              .resultado_cambiario
+              ?.anterior,
+          variacion:
+            comparacion
+              .resultado_cambiario
+              ?.porcentaje,
+          tipo: "moneda",
+        },
+        {
+          nombre: "GM",
+          valor: resumen.gm,
+          comparacion:
+            comparacion.gm
+              ?.anterior,
+          variacion:
+            comparacion.gm
+              ?.porcentaje,
+          tipo: "moneda",
+        },
+        {
+          nombre: "GPM",
+          valor: resumen.gpm,
+          comparacion:
+            comparacion.gpm
+              ?.anterior,
+          variacion:
+            comparacion.gpm
+              ?.diferencia_pp,
+          tipo: "porcentaje",
+        },
+      ];
+
+      indicadores.forEach(
+        (item) => {
+          const fila =
+            hojaResumen.addRow([
+              item.nombre,
+              item.tipo ===
+              "porcentaje"
+                ? porcentaje(
+                    item.valor
+                  )
+                : moneda(
+                    item.valor
+                  ),
+
+              item.comparacion ===
+                null ||
+              item.comparacion ===
+                undefined
+                ? null
+                : item.tipo ===
+                  "porcentaje"
+                ? porcentaje(
+                    item.comparacion
+                  )
+                : moneda(
+                    item.comparacion
+                  ),
+
+              item.variacion ===
+                null ||
+              item.variacion ===
+                undefined
+                ? null
+                : porcentaje(
+                    item.variacion
+                  ),
+            ]);
+
+          if (
+            item.tipo ===
+            "porcentaje"
+          ) {
+            fila.getCell(2).numFmt =
+              "0.00%";
+
+            fila.getCell(3).numFmt =
+              "0.00%";
+          } else {
+            fila.getCell(2).numFmt =
+              '$#,##0.00';
+
+            fila.getCell(3).numFmt =
+              '$#,##0.00';
+          }
+
+          fila.getCell(4).numFmt =
+            "0.00%";
+        }
+      );
+
+      // Hallazgos
+
+      const inicioHallazgos =
+        hojaResumen.rowCount + 2;
+
+      hojaResumen.getCell(
+        `A${inicioHallazgos}`
+      ).value =
+        "Hallazgos del periodo";
+
+      hojaResumen.getCell(
+        `A${inicioHallazgos}`
+      ).font = {
+        bold: true,
+        size: 13,
+      };
+
+      hallazgos.forEach(
+        (hallazgo) => {
+          hojaResumen.addRow([
+            hallazgo.titulo || "",
+            hallazgo.texto || "",
+          ]);
+        }
+      );
+
+      ajustarColumnas(
+        hojaResumen
+      );
+
+      // ========================================================
+      // 2. EGRESOS POR CATEGORÍA
+      // ========================================================
+
+      const hojaCategorias =
+        workbook.addWorksheet(
+          "Categorías"
+        );
+
+      estilizarTitulo(
+        hojaCategorias,
+        "A1:C1",
+        "Egresos por categoría"
+      );
+
+      const encabezadoCategorias =
+        hojaCategorias.getRow(3);
+
+      encabezadoCategorias.values = [
+        "Categoría",
+        "Total",
+        "Porcentaje",
+      ];
+
+      estilizarEncabezado(
+        encabezadoCategorias
+      );
+
+      categorias.forEach(
+        (categoria) => {
+          const fila =
+            hojaCategorias.addRow([
+              categoria.categoria ||
+                "Sin categoría",
+
+              moneda(
+                categoria.total
+              ),
+
+              porcentaje(
+                categoria.porcentaje
+              ),
+            ]);
+
+          fila.getCell(2).numFmt =
+            '$#,##0.00';
+
+          fila.getCell(3).numFmt =
+            "0.00%";
+        }
+      );
+
+      ajustarColumnas(
+        hojaCategorias
+      );
+
+      // ========================================================
+      // 3. EGRESOS POR TIPO
+      // ========================================================
+
+      const hojaTipos =
+        workbook.addWorksheet(
+          "Tipos de egreso"
+        );
+
+      estilizarTitulo(
+        hojaTipos,
+        "A1:C1",
+        "Egresos por tipo"
+      );
+
+      const encabezadoTipos =
+        hojaTipos.getRow(3);
+
+      encabezadoTipos.values = [
+        "Tipo",
+        "Total",
+        "Movimientos",
+      ];
+
+      estilizarEncabezado(
+        encabezadoTipos
+      );
+
+      tipos.forEach((tipo) => {
+        const fila =
+          hojaTipos.addRow([
+            tipo.tipo_egreso ||
+              "Sin tipo",
+
+            moneda(tipo.total),
+
+            Number(
+              tipo.movimientos ||
+                tipo.cantidad ||
+                0
+            ),
+          ]);
+
+        fila.getCell(2).numFmt =
+          '$#,##0.00';
+      });
+
+      ajustarColumnas(
+        hojaTipos
+      );
+
+      // ========================================================
+      // 4. EVOLUCIÓN SEMANAL
+      // ========================================================
+
+      const hojaSemanal =
+        workbook.addWorksheet(
+          "Evolución semanal"
+        );
+
+      estilizarTitulo(
+        hojaSemanal,
+        "A1:G1",
+        "Evolución financiera semanal"
+      );
+
+      const encabezadoSemanal =
+        hojaSemanal.getRow(3);
+
+      encabezadoSemanal.values = [
+        "Semana inicio",
+        "Semana fin",
+        "Ingresos",
+        "Egresos",
+        "GM",
+        "GPM",
+        "Estado",
+      ];
+
+      estilizarEncabezado(
+        encabezadoSemanal
+      );
+
+      evolucionSemanal.forEach(
+        (item) => {
+          const fila =
+            hojaSemanal.addRow([
+              item.semana_inicio,
+              item.semana_fin,
+              moneda(
+                item.ingresos
+              ),
+              moneda(
+                item.egresos
+              ),
+              moneda(item.gm),
+              item.gpm === null
+                ? null
+                : porcentaje(
+                    item.gpm
+                  ),
+              item.estado_periodo,
+            ]);
+
+          [3, 4, 5].forEach(
+            (numero) => {
+              fila.getCell(
+                numero
+              ).numFmt =
+                '$#,##0.00';
+            }
+          );
+
+          fila.getCell(6).numFmt =
+            "0.00%";
+        }
+      );
+
+      ajustarColumnas(
+        hojaSemanal
+      );
+
+      // ========================================================
+      // 5. EVOLUCIÓN DIARIA
+      // ========================================================
+
+      const hojaDiaria =
+        workbook.addWorksheet(
+          "Evolución diaria"
+        );
+
+      estilizarTitulo(
+        hojaDiaria,
+        "A1:E1",
+        "Evolución financiera diaria"
+      );
+
+      const encabezadoDiario =
+        hojaDiaria.getRow(3);
+
+      encabezadoDiario.values = [
+        "Fecha financiera",
+        "Ingresos",
+        "Egresos",
+        "GM",
+        "GPM",
+      ];
+
+      estilizarEncabezado(
+        encabezadoDiario
+      );
+
+      evolucionDiaria.forEach(
+        (item) => {
+          const fila =
+            hojaDiaria.addRow([
+              item.fecha_financiera,
+              moneda(
+                item.ingresos
+              ),
+              moneda(
+                item.egresos
+              ),
+              moneda(item.gm),
+              item.gpm === null
+                ? null
+                : porcentaje(
+                    item.gpm
+                  ),
+            ]);
+
+          [2, 3, 4].forEach(
+            (numero) => {
+              fila.getCell(
+                numero
+              ).numFmt =
+                '$#,##0.00';
+            }
+          );
+
+          fila.getCell(5).numFmt =
+            "0.00%";
+        }
+      );
+
+      ajustarColumnas(
+        hojaDiaria
+      );
+
+      // ========================================================
+      // 6. INGRESOS
+      // ========================================================
+
+      const hojaIngresos =
+        workbook.addWorksheet(
+          "Ingresos"
+        );
+
+      estilizarTitulo(
+        hojaIngresos,
+        "A1:H1",
+        "Detalle de ingresos"
+      );
+
+      hojaIngresos.addRow([]);
+
+      if (ingresos.length > 0) {
+        const columnas =
+          Object.keys(
+            ingresos[0]
+          );
+
+        const encabezado =
+          hojaIngresos.addRow(
+            columnas
+          );
+
+        estilizarEncabezado(
+          encabezado
+        );
+
+        ingresos.forEach(
+          (registro) => {
+            hojaIngresos.addRow(
+              columnas.map(
+                (columna) =>
+                  registro[columna]
+              )
+            );
+          }
+        );
+      }
+
+      ajustarColumnas(
+        hojaIngresos
+      );
+
+      // ========================================================
+      // 7. EGRESOS
+      // ========================================================
+
+      const hojaEgresos =
+        workbook.addWorksheet(
+          "Egresos"
+        );
+
+      estilizarTitulo(
+        hojaEgresos,
+        "A1:J1",
+        "Detalle de egresos"
+      );
+
+      hojaEgresos.addRow([]);
+
+      if (egresos.length > 0) {
+        const columnas =
+          Object.keys(
+            egresos[0]
+          );
+
+        const encabezado =
+          hojaEgresos.addRow(
+            columnas
+          );
+
+        estilizarEncabezado(
+          encabezado
+        );
+
+        egresos.forEach(
+          (registro) => {
+            hojaEgresos.addRow(
+              columnas.map(
+                (columna) =>
+                  registro[columna]
+              )
+            );
+          }
+        );
+      }
+
+      ajustarColumnas(
+        hojaEgresos
+      );
+
+      // ========================================================
+      // 8. SOCIOS
+      // ========================================================
+
+      const hojaSocios =
+        workbook.addWorksheet(
+          "Socios"
+        );
+
+      estilizarTitulo(
+        hojaSocios,
+        "A1:F1",
+        "Distribución por socio"
+      );
+
+      const encabezadoSocios =
+        hojaSocios.getRow(3);
+
+      encabezadoSocios.values = [
+        "Socio",
+        "Participación",
+        "Participación GM",
+        "Adelantos",
+        "Devoluciones",
+        "Saldo adelantos",
+      ];
+
+      estilizarEncabezado(
+        encabezadoSocios
+      );
+
+      socios.forEach(
+        (socio) => {
+          const fila =
+            hojaSocios.addRow([
+              socio.socio,
+              porcentaje(
+                socio.porcentaje_participacion
+              ),
+              moneda(
+                socio.participacion_gm
+              ),
+              moneda(
+                socio.adelantos
+              ),
+              moneda(
+                socio.devoluciones
+              ),
+              moneda(
+                socio.saldo_adelantos
+              ),
+            ]);
+
+          fila.getCell(2).numFmt =
+            "0.00%";
+
+          [3, 4, 5, 6].forEach(
+            (numero) => {
+              fila.getCell(
+                numero
+              ).numFmt =
+                '$#,##0.00';
+            }
+          );
+        }
+      );
+
+      ajustarColumnas(
+        hojaSocios
+      );
+
+      // ========================================================
+      // 9. NÓMINA
+      // ========================================================
+
+      const hojaNomina =
+        workbook.addWorksheet(
+          "Nómina"
+        );
+
+      estilizarTitulo(
+        hojaNomina,
+        "A1:D1",
+        "Prenómina vs nómina real"
+      );
+
+      hojaNomina.addRow([]);
+
+      hojaNomina.addRow([
+        "Prenómina estimada",
+        moneda(
+          comparacionNomina.prenomina_referencia
+        ),
+      ]);
+
+      hojaNomina.addRow([
+        "Nómina real",
+        moneda(
+          comparacionNomina.nomina_real
+        ),
+      ]);
+
+      hojaNomina.addRow([
+        "Diferencia",
+        moneda(
+          comparacionNomina.diferencia
+        ),
+      ]);
+
+      hojaNomina.addRow([
+        "Variación",
+        comparacionNomina
+          .diferencia_porcentaje ===
+          null
+          ? null
+          : porcentaje(
+              comparacionNomina.diferencia_porcentaje
+            ),
+      ]);
+
+      hojaNomina.getCell(
+        "B3"
+      ).numFmt = '$#,##0.00';
+
+      hojaNomina.getCell(
+        "B4"
+      ).numFmt = '$#,##0.00';
+
+      hojaNomina.getCell(
+        "B5"
+      ).numFmt = '$#,##0.00';
+
+      hojaNomina.getCell(
+        "B6"
+      ).numFmt = "0.00%";
+
+      if (
+        prenominas.length > 0
+      ) {
+        hojaNomina.addRow([]);
+        hojaNomina.addRow([
+          "ID",
+          "Fecha inicio",
+          "Fecha fin",
+          "Total",
+          "Estatus",
+        ]);
+
+        estilizarEncabezado(
+          hojaNomina.getRow(
+            hojaNomina.rowCount
+          )
+        );
+
+        prenominas.forEach(
+          (p) => {
+            const fila =
+              hojaNomina.addRow([
+                p.id,
+                p.fecha_inicio,
+                p.fecha_fin,
+                moneda(p.total),
+                p.estatus,
+              ]);
+
+            fila.getCell(4).numFmt =
+              '$#,##0.00';
+          }
+        );
+      }
+
+      ajustarColumnas(
+        hojaNomina
+      );
+
+      // ========================================================
+      // GENERAR ARCHIVO
+      // ========================================================
+
+      const buffer =
+        await workbook.xlsx.writeBuffer();
+
+      const inicio =
+        String(
+          periodo.fecha_inicio ||
+            "inicio"
+        ).replaceAll("-", "");
+
+      const fin =
+        String(
+          periodo.fecha_fin ||
+            "fin"
+        ).replaceAll("-", "");
+
+      const nombreArchivo =
+        `BOSSE_Analisis_Financiero_${inicio}_${fin}.xlsx`;
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${nombreArchivo}"`
+      );
+
+      return res.send(
+        Buffer.from(buffer)
+      );
+    } catch (error) {
+      console.error(
+        "Error exportando análisis financiero:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        error:
+          error.message ||
+          "No fue posible generar el Excel.",
+      });
+    }
+  }
+);
+
 // Obtener historial de prenóminas
 app.get('/api/prenomina', async (req, res) => {
 
