@@ -1347,6 +1347,86 @@ const descargarExcel = async () => {
   }
 };
 
+const descargarPDF = async () => {
+  if (!analisis) {
+    alert(
+      "Primero debes cargar el análisis financiero."
+    );
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/analisis-financiero/exportar-pdf`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          analisis,
+          hallazgos: hallazgosEjecutivos,
+          usuario: usuarioActivo || "",
+        }),
+      }
+    );
+
+    if (!respuesta.ok) {
+      let mensaje =
+        "No fue posible generar el PDF.";
+
+      try {
+        const error =
+          await respuesta.json();
+
+        mensaje =
+          error.error || mensaje;
+      } catch {
+        // La respuesta no era JSON.
+      }
+
+      throw new Error(mensaje);
+    }
+
+    const blob =
+      await respuesta.blob();
+
+    const url =
+      window.URL.createObjectURL(blob);
+
+    const enlace =
+      document.createElement("a");
+
+    enlace.href = url;
+
+    const inicio = String(
+      fechaInicio || "inicio"
+    ).replaceAll("-", "");
+
+    const fin = String(
+      fechaFin || "fin"
+    ).replaceAll("-", "");
+
+    enlace.download =
+      `BOSSE_Reporte_Ejecutivo_${inicio}_${fin}.pdf`;
+
+    document.body.appendChild(enlace);
+
+    enlace.click();
+
+    enlace.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(
+      "Error descargando PDF:",
+      error
+    );
+
+    alert(`🚨 ${error.message}`);
+  }
+};
+
 // ============================================================
 // LOADING
 // ============================================================
@@ -1521,6 +1601,26 @@ const descargarExcel = async () => {
   }}
 >
   ↓ Descargar Excel
+</button>
+
+<button
+  type="button"
+  onClick={descargarPDF}
+  disabled={cargando || !analisis}
+  style={{
+    ...botonTab,
+    background: "#fff",
+    color: "#111",
+    border: "1px solid #111",
+    opacity:
+      cargando || !analisis ? 0.55 : 1,
+    cursor:
+      cargando || !analisis
+        ? "not-allowed"
+        : "pointer",
+  }}
+>
+  ↓ Descargar PDF
 </button>
 
             <button
