@@ -271,8 +271,10 @@ const tooltipCambioEgresos = () => {
   // DATOS
   // ============================================================
 
-  const resumen =
-    analisis?.resumen || {};
+  const resumen = useMemo(
+  () => analisis?.resumen || {},
+  [analisis]
+);
 
   const semanas =
     analisis?.evolucion_semanal || [];
@@ -590,6 +592,141 @@ const maximoGrafica = Math.max(
   ])
 );
 
+const hallazgosEjecutivos = useMemo(() => {
+  const hallazgos = [];
+
+  const totalIngresosActual =
+    Number(resumen.total_ingresos || 0);
+
+  const totalEgresosActual =
+    Number(resumen.total_egresos || 0);
+
+  const gmActual =
+    Number(resumen.gm || 0);
+
+  const gpmActual =
+    resumen.gpm === null ||
+    resumen.gpm === undefined
+      ? null
+      : Number(resumen.gpm);
+
+  // 1. Periodo provisional
+  if (provisional) {
+    hallazgos.push({
+      tipo: "advertencia",
+      titulo: "Periodo provisional",
+      texto:
+        "Todavía pueden registrarse egresos correspondientes a este periodo. El GPM no debe considerarse definitivo.",
+    });
+  }
+
+  // 2. GM negativo
+  if (gmActual < 0) {
+    hallazgos.push({
+      tipo: "critico",
+      titulo: "Margen negativo",
+      texto: `Los egresos superan el resultado disponible. GM actual: ${formatoMoneda(
+        gmActual
+      )}.`,
+    });
+  }
+
+  // 3. Peso de egresos
+  if (
+    totalIngresosActual > 0 &&
+    totalEgresosActual >
+      totalIngresosActual * 0.8
+  ) {
+    hallazgos.push({
+      tipo: "advertencia",
+      titulo: "Egresos elevados",
+      texto: `Los egresos representan ${formatoPorcentaje(
+        (totalEgresosActual /
+          totalIngresosActual) *
+          100
+      )} de los ingresos.`,
+    });
+  }
+
+  // 4. Categoría principal
+  if (categoriasFiltradas.length > 0) {
+    const principal =
+      categoriasFiltradas[0];
+
+    hallazgos.push({
+      tipo: "informativo",
+      titulo: "Principal categoría de gasto",
+      texto: `${principal.categoria} concentra ${formatoPorcentaje(
+        principal.porcentaje
+      )} de los egresos (${formatoMoneda(
+        principal.total
+      )}).`,
+    });
+  }
+
+  // 5. Diferencia nómina
+  if (
+    prenominaEsperada > 0 &&
+    diferenciaNominaPct !== null &&
+    diferenciaNominaPct !== undefined
+  ) {
+    const diferenciaPct =
+      Number(diferenciaNominaPct);
+
+    if (Math.abs(diferenciaPct) > 5) {
+      hallazgos.push({
+        tipo:
+          diferenciaPct > 0
+            ? "advertencia"
+            : "informativo",
+        titulo:
+          "Diferencia entre prenómina y nómina real",
+        texto:
+          diferenciaPct > 0
+            ? `La nómina real quedó ${formatoPorcentaje(
+                Math.abs(diferenciaPct)
+              )} por encima de la prenómina.`
+            : `La nómina real quedó ${formatoPorcentaje(
+                Math.abs(diferenciaPct)
+              )} por debajo de la prenómina.`,
+      });
+    }
+  }
+
+  // 6. GPM sano / positivo
+  if (
+    !provisional &&
+    gpmActual !== null &&
+    gpmActual > 0
+  ) {
+    hallazgos.push({
+      tipo: "positivo",
+      titulo: "Margen positivo",
+      texto: `El periodo cerró con un GPM de ${formatoPorcentaje(
+        gpmActual
+      )}.`,
+    });
+  }
+
+  // 7. Si no encontramos nada especial
+  if (hallazgos.length === 0) {
+    hallazgos.push({
+      tipo: "informativo",
+      titulo: "Sin alertas relevantes",
+      texto:
+        "No se detectaron desviaciones importantes con los datos disponibles para este periodo.",
+    });
+  }
+
+  return hallazgos;
+}, [
+  resumen,
+  provisional,
+  categoriasFiltradas,
+  prenominaEsperada,
+  diferenciaNominaPct,
+]);
+
   // ============================================================
   // COMPONENTES VISUALES
   // ============================================================
@@ -822,9 +959,10 @@ const maximoGrafica = Math.max(
             type="button"
             style={botonSecundario}
             onClick={() => {
-              setNivelGrafica("periodo");
-              setDiaSeleccionado(null);
-            }}
+  setNivelGrafica("periodo");
+  setDiaSeleccionado(null);
+  setSemanaSeleccionada(null);
+}}
           >
             ← Volver al periodo
           </button>
@@ -1586,9 +1724,126 @@ const maximoGrafica = Math.max(
               />
             </div>
 
-            {/* Semanas */}
+{/* Hallazgos */}
 
-            <section
+<section
+  style={{
+    ...tarjeta,
+    marginBottom: "22px",
+  }}
+>
+  <TituloSeccion
+    titulo="Hallazgos del periodo"
+    subtitulo="Lectura automática de los principales movimientos y desviaciones."
+  />
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns:
+        "repeat(auto-fit, minmax(250px, 1fr))",
+      gap: "10px",
+    }}
+  >
+    {hallazgosEjecutivos.map(
+      (hallazgo, index) => {
+        const estilosHallazgo = {
+          positivo: {
+            background: "#edf7ee",
+            border: "#c9e6cd",
+            indicador: "●",
+          },
+
+          advertencia: {
+            background: "#fff8e5",
+            border: "#ead9a3",
+            indicador: "▲",
+          },
+
+          critico: {
+            background: "#fff0f0",
+            border: "#efc4c4",
+            indicador: "!",
+          },
+
+          informativo: {
+            background: "#f7f7f7",
+            border: "#e3e3e3",
+            indicador: "•",
+          },
+        };
+
+        const estilo =
+          estilosHallazgo[hallazgo.tipo] ||
+          estilosHallazgo.informativo;
+
+        return (
+          <div
+            key={`${hallazgo.titulo}-${index}`}
+            style={{
+              padding: "14px",
+              borderRadius: "10px",
+              background: estilo.background,
+              border: `1px solid ${estilo.border}`,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                alignItems: "flex-start",
+              }}
+            >
+              <div
+                style={{
+                  width: "22px",
+                  height: "22px",
+                  borderRadius: "50%",
+                  background: "#111",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  fontSize: "11px",
+                  fontWeight: "700",
+                }}
+              >
+                {estilo.indicador}
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    fontWeight: "700",
+                    fontSize: "13px",
+                    marginBottom: "5px",
+                  }}
+                >
+                  {hallazgo.titulo}
+                </div>
+
+                <div
+                  style={{
+                    color: "#555",
+                    fontSize: "12px",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {hallazgo.texto}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+    )}
+  </div>
+</section>
+
+{/* Evolución financiera */}
+
+<section
   style={{
     ...tarjeta,
     marginBottom: "22px",
