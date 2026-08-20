@@ -6,6 +6,7 @@ const path = require('path');
 const multer = require('multer'); 
 const fs = require('fs');
 const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
 const app = express();
 
 // Configuración de CORS más robusta
@@ -8291,6 +8292,502 @@ app.post(
           error.message ||
           "No fue posible generar el Excel.",
       });
+    }
+  }
+);
+
+// ============================================================
+// EXPORTAR ANÁLISIS FINANCIERO A PDF
+// ============================================================
+
+app.post(
+  "/api/analisis-financiero/exportar-pdf",
+  async (req, res) => {
+    try {
+      const {
+        analisis,
+        hallazgos = [],
+        usuario = "",
+      } = req.body;
+
+      if (!analisis || !analisis.success) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "No se recibió un análisis financiero válido.",
+        });
+      }
+
+      const resumen =
+        analisis.resumen || {};
+
+      const periodo =
+        analisis.periodo || {};
+
+      const categorias =
+        analisis.egresos_por_categoria || [];
+
+      const socios =
+        analisis.distribucion_socios || [];
+
+      const comparacionNomina =
+        analisis.comparacion_nomina || {};
+
+      const formatoMonedaPdf = (valor) =>
+        Number(valor || 0).toLocaleString(
+          "es-MX",
+          {
+            style: "currency",
+            currency: "MXN",
+            minimumFractionDigits: 2,
+          }
+        );
+
+      const formatoPorcentajePdf = (valor) => {
+        if (
+          valor === null ||
+          valor === undefined ||
+          Number.isNaN(Number(valor))
+        ) {
+          return "—";
+        }
+
+        return `${Number(valor).toLocaleString(
+          "es-MX",
+          {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }
+        )}%`;
+      };
+
+      const doc = new PDFDocument({
+        size: "LETTER",
+        margin: 45,
+      });
+
+      const inicio =
+        String(
+          periodo.fecha_inicio || "inicio"
+        ).replaceAll("-", "");
+
+      const fin =
+        String(
+          periodo.fecha_fin || "fin"
+        ).replaceAll("-", "");
+
+      const nombreArchivo =
+        `BOSSE_Reporte_Ejecutivo_${inicio}_${fin}.pdf`;
+
+      res.setHeader(
+        "Content-Type",
+        "application/pdf"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${nombreArchivo}"`
+      );
+
+      doc.pipe(res);
+
+      // ========================================================
+      // ENCABEZADO
+      // ========================================================
+
+      doc
+        .fontSize(24)
+        .font("Helvetica-Bold")
+        .text("BOSSE");
+
+      doc
+        .moveDown(0.2)
+        .fontSize(16)
+        .font("Helvetica")
+        .text(
+          "Reporte Ejecutivo Financiero"
+        );
+
+      doc
+        .moveDown(0.6)
+        .fontSize(10)
+        .fillColor("#666666")
+        .text(
+          `Periodo: ${periodo.fecha_inicio || "—"} — ${periodo.fecha_fin || "—"}`
+        )
+        .text(
+          `Estado: ${periodo.estado || "—"}`
+        )
+        .text(
+          `Generado por: ${usuario || "BOSSE"}`
+        );
+
+      doc
+        .fillColor("#000000")
+        .moveDown(1);
+
+      doc
+        .strokeColor("#dddddd")
+        .moveTo(45, doc.y)
+        .lineTo(567, doc.y)
+        .stroke();
+
+      doc.moveDown(1);
+
+      // ========================================================
+      // RESUMEN
+      // ========================================================
+
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text("Resumen ejecutivo");
+
+      doc.moveDown(0.7);
+
+      const metricas = [
+        [
+          "Ingresos",
+          formatoMonedaPdf(
+            resumen.total_ingresos
+          ),
+        ],
+        [
+          "Egresos",
+          formatoMonedaPdf(
+            resumen.total_egresos
+          ),
+        ],
+        [
+          "GM",
+          formatoMonedaPdf(
+            resumen.gm
+          ),
+        ],
+        [
+          "GPM",
+          formatoPorcentajePdf(
+            resumen.gpm
+          ),
+        ],
+        [
+          "Nómina",
+          formatoMonedaPdf(
+            resumen.total_nomina
+          ),
+        ],
+        [
+          "Otros egresos",
+          formatoMonedaPdf(
+            resumen.total_egresos_operativos
+          ),
+        ],
+      ];
+
+      metricas.forEach(
+        ([titulo, valor]) => {
+          const y = doc.y;
+
+          doc
+            .font("Helvetica")
+            .fontSize(10)
+            .fillColor("#666666")
+            .text(titulo, 55, y, {
+              width: 210,
+            });
+
+          doc
+            .font("Helvetica-Bold")
+            .fontSize(11)
+            .fillColor("#000000")
+            .text(valor, 300, y, {
+              width: 230,
+              align: "right",
+            });
+
+          doc.moveDown(0.7);
+        }
+      );
+
+      // ========================================================
+      // HALLAZGOS
+      // ========================================================
+
+      doc.moveDown(0.7);
+
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text("Hallazgos del periodo");
+
+      doc.moveDown(0.6);
+
+      if (hallazgos.length === 0) {
+        doc
+          .font("Helvetica")
+          .fontSize(10)
+          .fillColor("#666666")
+          .text(
+            "No se detectaron hallazgos relevantes."
+          );
+      } else {
+        hallazgos.forEach(
+          (hallazgo) => {
+            doc
+              .font("Helvetica-Bold")
+              .fontSize(10)
+              .fillColor("#000000")
+              .text(
+                `• ${hallazgo.titulo || "Hallazgo"}`
+              );
+
+            doc
+              .font("Helvetica")
+              .fontSize(9)
+              .fillColor("#555555")
+              .text(
+                hallazgo.texto || "",
+                {
+                  indent: 12,
+                }
+              );
+
+            doc.moveDown(0.5);
+          }
+        );
+      }
+
+      // ========================================================
+      // CATEGORÍAS
+      // ========================================================
+
+      if (doc.y > 590) {
+        doc.addPage();
+      }
+
+      doc
+        .moveDown(0.7)
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .fillColor("#000000")
+        .text("Principales egresos");
+
+      doc.moveDown(0.6);
+
+      categorias
+        .slice(0, 8)
+        .forEach((categoria) => {
+          const y = doc.y;
+
+          doc
+            .font("Helvetica")
+            .fontSize(10)
+            .text(
+              categoria.categoria ||
+                "Sin categoría",
+              55,
+              y,
+              {
+                width: 230,
+              }
+            );
+
+          doc
+            .font("Helvetica-Bold")
+            .text(
+              formatoMonedaPdf(
+                categoria.total
+              ),
+              300,
+              y,
+              {
+                width: 150,
+                align: "right",
+              }
+            );
+
+          doc
+            .font("Helvetica")
+            .fillColor("#666666")
+            .text(
+              formatoPorcentajePdf(
+                categoria.porcentaje
+              ),
+              465,
+              y,
+              {
+                width: 70,
+                align: "right",
+              }
+            );
+
+          doc
+            .fillColor("#000000")
+            .moveDown(0.7);
+        });
+
+      // ========================================================
+      // NÓMINA
+      // ========================================================
+
+      if (doc.y > 610) {
+        doc.addPage();
+      }
+
+      doc
+        .moveDown(0.8)
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text(
+          "Prenómina vs nómina real"
+        );
+
+      doc.moveDown(0.6);
+
+      const datosNomina = [
+        [
+          "Prenómina estimada",
+          formatoMonedaPdf(
+            comparacionNomina.prenomina_referencia
+          ),
+        ],
+        [
+          "Nómina real",
+          formatoMonedaPdf(
+            comparacionNomina.nomina_real
+          ),
+        ],
+        [
+          "Diferencia",
+          formatoMonedaPdf(
+            comparacionNomina.diferencia
+          ),
+        ],
+        [
+          "Variación",
+          formatoPorcentajePdf(
+            comparacionNomina.diferencia_porcentaje
+          ),
+        ],
+      ];
+
+      datosNomina.forEach(
+        ([titulo, valor]) => {
+          const y = doc.y;
+
+          doc
+            .font("Helvetica")
+            .fontSize(10)
+            .text(titulo, 55, y, {
+              width: 220,
+            });
+
+          doc
+            .font("Helvetica-Bold")
+            .text(valor, 300, y, {
+              width: 230,
+              align: "right",
+            });
+
+          doc.moveDown(0.7);
+        }
+      );
+
+      // ========================================================
+      // SOCIOS
+      // ========================================================
+
+      if (socios.length > 0) {
+        if (doc.y > 590) {
+          doc.addPage();
+        }
+
+        doc
+          .moveDown(0.8)
+          .fontSize(14)
+          .font("Helvetica-Bold")
+          .text(
+            "Distribución por socio"
+          );
+
+        doc.moveDown(0.6);
+
+        socios.forEach((socio) => {
+          const y = doc.y;
+
+          doc
+            .font("Helvetica")
+            .fontSize(10)
+            .text(
+              socio.socio || "Socio",
+              55,
+              y,
+              {
+                width: 180,
+              }
+            );
+
+          doc.text(
+            formatoPorcentajePdf(
+              socio.porcentaje_participacion
+            ),
+            250,
+            y,
+            {
+              width: 100,
+              align: "right",
+            }
+          );
+
+          doc
+            .font("Helvetica-Bold")
+            .text(
+              formatoMonedaPdf(
+                socio.participacion_gm
+              ),
+              370,
+              y,
+              {
+                width: 165,
+                align: "right",
+              }
+            );
+
+          doc.moveDown(0.7);
+        });
+      }
+
+      // ========================================================
+      // PIE
+      // ========================================================
+
+      doc
+        .moveDown(1.3)
+        .font("Helvetica")
+        .fontSize(8)
+        .fillColor("#888888")
+        .text(
+          "Reporte generado automáticamente por BOSSE.",
+          {
+            align: "center",
+          }
+        );
+
+      doc.end();
+    } catch (error) {
+      console.error(
+        "Error exportando PDF financiero:",
+        error
+      );
+
+      if (!res.headersSent) {
+        return res.status(500).json({
+          success: false,
+          error:
+            error.message ||
+            "No fue posible generar el PDF.",
+        });
+      }
     }
   }
 );
