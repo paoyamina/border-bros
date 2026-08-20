@@ -16,7 +16,7 @@ function CambioDivisas({
   const [cortes, setCortes] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [asignaciones, setAsignaciones] = useState({});
-
+const [finesAbiertos, setFinesAbiertos] = useState({});
   const [tipoCambio, setTipoCambio] = useState("");
   const [montoDestino, setMontoDestino] = useState("");
   const [casaCambio, setCasaCambio] = useState("");
@@ -115,38 +115,254 @@ function CambioDivisas({
   }, [cargarDatos]);
 
   // ============================================================
-  // CORTES SELECCIONADOS
-  // ============================================================
+// AGRUPAR CORTES POR FIN DE SEMANA
+// ============================================================
 
-  const cortesSeleccionados = useMemo(() => {
-    return cortes
-      .map((corte) => ({
-        corte_id: Number(corte.corte_id),
+const obtenerClaveFinSemana = (fechaTexto) => {
+  const fechaISO = String(fechaTexto || "").split("T")[0];
 
-        monto_usd:
-          Number(
-            asignaciones[corte.corte_id]
-          ) || 0,
-      }))
+  const [anio, mes, dia] = fechaISO
+    .split("-")
+    .map(Number);
 
-      .filter(
-        (item) => item.monto_usd > 0
-      );
-  }, [cortes, asignaciones]);
-
-  // ============================================================
-  // TOTAL USD
-  // ============================================================
-
-  const totalUsd = useMemo(
-    () =>
-      cortesSeleccionados.reduce(
-        (total, item) =>
-          total + item.monto_usd,
-        0
-      ),
-    [cortesSeleccionados]
+  const fecha = new Date(
+    Date.UTC(anio, mes - 1, dia)
   );
+
+  const diaSemana = fecha.getUTCDay();
+
+  // Viernes = 5, sábado = 6, domingo = 0
+  let diasHastaViernes = 0;
+
+  if (diaSemana === 5) {
+    diasHastaViernes = 0;
+  } else if (diaSemana === 6) {
+    diasHastaViernes = -1;
+  } else if (diaSemana === 0) {
+    diasHastaViernes = -2;
+  } else {
+    // Si existe un corte fuera de viernes-domingo,
+    // lo dejamos como grupo individual para no perderlo.
+    return `DIA-${fechaISO}`;
+  }
+
+  fecha.setUTCDate(
+    fecha.getUTCDate() + diasHastaViernes
+  );
+
+  return fecha.toISOString().split("T")[0];
+};
+
+const finesSemana = useMemo(() => {
+  const mapa = new Map();
+
+  cortes.forEach((corte) => {
+    const clave =
+      obtenerClaveFinSemana(corte.fecha);
+
+    if (!mapa.has(clave)) {
+      mapa.set(clave, {
+        id: clave,
+        fecha_inicio:
+          clave.startsWith("DIA-")
+            ? clave.replace("DIA-", "")
+            : clave,
+        cortes: [],
+      });
+    }
+
+    mapa.get(clave).cortes.push(corte);
+  });
+
+  return Array.from(mapa.values())
+    .map((grupo) => {
+      const cortesOrdenados = [...grupo.cortes]
+        .sort(
+          (a, b) =>
+            new Date(a.fecha) -
+            new Date(b.fecha) ||
+            Number(a.corte_id) -
+              Number(b.corte_id)
+        );
+
+      const usdOriginales =
+        cortesOrdenados.reduce(
+          (total, corte) =>
+            total +
+            Number(
+              corte.usd_originales || 0
+            ),
+          0
+        );
+
+      const usdCambiados =
+        cortesOrdenados.reduce(
+          (total, corte) =>
+            total +
+            Number(
+              corte.usd_cambiados || 0
+            ),
+          0
+        );
+
+      const usdDisponibles =
+        cortesOrdenados.reduce(
+          (total, corte) =>
+            total +
+            Number(
+              corte.usd_disponibles || 0
+            ),
+          0
+        );
+
+      let fechaFin =
+        grupo.fecha_inicio;
+
+      if (!grupo.id.startsWith("DIA-")) {
+        const [anio, mes, dia] =
+          grupo.fecha_inicio
+            .split("-")
+            .map(Number);
+
+        const domingo = new Date(
+          Date.UTC(anio, mes - 1, dia)
+        );
+
+        domingo.setUTCDate(
+          domingo.getUTCDate() + 2
+        );
+
+        fechaFin =
+          domingo
+            .toISOString()
+            .split("T")[0];
+      }
+
+      return {
+        ...grupo,
+        fecha_fin: fechaFin,
+        cortes: cortesOrdenados,
+        usd_originales: usdOriginales,
+        usd_cambiados: usdCambiados,
+        usd_disponibles: usdDisponibles,
+      };
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.fecha_inicio) -
+        new Date(a.fecha_inicio)
+    );
+}, [cortes]);
+
+
+// ============================================================
+// REPARTO AUTOMÁTICO FIFO
+// ============================================================
+
+const cortesSeleccionados = useMemo(() => {
+  const resultado = [];
+
+  finesSemana.forEach((grupo) => {
+    let pendiente =
+      Number(asignaciones[grupo.id]) || 0;
+
+    if (pendiente <= 0) {
+      return;
+    }
+
+    for (const corte of grupo.cortes) {
+      if (pendiente <= 0) break;
+
+      const disponible =
+        Number(
+          corte.usd_disponibles || 0
+        );
+
+      if (disponible <= 0) continue;
+
+      const usar = Math.min(
+        disponible,
+        pendiente
+      );
+
+      if (usar > 0) {
+        resultado.push({
+          corte_id:
+            Number(corte.corte_id),
+          monto_usd:
+            Number(usar.toFixed(2)),
+        });
+
+        pendiente -= usar;
+      }
+    }
+  });
+
+  return resultado;
+}, [finesSemana, asignaciones]);
+
+
+// ============================================================
+// TOTAL USD
+// ============================================================
+
+const totalUsd = useMemo(
+  () =>
+    Object.values(asignaciones).reduce(
+      (total, valor) =>
+        total + (Number(valor) || 0),
+      0
+    ),
+  [asignaciones]
+);
+
+
+// ============================================================
+// CAMBIAR ASIGNACIÓN DEL FIN DE SEMANA
+// ============================================================
+
+const cambiarAsignacionFin = (
+  grupo,
+  valor
+) => {
+  const numero = Number(valor);
+
+  if (numero < 0) return;
+
+  if (
+    numero >
+    Number(grupo.usd_disponibles || 0)
+  ) {
+    alert(
+      `Este fin de semana solo tiene ${formatoMoneda(
+        grupo.usd_disponibles,
+        "USD"
+      )} disponibles.`
+    );
+
+    return;
+  }
+
+  setAsignaciones((prev) => ({
+    ...prev,
+    [grupo.id]: valor,
+  }));
+};
+
+const usarTodoFin = (grupo) => {
+  setAsignaciones((prev) => ({
+    ...prev,
+    [grupo.id]:
+      Number(grupo.usd_disponibles),
+  }));
+};
+
+const toggleFinSemana = (id) => {
+  setFinesAbiertos((prev) => ({
+    ...prev,
+    [id]: !prev[id],
+  }));
+};
 
   // ============================================================
   // MXN CALCULADOS
@@ -157,55 +373,6 @@ function CambioDivisas({
     Number(tipoCambio) > 0
       ? totalUsd * Number(tipoCambio)
       : 0;
-
-  // ============================================================
-  // CAMBIAR ASIGNACIÓN DE CORTE
-  // ============================================================
-
-  const cambiarAsignacion = (
-    corte,
-    valor
-  ) => {
-    const numero = Number(valor);
-
-    if (numero < 0) return;
-
-    const disponible =
-      Number(
-        corte.usd_disponibles
-      ) || 0;
-
-    if (numero > disponible) {
-      alert(
-        `Este corte solo tiene ${formatoMoneda(
-          disponible,
-          "USD"
-        )} disponibles.`
-      );
-
-      return;
-    }
-
-    setAsignaciones((prev) => ({
-      ...prev,
-      [corte.corte_id]: valor,
-    }));
-  };
-
-  // ============================================================
-  // USAR TODO EL SALDO DE UN CORTE
-  // ============================================================
-
-  const usarTodo = (corte) => {
-    setAsignaciones((prev) => ({
-      ...prev,
-
-      [corte.corte_id]:
-        Number(
-          corte.usd_disponibles
-        ),
-    }));
-  };
 
   // ============================================================
   // LIMPIAR FORMULARIO
@@ -546,274 +713,365 @@ function CambioDivisas({
           </div>
         ) : (
           <>
-            {/* ================================================= */}
-            {/* 1. SELECCIÓN DE CORTES */}
-            {/* ================================================= */}
+         {/* ================================================= */}
+{/* 1. SELECCIÓN DE FIN DE SEMANA */}
+{/* ================================================= */}
 
-            <h2>
-              1. Selecciona los dólares a cambiar
-            </h2>
+<h2>
+  1. Selecciona el fin de semana
+</h2>
 
-            <p
+<p
+  style={{
+    color: "#777",
+    marginTop: "-6px",
+  }}
+>
+  Ingresa el total de USD que deseas cambiar.
+  BOSSE utilizará automáticamente primero
+  los dólares del día más antiguo.
+</p>
+
+<div style={{ overflowX: "auto" }}>
+  <table
+    style={{
+      width: "100%",
+      borderCollapse: "collapse",
+      minWidth: "900px",
+    }}
+  >
+    <thead>
+      <tr
+        style={{
+          borderBottom: "1px solid #ddd",
+          background: "#FAFAF9",
+        }}
+      >
+        <th style={thStyle}></th>
+
+        <th style={thStyle}>
+          Fin de semana
+        </th>
+
+        <th
+          style={{
+            ...thStyle,
+            textAlign: "right",
+          }}
+        >
+          USD originales
+        </th>
+
+        <th
+          style={{
+            ...thStyle,
+            textAlign: "right",
+          }}
+        >
+          Ya cambiados
+        </th>
+
+        <th
+          style={{
+            ...thStyle,
+            textAlign: "right",
+          }}
+        >
+          Disponibles
+        </th>
+
+        <th style={thStyle}>
+          USD a cambiar
+        </th>
+
+        <th style={thStyle}>
+          Acción
+        </th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {finesSemana.length === 0 ? (
+        <tr>
+          <td
+            colSpan="7"
+            style={{
+              padding: "30px",
+              textAlign: "center",
+              color: "#777",
+            }}
+          >
+            No hay dólares disponibles.
+          </td>
+        </tr>
+      ) : (
+        finesSemana.map((grupo) => (
+          <React.Fragment key={grupo.id}>
+            <tr
               style={{
-                color: "#777",
-                marginTop: "-6px",
+                borderBottom:
+                  "1px solid #eee",
               }}
             >
-              Puedes utilizar uno o varios
-              cortes para realizar un mismo
-              cambio.
-            </p>
-
-            <div
-              style={{
-                overflowX: "auto",
-              }}
-            >
-              <table
+              <td
                 style={{
-                  width: "100%",
-                  borderCollapse:
-                    "collapse",
-                  minWidth: "850px",
+                  padding: "10px",
                 }}
               >
-                <thead>
+                <button
+                  type="button"
+                  onClick={() =>
+                    toggleFinSemana(
+                      grupo.id
+                    )
+                  }
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    background: "#fff",
+                    border:
+                      "1px solid #ccc",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  {finesAbiertos[
+                    grupo.id
+                  ]
+                    ? "−"
+                    : "+"}
+                </button>
+              </td>
+
+              <td
+                style={{
+                  padding: "10px",
+                  fontWeight: "700",
+                }}
+              >
+                {grupo.id.startsWith(
+                  "DIA-"
+                )
+                  ? formatoFecha(
+                      grupo.fecha_inicio
+                    )
+                  : `${formatoFecha(
+                      grupo.fecha_inicio
+                    )} — ${formatoFecha(
+                      grupo.fecha_fin
+                    )}`}
+              </td>
+
+              <td
+                style={{
+                  padding: "10px",
+                  textAlign: "right",
+                }}
+              >
+                {formatoMoneda(
+                  grupo.usd_originales,
+                  "USD"
+                )}
+              </td>
+
+              <td
+                style={{
+                  padding: "10px",
+                  textAlign: "right",
+                }}
+              >
+                {formatoMoneda(
+                  grupo.usd_cambiados,
+                  "USD"
+                )}
+              </td>
+
+              <td
+                style={{
+                  padding: "10px",
+                  textAlign: "right",
+                  fontWeight: "700",
+                }}
+              >
+                {formatoMoneda(
+                  grupo.usd_disponibles,
+                  "USD"
+                )}
+              </td>
+
+              <td
+                style={{
+                  padding: "10px",
+                }}
+              >
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={
+                    asignaciones[
+                      grupo.id
+                    ] ?? ""
+                  }
+                  onChange={(e) =>
+                    cambiarAsignacionFin(
+                      grupo,
+                      e.target.value
+                    )
+                  }
+                  style={{
+                    ...inputStyle,
+                    minWidth: "120px",
+                  }}
+                />
+              </td>
+
+              <td
+                style={{
+                  padding: "10px",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    usarTodoFin(grupo)
+                  }
+                  style={{
+                    padding:
+                      "8px 12px",
+                    background: "#fff",
+                    border:
+                      "1px solid #111",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Usar todo
+                </button>
+              </td>
+            </tr>
+
+            {finesAbiertos[
+              grupo.id
+            ] &&
+              grupo.cortes.map(
+                (corte) => (
                   <tr
+                    key={
+                      corte.corte_id
+                    }
                     style={{
-                      borderBottom:
-                        "1px solid #ddd",
                       background:
                         "#FAFAF9",
+                      borderBottom:
+                        "1px solid #eee",
                     }}
                   >
-                    <th
-                      style={thStyle}
-                    >
-                      Fecha
-                    </th>
+                    <td></td>
 
-                    <th
-                      style={thStyle}
-                    >
-                      Corte
-                    </th>
-
-                    <th
+                    <td
                       style={{
-                        ...thStyle,
-                        textAlign:
-                          "right",
+                        padding:
+                          "9px 10px 9px 28px",
                       }}
                     >
-                      USD originales
-                    </th>
+                      <strong>
+                        {formatoFecha(
+                          corte.fecha
+                        )}
+                      </strong>
 
-                    <th
-                      style={{
-                        ...thStyle,
-                        textAlign:
-                          "right",
-                      }}
-                    >
-                      Ya cambiados
-                    </th>
-
-                    <th
-                      style={{
-                        ...thStyle,
-                        textAlign:
-                          "right",
-                      }}
-                    >
-                      Disponibles
-                    </th>
-
-                    <th
-                      style={thStyle}
-                    >
-                      USD a cambiar
-                    </th>
-
-                    <th
-                      style={thStyle}
-                    >
-                      Acción
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {cortes.length ===
-                  0 ? (
-                    <tr>
-                      <td
-                        colSpan="7"
+                      <div
                         style={{
-                          padding:
-                            "30px",
-                          textAlign:
-                            "center",
+                          marginTop:
+                            "3px",
+                          fontSize:
+                            "11px",
                           color:
                             "#777",
                         }}
                       >
-                        No hay dólares
-                        disponibles en
-                        cortes de caja.
-                      </td>
-                    </tr>
-                  ) : (
-                    cortes.map(
-                      (corte) => (
-                        <tr
-                          key={
-                            corte.corte_id
-                          }
-                          style={{
-                            borderBottom:
-                              "1px solid #eee",
-                          }}
-                        >
-                          <td
-                            style={{
-                              padding:
-                                "10px",
-                            }}
-                          >
-                            {formatoFecha(
-                              corte.fecha
-                            )}
-                          </td>
+                        {corte.folio ||
+                          `Corte #${corte.corte_id}`}
+                      </div>
+                    </td>
 
-                          <td
-                            style={{
-                              padding:
-                                "10px",
-                              fontWeight:
-                                "600",
-                            }}
-                          >
-                            {corte.folio ||
-                              `#${corte.corte_id}`}
-                          </td>
+                    <td
+                      style={{
+                        padding:
+                          "9px 10px",
+                        textAlign:
+                          "right",
+                      }}
+                    >
+                      {formatoMoneda(
+                        corte.usd_originales,
+                        "USD"
+                      )}
+                    </td>
 
-                          <td
-                            style={{
-                              padding:
-                                "10px",
-                              textAlign:
-                                "right",
-                            }}
-                          >
-                            {formatoMoneda(
-                              corte.usd_originales,
-                              "USD"
-                            )}
-                          </td>
+                    <td
+                      style={{
+                        padding:
+                          "9px 10px",
+                        textAlign:
+                          "right",
+                      }}
+                    >
+                      {formatoMoneda(
+                        corte.usd_cambiados,
+                        "USD"
+                      )}
+                    </td>
 
-                          <td
-                            style={{
-                              padding:
-                                "10px",
-                              textAlign:
-                                "right",
-                            }}
-                          >
-                            {formatoMoneda(
-                              corte.usd_cambiados,
-                              "USD"
-                            )}
-                          </td>
+                    <td
+                      style={{
+                        padding:
+                          "9px 10px",
+                        textAlign:
+                          "right",
+                        fontWeight:
+                          "600",
+                      }}
+                    >
+                      {formatoMoneda(
+                        corte.usd_disponibles,
+                        "USD"
+                      )}
+                    </td>
 
-                          <td
-                            style={{
-                              padding:
-                                "10px",
-                              textAlign:
-                                "right",
-                              fontWeight:
-                                "700",
-                            }}
-                          >
-                            {formatoMoneda(
-                              corte.usd_disponibles,
-                              "USD"
-                            )}
-                          </td>
-
-                          <td
-                            style={{
-                              padding:
-                                "10px",
-                            }}
-                          >
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={
-                                asignaciones[
-                                  corte
-                                    .corte_id
-                                ] ?? ""
-                              }
-                              onChange={(
-                                e
-                              ) =>
-                                cambiarAsignacion(
-                                  corte,
-                                  e
-                                    .target
-                                    .value
-                                )
-                              }
-                              style={{
-                                ...inputStyle,
-                                minWidth:
-                                  "120px",
-                              }}
-                            />
-                          </td>
-
-                          <td
-                            style={{
-                              padding:
-                                "10px",
-                            }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() =>
-                                usarTodo(
-                                  corte
-                                )
-                              }
-                              style={{
-                                padding:
-                                  "8px 12px",
-                                background:
-                                  "#fff",
-                                border:
-                                  "1px solid #111",
-                                borderRadius:
-                                  "6px",
-                                cursor:
-                                  "pointer",
-                                whiteSpace:
-                                  "nowrap",
-                              }}
-                            >
-                              Usar todo
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    )
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    <td
+                      colSpan="2"
+                      style={{
+                        padding:
+                          "9px 10px",
+                        color:
+                          "#777",
+                        fontSize:
+                          "12px",
+                      }}
+                    >
+                      Corte:{" "}
+                      {formatoMoneda(
+                        corte.usd_corte,
+                        "USD"
+                      )}
+                      {" · "}
+                      Cover:{" "}
+                      {formatoMoneda(
+                        corte.usd_cover,
+                        "USD"
+                      )}
+                    </td>
+                  </tr>
+                )
+              )}
+          </React.Fragment>
+        ))
+      )}
+    </tbody>
+  </table>
+</div>
 
             {/* TOTAL USD */}
 
