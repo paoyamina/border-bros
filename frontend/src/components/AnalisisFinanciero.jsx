@@ -1269,13 +1269,87 @@ const hallazgosEjecutivos = useMemo(() => {
             </div>
           </div>
         )}
-    </div>
+      </div>
   );
 };
 
-  // ============================================================
-  // LOADING
-  // ============================================================
+const descargarExcel = async () => {
+  if (!analisis) {
+    alert(
+      "Primero debes cargar el análisis financiero."
+    );
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/analisis-financiero/exportar-excel`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          analisis,
+          hallazgos: hallazgosEjecutivos,
+          usuario: usuarioActivo || "",
+        }),
+      }
+    );
+
+    if (!respuesta.ok) {
+      let mensaje =
+        "No fue posible generar el Excel.";
+
+      try {
+        const error = await respuesta.json();
+        mensaje = error.error || mensaje;
+      } catch {
+        // La respuesta no era JSON.
+      }
+
+      throw new Error(mensaje);
+    }
+
+    const blob = await respuesta.blob();
+
+    const url =
+      window.URL.createObjectURL(blob);
+
+    const enlace =
+      document.createElement("a");
+
+    enlace.href = url;
+
+    const inicio = String(
+      fechaInicio || "inicio"
+    ).replaceAll("-", "");
+
+    const fin = String(
+      fechaFin || "fin"
+    ).replaceAll("-", "");
+
+    enlace.download =
+      `BOSSE_Analisis_Financiero_${inicio}_${fin}.xlsx`;
+
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(
+      "Error descargando Excel:",
+      error
+    );
+
+    alert(`🚨 ${error.message}`);
+  }
+};
+
+// ============================================================
+// LOADING
+// ============================================================
 
   if (
     cargando &&
@@ -1429,6 +1503,25 @@ const hallazgosEjecutivos = useMemo(() => {
             >
               Análisis detallado
             </button>
+
+            <button
+  type="button"
+  onClick={descargarExcel}
+  disabled={cargando || !analisis}
+  style={{
+    ...botonTab,
+    background: "#111",
+    color: "#fff",
+    opacity:
+      cargando || !analisis ? 0.55 : 1,
+    cursor:
+      cargando || !analisis
+        ? "not-allowed"
+        : "pointer",
+  }}
+>
+  ↓ Descargar Excel
+</button>
 
             <button
               onClick={onVolver}
