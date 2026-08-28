@@ -31,7 +31,12 @@ const thBosse = {
   fontWeight: "600",
 };
 
-function Nomina({ usuarioActivo, usuarioId, onVolver }) {
+function Nomina({
+  usuarioActivo,
+  usuarioId,
+  negocioId,
+  onVolver,
+}) {
   const crearFilaVacia = (id = Date.now()) => ({
   id,
   empleado_id: "",
@@ -70,6 +75,22 @@ const [detallePendienteAbierto, setDetallePendienteAbierto] =
 
 const [detallePendientes, setDetallePendientes] = useState({});
   const [empleadosDisponibles, setEmpleadosDisponibles] = useState([]);
+  const [puestosDisponibles, setPuestosDisponibles] = useState([]);
+
+const [mostrarNuevoEmpleado, setMostrarNuevoEmpleado] = useState(false);
+const [puestosColapsados, setPuestosColapsados] = useState({});
+
+const [guardandoNuevoEmpleado, setGuardandoNuevoEmpleado] = useState(false);
+
+const [nuevoEmpleado, setNuevoEmpleado] = useState({
+  nombre: "",
+  puesto_id: "",
+  fecha_ingreso: "",
+  cuenta_bancaria: "",
+  sueldo_diario: "",
+  sueldo_base: "",
+  metodo_pago_nomina: "Efectivo",
+});
   const [comentariosExtraordinarios, setComentariosExtraordinarios] = useState("");
   const [fechaInicio, setFechaInicio] = useState("");
 const [fechaFin, setFechaFin] = useState("");
@@ -85,15 +106,47 @@ const [cargandoEdicion, setCargandoEdicion] = useState(false);
   const cargarEmpleados = async () => {
     try {
       const respuesta = await fetch(
-        `${API_BASE_URL}/api/empleados?activos=true`
-      );
+  `${API_BASE_URL}/api/empleados?negocio_id=${negocioId}&activos=true`
+);
 
       const resultado = await respuesta.json();
 
       if (resultado.success) {
-        setEmpleadosDisponibles(resultado.empleados);
+  const empleadosOrdenados = [...resultado.empleados].sort((a, b) => {
+    const puestoA = String(
+      a.puesto_nombre ||
+      a.puesto_catalogo ||
+      a.puesto ||
+      "Sin puesto"
+    );
 
-        const filasIniciales = resultado.empleados.map((emp) => ({
+    const puestoB = String(
+      b.puesto_nombre ||
+      b.puesto_catalogo ||
+      b.puesto ||
+      "Sin puesto"
+    );
+
+    const comparacionPuesto = puestoA.localeCompare(
+      puestoB,
+      "es",
+      { sensitivity: "base" }
+    );
+
+    if (comparacionPuesto !== 0) {
+      return comparacionPuesto;
+    }
+
+    return String(a.nombre || "").localeCompare(
+      String(b.nombre || ""),
+      "es",
+      { sensitivity: "base" }
+    );
+  });
+
+  setEmpleadosDisponibles(empleadosOrdenados);
+
+  const filasIniciales = empleadosOrdenados.map((emp) => ({
           ...crearFilaVacia(emp.id),
 
           id: emp.id,
@@ -153,7 +206,43 @@ const [cargandoEdicion, setCargandoEdicion] = useState(false);
   };
 
   cargarEmpleados();
-}, []);
+}, [negocioId]);
+
+useEffect(() => {
+  const cargarPuestos = async () => {
+    if (!negocioId) return;
+
+    try {
+      const respuesta = await fetch(
+        `${API_BASE_URL}/api/puestos?negocio_id=${negocioId}&activos=true`
+      );
+
+      const resultado = await respuesta.json();
+
+      if (!resultado.success) {
+        throw new Error(
+          resultado.error || "No se pudieron cargar los puestos."
+        );
+      }
+
+      const puestosOrdenados = [...(resultado.puestos || [])].sort(
+        (a, b) =>
+          String(a.nombre || "").localeCompare(
+            String(b.nombre || ""),
+            "es",
+            { sensitivity: "base" }
+          )
+      );
+
+      setPuestosDisponibles(puestosOrdenados);
+
+    } catch (error) {
+      console.error("Error cargando puestos:", error);
+    }
+  };
+
+  cargarPuestos();
+}, [negocioId]);
 
 
 useEffect(() => {
@@ -462,6 +551,252 @@ const seleccionarEmpleado = (filaId, empleadoId) => {
   );
 };
 
+const crearNuevoEmpleado = async () => {
+  if (!nuevoEmpleado.nombre.trim()) {
+    alert("⚠️ Debes ingresar el nombre del empleado.");
+    return;
+  }
+
+  if (!nuevoEmpleado.puesto_id) {
+    alert("⚠️ Debes seleccionar un puesto.");
+    return;
+  }
+
+  if (!negocioId) {
+    alert("⚠️ No se encontró el negocio activo.");
+    return;
+  }
+
+  const puestoSeleccionado = puestosDisponibles.find(
+    (puesto) =>
+      String(puesto.id) === String(nuevoEmpleado.puesto_id)
+  );
+
+  if (!puestoSeleccionado) {
+    alert("⚠️ No se encontró la información del puesto seleccionado.");
+    return;
+  }
+
+  try {
+    setGuardandoNuevoEmpleado(true);
+
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/empleados`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: nuevoEmpleado.nombre.trim(),
+          puesto_id: nuevoEmpleado.puesto_id,
+          fecha_ingreso:
+            nuevoEmpleado.fecha_ingreso || null,
+          cuenta_bancaria:
+            nuevoEmpleado.cuenta_bancaria || null,
+          sueldo_diario:
+            Number(nuevoEmpleado.sueldo_diario) || 0,
+          sueldo_base:
+            Number(nuevoEmpleado.sueldo_base) || 0,
+          tipo_nomina:
+            puestoSeleccionado.tipo_nomina ||
+            "Operativa",
+          metodo_pago_nomina:
+            nuevoEmpleado.metodo_pago_nomina ||
+            "Efectivo",
+          negocio_id: negocioId,
+          usuario_id: usuarioId,
+        }),
+      }
+    );
+
+    const resultado = await respuesta.json();
+
+    if (!resultado.success) {
+      throw new Error(
+        resultado.error || "No se pudo crear el empleado."
+      );
+    }
+
+    const empleadoCreado = {
+      ...resultado.empleado,
+
+      puesto_id:
+        resultado.empleado.puesto_id ||
+        puestoSeleccionado.id,
+
+      puesto:
+        resultado.empleado.puesto_nombre ||
+        resultado.empleado.puesto ||
+        puestoSeleccionado.nombre,
+
+      puesto_nombre:
+        resultado.empleado.puesto_nombre ||
+        puestoSeleccionado.nombre,
+
+      tipo_nomina_puesto:
+        resultado.empleado.tipo_nomina_puesto ||
+        puestoSeleccionado.tipo_nomina ||
+        "Operativa",
+
+      modalidad_pago:
+        resultado.empleado.modalidad_pago ||
+        puestoSeleccionado.modalidad_pago ||
+        "DIARIO",
+
+      hoja_excel:
+        resultado.empleado.hoja_excel ||
+        puestoSeleccionado.hoja_excel ||
+        "PRINCIPAL",
+
+      seccion_nomina:
+        resultado.empleado.seccion_nomina ||
+        puestoSeleccionado.seccion_nomina ||
+        "GENERAL",
+    };
+
+    setEmpleadosDisponibles((actuales) => {
+      const nuevos = [
+        ...actuales,
+        empleadoCreado,
+      ];
+
+      return nuevos.sort((a, b) => {
+        const puestoA = String(
+          a.puesto_nombre ||
+          a.puesto ||
+          "Sin puesto"
+        );
+
+        const puestoB = String(
+          b.puesto_nombre ||
+          b.puesto ||
+          "Sin puesto"
+        );
+
+        const comparacionPuesto =
+          puestoA.localeCompare(
+            puestoB,
+            "es",
+            { sensitivity: "base" }
+          );
+
+        if (comparacionPuesto !== 0) {
+          return comparacionPuesto;
+        }
+
+        return String(a.nombre || "").localeCompare(
+          String(b.nombre || ""),
+          "es",
+          { sensitivity: "base" }
+        );
+      });
+    });
+
+    const modalidad =
+      empleadoCreado.modalidad_pago ||
+      "DIARIO";
+
+    const nuevaFila = {
+      ...crearFilaVacia(empleadoCreado.id),
+
+      id: empleadoCreado.id,
+      empleado_id: empleadoCreado.id,
+
+      nombre:
+        empleadoCreado.nombre || "",
+
+      puesto_id:
+        empleadoCreado.puesto_id || "",
+
+      puesto:
+        empleadoCreado.puesto_nombre ||
+        empleadoCreado.puesto ||
+        "",
+
+      ingreso:
+        empleadoCreado.fecha_ingreso || "",
+
+      cuenta:
+        empleadoCreado.cuenta_bancaria || "",
+
+      tipo_nomina:
+        empleadoCreado.tipo_nomina_puesto ||
+        empleadoCreado.tipo_nomina ||
+        "Operativa",
+
+      metodo_pago_nomina:
+        empleadoCreado.metodo_pago_nomina ||
+        "Efectivo",
+
+      modalidad_pago: modalidad,
+
+      hoja_excel:
+        empleadoCreado.hoja_excel ||
+        "PRINCIPAL",
+
+      seccion_nomina:
+        empleadoCreado.seccion_nomina ||
+        "GENERAL",
+
+      cantidad: 0,
+
+      tarifa:
+        modalidad === "SEMANAL"
+          ? Number(empleadoCreado.sueldo_base) ||
+            Number(empleadoCreado.sueldo_diario) ||
+            0
+          : Number(empleadoCreado.sueldo_diario) ||
+            Number(empleadoCreado.sueldo_base) ||
+            0,
+
+      prima: 0,
+      descuento: 0,
+      total: 0,
+      comentario_pago: "",
+
+      mesas:
+        modalidad === "POR_MESA"
+          ? crearMesasIniciales()
+          : [],
+    };
+
+    setFilas((actuales) => [
+      ...actuales,
+      nuevaFila,
+    ]);
+
+    setPestanaActiva(modalidad);
+
+    setNuevoEmpleado({
+      nombre: "",
+      puesto_id: "",
+      fecha_ingreso: "",
+      cuenta_bancaria: "",
+      sueldo_diario: "",
+      sueldo_base: "",
+      metodo_pago_nomina: "Efectivo",
+    });
+
+    setMostrarNuevoEmpleado(false);
+
+    alert("✅ Empleado creado correctamente.");
+
+  } catch (error) {
+    console.error(
+      "Error creando empleado desde prenómina:",
+      error
+    );
+
+    alert(
+      "🚨 Error al crear empleado: " +
+      error.message
+    );
+  } finally {
+    setGuardandoNuevoEmpleado(false);
+  }
+};
+
 const agregarMesa = (filaId) => {
   setFilas((filasActuales) =>
     filasActuales.map((fila) => {
@@ -578,6 +913,41 @@ const filasPestanaActiva =
     : pestanaActiva === "SEMANAL"
     ? filasSemanales
     : filasPorMesa;
+
+const filasPestanaOrdenadas = [...filasPestanaActiva].sort((a, b) => {
+  const puestoA = String(a.puesto || "Sin puesto");
+  const puestoB = String(b.puesto || "Sin puesto");
+
+  const comparacionPuesto = puestoA.localeCompare(
+    puestoB,
+    "es",
+    { sensitivity: "base" }
+  );
+
+  if (comparacionPuesto !== 0) {
+    return comparacionPuesto;
+  }
+
+  return String(a.nombre || "").localeCompare(
+    String(b.nombre || ""),
+    "es",
+    { sensitivity: "base" }
+  );
+});
+
+const alternarPuesto = (puesto) => {
+  setPuestosColapsados((actuales) => {
+    const estaCerrado =
+      actuales[puesto] !== undefined
+        ? actuales[puesto]
+        : true;
+
+    return {
+      ...actuales,
+      [puesto]: !estaCerrado,
+    };
+  });
+};
 
 
   const totalGlobal = filas.reduce(
@@ -1043,6 +1413,331 @@ onVolver();
     </div>
   </div>
 
+<div
+  style={{
+    marginBottom: "30px",
+  }}
+>
+  <button
+    type="button"
+    onClick={() => setMostrarNuevoEmpleado(true)}
+    style={{
+      background: "none",
+      border: "1px dashed #ccc",
+      width: "100%",
+      padding: "10px",
+      color: "#888",
+      cursor: "pointer",
+      borderRadius: "8px",
+    }}
+  >
+    + NUEVO EMPLEADO
+  </button>
+
+  {mostrarNuevoEmpleado && (
+    <div
+      style={{
+        marginTop: "15px",
+        padding: "20px",
+        border: "1px solid #ddd",
+        borderRadius: "10px",
+        background: "#fafafa",
+      }}
+    >
+      <h3
+        style={{
+          marginTop: 0,
+          marginBottom: "18px",
+          fontSize: "16px",
+        }}
+      >
+        Nuevo empleado
+      </h3>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: "14px",
+        }}
+      >
+        <div>
+          <label style={estilos.panelLabel}>
+            Nombre
+          </label>
+
+          <input
+            type="text"
+            value={nuevoEmpleado.nombre}
+            onChange={(e) =>
+              setNuevoEmpleado((actual) => ({
+                ...actual,
+                nombre: e.target.value,
+              }))
+            }
+            style={{
+              ...estilos.input,
+              width: "100%",
+              boxSizing: "border-box",
+              marginTop: "7px",
+            }}
+          />
+        </div>
+
+        <div>
+          <label style={estilos.panelLabel}>
+            Puesto
+          </label>
+
+          <select
+            value={nuevoEmpleado.puesto_id}
+            onChange={(e) => {
+              const puestoId = e.target.value;
+
+              const puestoSeleccionado =
+                puestosDisponibles.find(
+                  (puesto) =>
+                    String(puesto.id) ===
+                    String(puestoId)
+                );
+
+              setNuevoEmpleado((actual) => ({
+                ...actual,
+                puesto_id: puestoId,
+              }));
+
+              if (puestoSeleccionado) {
+                setPestanaActiva(
+                  puestoSeleccionado.modalidad_pago ||
+                    "DIARIO"
+                );
+              }
+            }}
+            style={{
+              ...estilos.input,
+              width: "100%",
+              boxSizing: "border-box",
+              marginTop: "7px",
+            }}
+          >
+            <option value="">
+              Seleccionar puesto
+            </option>
+
+            {puestosDisponibles.map((puesto) => (
+              <option
+                key={puesto.id}
+                value={puesto.id}
+              >
+                {puesto.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label style={estilos.panelLabel}>
+            Fecha de ingreso
+          </label>
+
+          <input
+            type="date"
+            value={nuevoEmpleado.fecha_ingreso}
+            onChange={(e) =>
+              setNuevoEmpleado((actual) => ({
+                ...actual,
+                fecha_ingreso: e.target.value,
+              }))
+            }
+            style={{
+              ...estilos.input,
+              width: "100%",
+              boxSizing: "border-box",
+              marginTop: "7px",
+            }}
+          />
+        </div>
+
+        <div>
+          <label style={estilos.panelLabel}>
+            Cuenta bancaria
+          </label>
+
+          <input
+            type="text"
+            value={nuevoEmpleado.cuenta_bancaria}
+            onChange={(e) =>
+              setNuevoEmpleado((actual) => ({
+                ...actual,
+                cuenta_bancaria: e.target.value,
+              }))
+            }
+            style={{
+              ...estilos.input,
+              width: "100%",
+              boxSizing: "border-box",
+              marginTop: "7px",
+            }}
+          />
+        </div>
+
+        <div>
+          <label style={estilos.panelLabel}>
+            Sueldo diario
+          </label>
+
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={nuevoEmpleado.sueldo_diario}
+            onChange={(e) =>
+              setNuevoEmpleado((actual) => ({
+                ...actual,
+                sueldo_diario: e.target.value,
+              }))
+            }
+            onWheel={(e) =>
+              e.currentTarget.blur()
+            }
+            style={{
+              ...estilos.input,
+              width: "100%",
+              boxSizing: "border-box",
+              marginTop: "7px",
+            }}
+          />
+        </div>
+
+        <div>
+          <label style={estilos.panelLabel}>
+            Sueldo base
+          </label>
+
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={nuevoEmpleado.sueldo_base}
+            onChange={(e) =>
+              setNuevoEmpleado((actual) => ({
+                ...actual,
+                sueldo_base: e.target.value,
+              }))
+            }
+            onWheel={(e) =>
+              e.currentTarget.blur()
+            }
+            style={{
+              ...estilos.input,
+              width: "100%",
+              boxSizing: "border-box",
+              marginTop: "7px",
+            }}
+          />
+        </div>
+
+        <div>
+          <label style={estilos.panelLabel}>
+            Método de pago
+          </label>
+
+          <select
+            value={
+              nuevoEmpleado.metodo_pago_nomina
+            }
+            onChange={(e) =>
+              setNuevoEmpleado((actual) => ({
+                ...actual,
+                metodo_pago_nomina:
+                  e.target.value,
+              }))
+            }
+            style={{
+              ...estilos.input,
+              width: "100%",
+              boxSizing: "border-box",
+              marginTop: "7px",
+            }}
+          >
+            <option value="Efectivo">
+              Efectivo
+            </option>
+
+            <option value="Banco">
+              Banco
+            </option>
+
+            <option value="Banca">
+              Banca
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: "10px",
+          marginTop: "20px",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setMostrarNuevoEmpleado(false);
+
+            setNuevoEmpleado({
+              nombre: "",
+              puesto_id: "",
+              fecha_ingreso: "",
+              cuenta_bancaria: "",
+              sueldo_diario: "",
+              sueldo_base: "",
+              metodo_pago_nomina: "Efectivo",
+            });
+          }}
+          style={{
+            padding: "10px 16px",
+            border: "1px solid #ccc",
+            background: "#fff",
+            borderRadius: "7px",
+            cursor: "pointer",
+          }}
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="button"
+          onClick={crearNuevoEmpleado}
+          disabled={guardandoNuevoEmpleado}
+          style={{
+            padding: "10px 18px",
+            border: "none",
+            background: guardandoNuevoEmpleado
+              ? "#777"
+              : "#111",
+            color: "#fff",
+            borderRadius: "7px",
+            cursor: guardandoNuevoEmpleado
+              ? "not-allowed"
+              : "pointer",
+            fontWeight: "700",
+          }}
+        >
+          {guardandoNuevoEmpleado
+            ? "GUARDANDO..."
+            : "CREAR EMPLEADO"}
+        </button>
+      </div>
+    </div>
+  )}
+</div>
+
+
   <div
     style={{
       overflowX: "auto",
@@ -1120,12 +1815,104 @@ onVolver();
             </td>
           </tr>
         ) : (
-          filasPestanaActiva.map((fila) => {
-            const esPorMesa =
-              fila.modalidad_pago === "POR_MESA";
+          filasPestanaOrdenadas.map((fila, index) => {
+           const esPorMesa =
+  fila.modalidad_pago === "POR_MESA";
 
-            return (
-              <React.Fragment key={fila.id}>
+const puestoActual =
+  fila.puesto || "Sin puesto";
+
+const puestoAnterior =
+  index > 0
+    ? filasPestanaOrdenadas[index - 1].puesto || "Sin puesto"
+    : null;
+
+const iniciaNuevoPuesto =
+  index === 0 || puestoActual !== puestoAnterior;
+
+const puestoColapsado =
+  puestosColapsados[puestoActual] !== undefined
+    ? puestosColapsados[puestoActual]
+    : true;
+
+const cantidadPuesto =
+  filasPestanaOrdenadas.filter(
+    (item) =>
+      (item.puesto || "Sin puesto") === puestoActual
+  ).length;
+
+return (
+  <React.Fragment key={fila.id}>
+
+    {iniciaNuevoPuesto && (
+  <tr>
+    <td
+      colSpan={
+        pestanaActiva === "POR_MESA"
+          ? 9
+          : 10
+      }
+      onClick={() =>
+        alternarPuesto(puestoActual)
+      }
+      style={{
+        background: "#f3f3f3",
+        padding: "9px 14px",
+        fontWeight: "700",
+        fontSize: "12px",
+        textTransform: "uppercase",
+        letterSpacing: "1px",
+        borderTop: "1px solid #ddd",
+        borderBottom: "1px solid #ddd",
+        cursor: "pointer",
+        userSelect: "none",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+        }}
+      >
+        <span
+          style={{
+            width: "25px",
+            height: "25px",
+            border: "1px solid #bbb",
+            borderRadius: "6px",
+            background: "#fff",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "16px",
+            lineHeight: 1,
+          }}
+        >
+          {puestoColapsado ? "›" : "⌄"}
+        </span>
+
+        <span>
+          {puestoActual}
+        </span>
+
+        <span
+          style={{
+            background: "#e5e5e5",
+            borderRadius: "6px",
+            padding: "3px 8px",
+            fontSize: "11px",
+            color: "#666",
+            letterSpacing: "0",
+          }}
+        >
+          {cantidadPuesto}
+        </span>
+      </div>
+    </td>
+  </tr>
+)}
+{!puestoColapsado && (
                 <tr
                   style={{
                     borderBottom: esPorMesa
@@ -1409,8 +2196,9 @@ onVolver();
                     </button>
                   </td>
                 </tr>
+)}
 
-                {esPorMesa && (
+{esPorMesa && !puestoColapsado && (
                   <tr
                     style={{
                       borderBottom:
@@ -1672,42 +2460,6 @@ onVolver();
     }}
   />
 </div>
-
-<button
-  type="button"
-  onClick={() => {
-  const nuevaFila = crearFilaVacia();
-
-  nuevaFila.modalidad_pago = pestanaActiva;
-
-  if (pestanaActiva === "POR_MESA") {
-    nuevaFila.hoja_excel = "RP";
-    nuevaFila.mesas = crearMesasIniciales();
-  }
-
-  setFilas((filasActuales) => [
-    ...filasActuales,
-    nuevaFila,
-  ]);
-}}
-  style={{
-    background: "none",
-    border: "1px dashed #ccc",
-    width: "100%",
-    padding: "10px",
-    color: "#888",
-    cursor: "pointer",
-    borderRadius: "8px",
-    marginBottom: "30px",
-  }}
->
-  {pestanaActiva === "DIARIO"
-  ? "+ AGREGAR EMPLEADO DIARIO"
-  : pestanaActiva === "SEMANAL"
-  ? "+ AGREGAR EMPLEADO SEMANAL"
-  : "+ AGREGAR RP"}
-</button>
-
         <div
           style={{
             display: "flex",

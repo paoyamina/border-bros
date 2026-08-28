@@ -1,7 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
 import API_BASE_URL from "../config/api";
 
-function Empleados({ usuarioActivo, usuarioId, onVolver }) {
+function Empleados({
+  usuarioActivo,
+  usuarioId,
+  negocioId,
+  onVolver,
+}) {
 
   const [empleados, setEmpleados] = useState([]);
   const [puestos, setPuestos] = useState([]);
@@ -27,15 +32,15 @@ const [nuevoEmpleado, setNuevoEmpleado] = useState({
 
     try {
 
-      let url = `${API_BASE_URL}/api/empleados`;
+      let url = `${API_BASE_URL}/api/empleados?negocio_id=${negocioId}`;
 
       if (filtro === "activos") {
-        url += "?activos=true";
-      }
+  url += "&activos=true";
+}
 
-      if (filtro === "baja") {
-        url += "?activos=false";
-      }
+if (filtro === "baja") {
+  url += "&activos=false";
+}
 
       const respuesta = await fetch(url);
 
@@ -48,12 +53,12 @@ const [nuevoEmpleado, setNuevoEmpleado] = useState({
     } catch (error) {
       console.error("Error cargando empleados:", error);
     }
-  }, [filtro]);
+  }, [filtro, negocioId]);
 
   const cargarPuestos = useCallback(async () => {
   try {
     const respuesta = await fetch(
-      `${API_BASE_URL}/api/puestos?negocio_id=1&activos=true`
+      `${API_BASE_URL}/api/puestos?negocio_id=${negocioId}&activos=true`
     );
 
     const resultado = await respuesta.json();
@@ -69,7 +74,7 @@ const [nuevoEmpleado, setNuevoEmpleado] = useState({
     console.error("Error cargando puestos:", error);
     alert("🚨 Error cargando catálogo de puestos: " + error.message);
   }
-}, []);
+}, [negocioId]);
 
 const crearEmpleado = async () => {
   if (!nuevoEmpleado.nombre.trim()) {
@@ -89,9 +94,10 @@ const crearEmpleado = async () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        ...nuevoEmpleado,
-        usuario_id: usuarioId,
-      }),
+  ...nuevoEmpleado,
+  usuario_id: usuarioId,
+  negocio_id: negocioId,
+}),
     });
 
     const resultado = await respuesta.json();
@@ -159,9 +165,10 @@ const actualizarEmpleado = async () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...nuevoEmpleado,
-          usuario_id: usuarioId,
-        }),
+  ...nuevoEmpleado,
+  usuario_id: usuarioId,
+  negocio_id: negocioId,
+}),
       }
     );
 
@@ -286,28 +293,26 @@ const reactivarEmpleado = async (empleado) => {
       .toLowerCase()
       .includes(texto);
   })
-  .sort((a, b) => {
-    let valorA = a[ordenCampo];
-    let valorB = b[ordenCampo];
+.sort((a, b) => {
+  const puestoA = String(a.puesto || "Sin puesto");
+  const puestoB = String(b.puesto || "Sin puesto");
 
-    if (ordenCampo === "id" || ordenCampo === "sueldo_diario") {
-      valorA = Number(valorA) || 0;
-      valorB = Number(valorB) || 0;
-    } else {
-      valorA = String(valorA || "").toLowerCase();
-      valorB = String(valorB || "").toLowerCase();
-    }
+  const comparacionPuesto = puestoA.localeCompare(
+    puestoB,
+    "es",
+    { sensitivity: "base" }
+  );
 
-    if (valorA < valorB) {
-      return ordenDireccion === "asc" ? -1 : 1;
-    }
+  if (comparacionPuesto !== 0) {
+    return comparacionPuesto;
+  }
 
-    if (valorA > valorB) {
-      return ordenDireccion === "asc" ? 1 : -1;
-    }
-
-    return 0;
-  });
+  return String(a.nombre || "").localeCompare(
+    String(b.nombre || ""),
+    "es",
+    { sensitivity: "base" }
+  );
+});
   return (
     <div style={{ padding: "40px" }}>
 

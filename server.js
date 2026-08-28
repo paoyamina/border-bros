@@ -4167,20 +4167,37 @@ app.put('/api/puestos/:id/reactivar', async (req, res) => {
 // Obtener empleados con configuración del puesto
 app.get('/api/empleados', async (req, res) => {
   try {
-    const { activos } = req.query;
+    const {
+      activos,
+      negocio_id
+    } = req.query;
 
-    const condiciones = [];
-    const valores = [];
+    const negocioId = Number(negocio_id);
 
-    if (activos === 'true') {
-      condiciones.push('e.activo = TRUE');
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El negocio_id es obligatorio."
+      });
     }
 
-    if (activos === 'false') {
-      condiciones.push('e.activo = FALSE');
+    const condiciones = [
+      "e.negocio_id = $1"
+    ];
+
+    const valores = [
+      negocioId
+    ];
+
+    if (activos === "true") {
+      condiciones.push("e.activo = TRUE");
     }
 
-    let query = `
+    if (activos === "false") {
+      condiciones.push("e.activo = FALSE");
+    }
+
+    const query = `
       SELECT
         e.*,
         COALESCE(p.nombre, e.puesto) AS puesto_nombre,
@@ -4194,102 +4211,166 @@ app.get('/api/empleados', async (req, res) => {
       FROM empleados e
       LEFT JOIN puestos p
         ON p.id = e.puesto_id
+        AND p.negocio_id = e.negocio_id
+      WHERE ${condiciones.join(" AND ")}
+      ORDER BY
+        COALESCE(p.nombre, e.puesto, 'Sin puesto') ASC,
+        e.nombre ASC
     `;
 
-    if (condiciones.length > 0) {
-      query += ` WHERE ${condiciones.join(' AND ')} `;
-    }
-
-    query += ` ORDER BY e.nombre ASC `;
-
-    const result = await pool.query(query, valores);
+    const result = await pool.query(
+      query,
+      valores
+    );
 
     return res.json({
       success: true,
-      empleados: result.rows,
+      empleados: result.rows
     });
+
   } catch (error) {
-    console.error('Error empleados:', error);
+    console.error("Error empleados:", error);
 
     return res.status(500).json({
       success: false,
-      error: error.message,
+      error: error.message
     });
   }
 });
 
 // Crear empleado
 app.post('/api/empleados', async (req, res) => {
-
   try {
+    const {
+      nombre,
+      puesto_id,
+      fecha_ingreso,
+      cuenta_bancaria,
+      sueldo_diario,
+      sueldo_base,
+      tipo_nomina,
+      metodo_pago_nomina,
+      negocio_id,
+      usuario_id
+    } = req.body;
 
-  const {
-  nombre,
-  puesto_id,
-  fecha_ingreso,
-  cuenta_bancaria,
-  sueldo_diario,
-  sueldo_base,
-  tipo_nomina,
-  metodo_pago_nomina,
-  usuario_id
-} = req.body;
+    const negocioId = Number(negocio_id);
+    const puestoId = Number(puesto_id);
+
+    if (!nombre || !String(nombre).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "El nombre del empleado es obligatorio."
+      });
+    }
+
+    if (!Number.isInteger(negocioId) || negocioId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "El negocio_id del empleado es obligatorio."
+      });
+    }
+
+    if (!Number.isInteger(puestoId) || puestoId <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Debes seleccionar un puesto válido."
+      });
+    }
+
+    const puestoResult = await pool.query(
+      `
+      SELECT
+        id,
+        nombre,
+        tipo_nomina,
+        modalidad_pago,
+        hoja_excel,
+        seccion_nomina
+      FROM puestos
+      WHERE id = $1
+        AND negocio_id = $2
+        AND activo = true
+      LIMIT 1
+      `,
+      [puestoId, negocioId]
+    );
+
+    if (puestoResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "El puesto seleccionado no existe, está inactivo o no pertenece al negocio."
+      });
+    }
+
+    const puesto = puestoResult.rows[0];
 
     const result = await pool.query(
       `
       INSERT INTO empleados (
-  nombre,
-  puesto_id,
-  puesto,
-  fecha_ingreso,
-  cuenta_bancaria,
-  sueldo_diario,
-  sueldo_base,
-  tipo_nomina,
-  metodo_pago_nomina,
-  activo,
-  created_at,
-  created_by
-)
-VALUES (
-  $1,
-  $2,
-  (SELECT nombre FROM puestos WHERE id = $2),
-  $3,
-  $4,
-  $5,
-  $6,
-  $7,
-  $8,
-  true,
-  NOW(),
-  $9
-)
+        nombre,
+        puesto_id,
+        puesto,
+        fecha_ingreso,
+        cuenta_bancaria,
+        sueldo_diario,
+        sueldo_base,
+        tipo_nomina,
+        metodo_pago_nomina,
+        negocio_id,
+        activo,
+        created_at,
+        created_by
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7,
+        $8,
+        $9,
+        $10,
+        true,
+        NOW(),
+        $11
+      )
       RETURNING *
       `,
       [
-  nombre,
-  puesto_id || null,
-  fecha_ingreso || null,
-  cuenta_bancaria || null,
-  sueldo_diario || 0,
-  sueldo_base || 0,
-  tipo_nomina || "Operativa",
-  metodo_pago_nomina || "Efectivo",
-  usuario_id || null
-]
+        String(nombre).trim(),
+        puestoId,
+        puesto.nombre,
+        fecha_ingreso || null,
+        cuenta_bancaria || null,
+        sueldo_diario || 0,
+        sueldo_base || 0,
+        tipo_nomina || puesto.tipo_nomina || "Operativa",
+        metodo_pago_nomina || "Efectivo",
+        negocioId,
+        usuario_id || null
+      ]
     );
 
-    res.json({
+    return res.json({
       success: true,
-      empleado: result.rows[0]
+      empleado: {
+        ...result.rows[0],
+        puesto_nombre: puesto.nombre,
+        tipo_nomina_puesto: puesto.tipo_nomina,
+        modalidad_pago: puesto.modalidad_pago,
+        hoja_excel: puesto.hoja_excel,
+        seccion_nomina: puesto.seccion_nomina
+      }
     });
 
   } catch (error) {
+    console.error("Error creando empleado:", error);
 
-    console.error('Error creando empleado:', error);
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: error.message
     });

@@ -471,6 +471,7 @@ if (formularioActivo === "caja_editar") {
       <Nomina
   usuarioActivo={usuarioActivo}
   usuarioId={usuarioId}
+  negocioId={negocioId}
   onVolver={volverAlMenu}
 />
     );
@@ -491,6 +492,7 @@ if (formularioActivo === "caja_editar") {
     <Empleados
       usuarioActivo={usuarioActivo}
       usuarioId={usuarioId}
+      negocioId={negocioId}
       onVolver={volverAlMenu}
     />
   );
