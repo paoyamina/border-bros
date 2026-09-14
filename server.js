@@ -5627,24 +5627,136 @@ app.get('/api/prenomina/:id/excel', async (req, res) => {
 
 // Inserta filas nuevas heredando el formato de la fila anterior.
 // Así el machote puede crecer sin tener un límite fijo de empleados.
+const clonarObjeto = (objeto) => {
+  if (!objeto) return objeto;
+
+  return JSON.parse(
+    JSON.stringify(objeto)
+  );
+};
+
+const copiarFormatoFila = (
+  hoja,
+  filaOrigen,
+  filaDestino,
+  columnaInicio = 1,
+  columnaFin = 15
+) => {
+  const origen =
+    hoja.getRow(filaOrigen);
+
+  const destino =
+    hoja.getRow(filaDestino);
+
+  // Copiar altura de fila
+  if (origen.height) {
+    destino.height = origen.height;
+  }
+
+  destino.hidden = origen.hidden;
+  destino.outlineLevel =
+    origen.outlineLevel;
+
+  for (
+    let columna = columnaInicio;
+    columna <= columnaFin;
+    columna += 1
+  ) {
+    const celdaOrigen =
+      origen.getCell(columna);
+
+    const celdaDestino =
+      destino.getCell(columna);
+
+    // Copiamos SOLAMENTE formato.
+    // Nunca copiamos el valor.
+    celdaDestino.style =
+      clonarObjeto(
+        celdaOrigen.style
+      ) || {};
+
+    if (celdaOrigen.numFmt) {
+      celdaDestino.numFmt =
+        celdaOrigen.numFmt;
+    }
+
+    if (celdaOrigen.font) {
+      celdaDestino.font =
+        clonarObjeto(
+          celdaOrigen.font
+        );
+    }
+
+    if (celdaOrigen.fill) {
+      celdaDestino.fill =
+        clonarObjeto(
+          celdaOrigen.fill
+        );
+    }
+
+    if (celdaOrigen.border) {
+      celdaDestino.border =
+        clonarObjeto(
+          celdaOrigen.border
+        );
+    }
+
+    if (celdaOrigen.alignment) {
+      celdaDestino.alignment =
+        clonarObjeto(
+          celdaOrigen.alignment
+        );
+    }
+
+    if (celdaOrigen.protection) {
+      celdaDestino.protection =
+        clonarObjeto(
+          celdaOrigen.protection
+        );
+    }
+  }
+};
+
 const insertarFilasConFormato = (
   hoja,
   filaInsercion,
-  cantidad
+  cantidad,
+  filaModelo,
+  columnaInicio = 1,
+  columnaFin = 15
 ) => {
-  if (!cantidad || cantidad <= 0) return;
+  if (!cantidad || cantidad <= 0) {
+    return;
+  }
 
-  const filasVacias = Array.from(
-    { length: cantidad },
-    () => []
-  );
+  const filasVacias =
+    Array.from(
+      { length: cantidad },
+      () => []
+    );
 
-  // "i" = hereda estilo de la fila anterior
-  hoja.insertRows(
+  // Insertamos filas realmente nuevas.
+  hoja.spliceRows(
     filaInsercion,
-    filasVacias,
-    "i"
+    0,
+    ...filasVacias
   );
+
+  // Después copiamos explícitamente
+  // el formato del machote.
+  for (
+    let i = 0;
+    i < cantidad;
+    i += 1
+  ) {
+    copiarFormatoFila(
+      hoja,
+      filaModelo,
+      filaInsercion + i,
+      columnaInicio,
+      columnaFin
+    );
+  }
 };
 
 const seccionesPrincipal = {
@@ -5775,14 +5887,17 @@ for (const [
 
 
 // ------------------------------------------------------------
-// INSERTAR FILAS DE ABAJO HACIA ARRIBA
+// AJUSTAR CADA SECCIÓN AL NÚMERO EXACTO DE EMPLEADOS
 //
-// Es importante hacerlo al revés para no alterar las posiciones
-// originales de las secciones que todavía no procesamos.
+// Se procesa de abajo hacia arriba para que agregar o quitar
+// filas no cambie las posiciones de las secciones pendientes.
 // ------------------------------------------------------------
 
+const cambiosFilasPrincipal = {};
+
 for (
-  let i = ordenSeccionesPrincipal.length - 1;
+  let i =
+    ordenSeccionesPrincipal.length - 1;
   i >= 0;
   i -= 1
 ) {
@@ -5791,14 +5906,58 @@ for (
     configuracion,
   ] = ordenSeccionesPrincipal[i];
 
-  const cantidadExtra =
-    filasExtraPrincipal[nombreSeccion] || 0;
+  const empleados =
+    agrupadosPrincipal[
+      nombreSeccion
+    ] || [];
 
-  if (cantidadExtra > 0) {
+  const capacidadOriginal =
+    configuracion.fin -
+    configuracion.inicio +
+    1;
+
+  const filasNecesarias =
+    empleados.length;
+
+  const diferencia =
+    filasNecesarias -
+    capacidadOriginal;
+
+  cambiosFilasPrincipal[
+    nombreSeccion
+  ] = diferencia;
+
+  // -----------------------------------------
+  // HACEN FALTA FILAS
+  // -----------------------------------------
+  if (diferencia > 0) {
     insertarFilasConFormato(
       hojaPrincipal,
       configuracion.fin + 1,
-      cantidadExtra
+      diferencia,
+      Math.max(
+        configuracion.inicio,
+        configuracion.fin - 1
+      ),
+      1,
+      9
+    );
+  }
+
+  // -----------------------------------------
+  // SOBRAN FILAS DEL MACHOTE
+  // -----------------------------------------
+  if (diferencia < 0) {
+    const cantidadEliminar =
+      Math.abs(diferencia);
+
+    const primeraFilaEliminar =
+      configuracion.inicio +
+      filasNecesarias;
+
+    hojaPrincipal.spliceRows(
+      primeraFilaEliminar,
+      cantidadEliminar
     );
   }
 }
@@ -5816,25 +5975,41 @@ for (const [
   nombreSeccion,
   configuracion,
 ] of ordenSeccionesPrincipal) {
-  const cantidadExtra =
-    filasExtraPrincipal[nombreSeccion] || 0;
+  const empleados =
+    agrupadosPrincipal[
+      nombreSeccion
+    ] || [];
 
-  seccionesPrincipalDinamicas[nombreSeccion] = {
+  const filasNecesarias =
+    empleados.length;
+
+  const cambioFilas =
+    cambiosFilasPrincipal[
+      nombreSeccion
+    ] || 0;
+
+  const inicioReal =
+    configuracion.inicio +
+    desplazamientoPrincipal;
+
+  seccionesPrincipalDinamicas[
+    nombreSeccion
+  ] = {
     ...configuracion,
 
-    inicio:
-      configuracion.inicio +
-      desplazamientoPrincipal,
+    inicio: inicioReal,
 
     fin:
-      configuracion.fin +
-      desplazamientoPrincipal +
-      cantidadExtra,
+      filasNecesarias > 0
+        ? inicioReal +
+          filasNecesarias -
+          1
+        : inicioReal - 1,
   };
 
-  desplazamientoPrincipal += cantidadExtra;
+  desplazamientoPrincipal +=
+    cambioFilas;
 }
-
 
 // ------------------------------------------------------------
 // LLENAR EMPLEADOS
@@ -5955,20 +6130,39 @@ const detalleNominaOp = detalle.filter(
 
 const capacidadOriginalNominaOp = 5;
 
+const cambioFilasNominaOp =
+  detalleNominaOp.length -
+  capacidadOriginalNominaOp;
+
 const filasExtraNominaOp =
   Math.max(
     0,
-    detalleNominaOp.length -
-      capacidadOriginalNominaOp
+    cambioFilasNominaOp
+  );
+
+const filasSobrantesNominaOp =
+  Math.max(
+    0,
+    -cambioFilasNominaOp
   );
 
 // El total original está en la fila 14.
 // Insertamos justo antes del total.
 if (filasExtraNominaOp > 0) {
   insertarFilasConFormato(
-    hojaNominaOp,
-    14,
-    filasExtraNominaOp
+  hojaNominaOp,
+  14,
+  filasExtraNominaOp,
+  13,
+  2,
+  6
+);
+}
+
+if (filasSobrantesNominaOp > 0) {
+  hojaNominaOp.spliceRows(
+    9 + detalleNominaOp.length,
+    filasSobrantesNominaOp
   );
 }
 
@@ -6017,7 +6211,7 @@ const totalNominaOp =
   );
 
 const filaTotalNominaOp =
-  14 + filasExtraNominaOp;
+  14 + cambioFilasNominaOp;
 
 hojaNominaOp.getCell(
   `E${filaTotalNominaOp}`
@@ -6043,21 +6237,41 @@ const detalleRP = detalle.filter(
 
 const capacidadOriginalRP = 14;
 
+const cambioFilasRP =
+  detalleRP.length -
+  capacidadOriginalRP;
+
 const filasExtraRP =
   Math.max(
     0,
-    detalleRP.length -
-      capacidadOriginalRP
+    cambioFilasRP
+  );
+
+const filasSobrantesRP =
+  Math.max(
+    0,
+    -cambioFilasRP
   );
 
 // Filas normales originales: 9 a 22.
 // Insertamos extras a partir de la 23.
 // El total original de RP está en la 24.
+
 if (filasExtraRP > 0) {
   insertarFilasConFormato(
-    hojaRP,
-    23,
-    filasExtraRP
+  hojaRP,
+  23,
+  filasExtraRP,
+  21,
+  2,
+  11
+);
+}
+
+if (filasSobrantesRP > 0) {
+  hojaRP.spliceRows(
+    9 + detalleRP.length,
+    filasSobrantesRP
   );
 }
 
@@ -6175,7 +6389,7 @@ detalleRP.forEach((item, index) => {
 });
 
 const filaTotalRP =
-  24 + filasExtraRP;
+  24 + cambioFilasRP;
 
 hojaRP.getCell(
   `F${filaTotalRP}`
