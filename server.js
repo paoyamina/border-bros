@@ -5622,406 +5622,604 @@ app.get('/api/prenomina/:id/excel', async (req, res) => {
     );
 
     // ============================================================
-    // 7. LLENAR HOJA PRINCIPAL
-    // ============================================================
+// 7. LLENAR HOJA PRINCIPAL - FILAS DINÁMICAS
+// ============================================================
 
-    const seccionesPrincipal = {
-      GENERAL: {
-        inicio: 9,
-        fin: 15,
-        numerar: false,
-      },
+// Inserta filas nuevas heredando el formato de la fila anterior.
+// Así el machote puede crecer sin tener un límite fijo de empleados.
+const insertarFilasConFormato = (
+  hoja,
+  filaInsercion,
+  cantidad
+) => {
+  if (!cantidad || cantidad <= 0) return;
 
-      MESEROS: {
-        inicio: 17,
-        fin: 30,
-        numerar: true,
-      },
+  const filasVacias = Array.from(
+    { length: cantidad },
+    () => []
+  );
 
-      AYUDANTES: {
-        inicio: 32,
-        fin: 54,
-        numerar: true,
-      },
+  // "i" = hereda estilo de la fila anterior
+  hoja.insertRows(
+    filaInsercion,
+    filasVacias,
+    "i"
+  );
+};
 
-      BARRA: {
-        inicio: 56,
-        fin: 60,
-        numerar: true,
-      },
+const seccionesPrincipal = {
+  GENERAL: {
+    inicio: 9,
+    fin: 15,
+    numerar: false,
+  },
 
-      SEGURIDAD: {
-        inicio: 62,
-        fin: 88,
-        numerar: true,
-      },
+  MESEROS: {
+    inicio: 17,
+    fin: 30,
+    numerar: true,
+  },
 
-      HOSTESS: {
-        inicio: 90,
-        fin: 100,
-        numerar: true,
-      },
+  AYUDANTES: {
+    inicio: 32,
+    fin: 54,
+    numerar: true,
+  },
 
-      CADENA: {
-        inicio: 102,
-        fin: 102,
-        numerar: false,
-      },
+  BARRA: {
+    inicio: 56,
+    fin: 60,
+    numerar: true,
+  },
 
-      BANOS: {
-        inicio: 104,
-        fin: 105,
-        numerar: false,
-      },
+  SEGURIDAD: {
+    inicio: 62,
+    fin: 88,
+    numerar: true,
+  },
 
-      DJ: {
-        inicio: 107,
-        fin: 113,
-        numerar: false,
-      },
-    };
+  HOSTESS: {
+    inicio: 90,
+    fin: 100,
+    numerar: true,
+  },
 
-    const detallePrincipal = detalle.filter(
-      (item) =>
-        normalizarTexto(item.hoja_excel) ===
-        "PRINCIPAL"
+  CADENA: {
+    inicio: 102,
+    fin: 102,
+    numerar: false,
+  },
+
+  BANOS: {
+    inicio: 104,
+    fin: 105,
+    numerar: false,
+  },
+
+  DJ: {
+    inicio: 107,
+    fin: 113,
+    numerar: false,
+  },
+};
+
+const detallePrincipal = detalle.filter(
+  (item) =>
+    normalizarTexto(item.hoja_excel) ===
+    "PRINCIPAL"
+);
+
+const agrupadosPrincipal = {};
+
+for (const item of detallePrincipal) {
+  let seccion = normalizarTexto(
+    item.seccion_nomina
+  );
+
+  if (seccion === "MESERO") {
+    seccion = "MESEROS";
+  }
+
+  if (seccion === "AYUDANTE") {
+    seccion = "AYUDANTES";
+  }
+
+  if (
+    seccion === "BANO" ||
+    seccion === "BAÑO" ||
+    seccion === "BANOS" ||
+    seccion === "BAÑOS"
+  ) {
+    seccion = "BANOS";
+  }
+
+  if (!seccionesPrincipal[seccion]) {
+    seccion = "GENERAL";
+  }
+
+  if (!agrupadosPrincipal[seccion]) {
+    agrupadosPrincipal[seccion] = [];
+  }
+
+  agrupadosPrincipal[seccion].push(item);
+}
+
+
+// ------------------------------------------------------------
+// CALCULAR CUÁNTAS FILAS EXTRA NECESITA CADA SECCIÓN
+// ------------------------------------------------------------
+
+const ordenSeccionesPrincipal =
+  Object.entries(seccionesPrincipal);
+
+const filasExtraPrincipal = {};
+
+for (const [
+  nombreSeccion,
+  configuracion,
+] of ordenSeccionesPrincipal) {
+  const empleados =
+    agrupadosPrincipal[nombreSeccion] || [];
+
+  const capacidadOriginal =
+    configuracion.fin -
+    configuracion.inicio +
+    1;
+
+  filasExtraPrincipal[nombreSeccion] =
+    Math.max(
+      0,
+      empleados.length - capacidadOriginal
     );
+}
 
-    const agrupadosPrincipal = {};
 
-    for (const item of detallePrincipal) {
-      let seccion = normalizarTexto(
-        item.seccion_nomina
-      );
+// ------------------------------------------------------------
+// INSERTAR FILAS DE ABAJO HACIA ARRIBA
+//
+// Es importante hacerlo al revés para no alterar las posiciones
+// originales de las secciones que todavía no procesamos.
+// ------------------------------------------------------------
 
-      if (seccion === "MESERO") {
-        seccion = "MESEROS";
-      }
+for (
+  let i = ordenSeccionesPrincipal.length - 1;
+  i >= 0;
+  i -= 1
+) {
+  const [
+    nombreSeccion,
+    configuracion,
+  ] = ordenSeccionesPrincipal[i];
 
-      if (seccion === "AYUDANTE") {
-        seccion = "AYUDANTES";
-      }
+  const cantidadExtra =
+    filasExtraPrincipal[nombreSeccion] || 0;
 
-      if (seccion === "BANO") {
-        seccion = "BANOS";
-      }
+  if (cantidadExtra > 0) {
+    insertarFilasConFormato(
+      hojaPrincipal,
+      configuracion.fin + 1,
+      cantidadExtra
+    );
+  }
+}
 
-      if (!seccionesPrincipal[seccion]) {
-        seccion = "GENERAL";
-      }
 
-      if (!agrupadosPrincipal[seccion]) {
-        agrupadosPrincipal[seccion] = [];
-      }
+// ------------------------------------------------------------
+// RECALCULAR POSICIÓN REAL DE CADA SECCIÓN
+// ------------------------------------------------------------
 
-      agrupadosPrincipal[seccion].push(item);
+let desplazamientoPrincipal = 0;
+
+const seccionesPrincipalDinamicas = {};
+
+for (const [
+  nombreSeccion,
+  configuracion,
+] of ordenSeccionesPrincipal) {
+  const cantidadExtra =
+    filasExtraPrincipal[nombreSeccion] || 0;
+
+  seccionesPrincipalDinamicas[nombreSeccion] = {
+    ...configuracion,
+
+    inicio:
+      configuracion.inicio +
+      desplazamientoPrincipal,
+
+    fin:
+      configuracion.fin +
+      desplazamientoPrincipal +
+      cantidadExtra,
+  };
+
+  desplazamientoPrincipal += cantidadExtra;
+}
+
+
+// ------------------------------------------------------------
+// LLENAR EMPLEADOS
+// ------------------------------------------------------------
+
+for (const [
+  nombreSeccion,
+  configuracion,
+] of Object.entries(
+  seccionesPrincipalDinamicas
+)) {
+  const empleados =
+    agrupadosPrincipal[nombreSeccion] || [];
+
+  empleados.forEach((item, index) => {
+    const fila =
+      configuracion.inicio + index;
+
+    if (configuracion.numerar) {
+      hojaPrincipal.getCell(
+        `A${fila}`
+      ).value = index + 1;
     }
 
-    for (const [
-      nombreSeccion,
-      configuracion,
-    ] of Object.entries(seccionesPrincipal)) {
-      const empleados =
-        agrupadosPrincipal[nombreSeccion] || [];
+    hojaPrincipal.getCell(
+      `B${fila}`
+    ).value = item.empleado || "";
 
-      const capacidad =
-        configuracion.fin -
-        configuracion.inicio +
-        1;
-
-      if (empleados.length > capacidad) {
-        throw new Error(
-          `La sección ${nombreSeccion} tiene ${empleados.length} empleados y el machote solo tiene espacio para ${capacidad}.`
-        );
-      }
-
-      empleados.forEach((item, index) => {
-        const fila =
-          configuracion.inicio + index;
-
-        if (configuracion.numerar) {
-          hojaPrincipal.getCell(
-            `A${fila}`
-          ).value = index + 1;
-        }
-
-        hojaPrincipal.getCell(
-          `B${fila}`
-        ).value = item.empleado || "";
-
-        hojaPrincipal.getCell(
-          `C${fila}`
-        ).value = convertirFecha(
-          item.fecha_ingreso
-        );
-
-        hojaPrincipal.getCell(
-          `D${fila}`
-        ).value =
-          item.cuenta_bancaria || "";
-
-        hojaPrincipal.getCell(
-          `E${fila}`
-        ).value = item.puesto || "";
-
-        if (
-          normalizarTexto(
-            item.modalidad_pago
-          ) === "SEMANAL"
-        ) {
-          hojaPrincipal.getCell(
-            `F${fila}`
-          ).value = "SEMANA";
-        } else {
-          hojaPrincipal.getCell(
-            `F${fila}`
-          ).value =
-            Number(item.dias) || 0;
-        }
-
-        hojaPrincipal.getCell(
-          `G${fila}`
-        ).value =
-          Number(item.costo_unitario) ||
-          0;
-
-        hojaPrincipal.getCell(
-          `I${fila}`
-        ).value =
-          Number(item.total) || 0;
-
-        hojaPrincipal.getCell(
-          `C${fila}`
-        ).numFmt = "dd/mm/yyyy";
-
-        hojaPrincipal.getCell(
-          `G${fila}`
-        ).numFmt = '$#,##0.00';
-
-        hojaPrincipal.getCell(
-          `I${fila}`
-        ).numFmt = '$#,##0.00';
-      });
-    }
-
-    const totalPrincipal =
-      detallePrincipal.reduce(
-        (acumulado, item) =>
-          acumulado +
-          (Number(item.total) || 0),
-        0
-      );
-
-    hojaPrincipal.getCell("I114").value =
-      totalPrincipal;
-
-    hojaPrincipal.getCell("I114").numFmt =
-      '$#,##0.00';
-
-    // ============================================================
-    // 8. LLENAR NÓMINA OP.
-    // ============================================================
-
-    const detalleNominaOp = detalle.filter(
-      (item) =>
-        normalizarTexto(item.hoja_excel) ===
-        "NOMINA_OP"
+    hojaPrincipal.getCell(
+      `C${fila}`
+    ).value = convertirFecha(
+      item.fecha_ingreso
     );
 
-    if (detalleNominaOp.length > 5) {
-      throw new Error(
-        `Nómina Op. tiene ${detalleNominaOp.length} empleados y el machote actualmente tiene espacio para 5.`
-      );
-    }
+    hojaPrincipal.getCell(
+      `D${fila}`
+    ).value =
+      item.cuenta_bancaria || "";
 
-    detalleNominaOp.forEach(
-      (item, index) => {
-        const fila = 9 + index;
+    hojaPrincipal.getCell(
+      `E${fila}`
+    ).value =
+      item.puesto || "";
 
-        hojaNominaOp.getCell(
-          `B${fila}`
-        ).value = item.empleado || "";
-
-        hojaNominaOp.getCell(
-          `C${fila}`
-        ).value = convertirFecha(
-          item.fecha_ingreso
-        );
-
-        hojaNominaOp.getCell(
-          `D${fila}`
-        ).value = item.puesto || "";
-
-        hojaNominaOp.getCell(
-          `E${fila}`
-        ).value =
-          Number(item.total) || 0;
-
-        hojaNominaOp.getCell(
-          `C${fila}`
-        ).numFmt = "dd/mm/yyyy";
-
-        hojaNominaOp.getCell(
-          `E${fila}`
-        ).numFmt = '$#,##0.00';
-      }
-    );
-
-    const totalNominaOp =
-      detalleNominaOp.reduce(
-        (acumulado, item) =>
-          acumulado +
-          (Number(item.total) || 0),
-        0
-      );
-
-    hojaNominaOp.getCell("E14").value =
-      totalNominaOp;
-
-    hojaNominaOp.getCell("E14").numFmt =
-      '$#,##0.00';
-
-    // ============================================================
-    // 9. LLENAR RP
-    // ============================================================
-
-    const detalleRP = detalle.filter(
-      (item) =>
-        normalizarTexto(item.hoja_excel) ===
-          "RP" ||
-        normalizarTexto(
-          item.modalidad_pago
-        ) === "POR_MESA"
-    );
-
-    if (detalleRP.length > 14) {
-      throw new Error(
-        `RP tiene ${detalleRP.length} empleados y el machote actualmente tiene espacio para 14.`
-      );
-    }
-
-    let totalViernes = 0;
-    let totalSabado = 0;
-
-    detalleRP.forEach((item, index) => {
-      const fila = 9 + index;
-
-      const mesasEmpleado = mesas
-        .filter(
-          (mesa) =>
-            Number(
-              mesa.prenomina_detalle_id
-            ) === Number(item.id)
-        )
-        .sort(
-          (a, b) =>
-            String(a.fecha).localeCompare(
-              String(b.fecha)
-            )
-        );
-
-      const primeraMesa =
-        mesasEmpleado[0] || null;
-
-      const segundaMesa =
-        mesasEmpleado[1] || null;
-
-      const tarifaPrimera =
-        Number(
-          primeraMesa?.tarifa_mesa
-        ) || 300;
-
-      const cantidadPrimera =
-        Number(
-          primeraMesa?.cantidad_mesas
-        ) || 0;
-
-      const subtotalPrimera =
-        cantidadPrimera *
-        tarifaPrimera;
-
-      const tarifaSegunda =
-        Number(
-          segundaMesa?.tarifa_mesa
-        ) || 200;
-
-      const cantidadSegunda =
-        Number(
-          segundaMesa?.cantidad_mesas
-        ) || 0;
-
-      const subtotalSegunda =
-        cantidadSegunda *
-        tarifaSegunda;
-
-      totalViernes += subtotalPrimera;
-      totalSabado += subtotalSegunda;
-
-      hojaRP.getCell(
-        `B${fila}`
-      ).value = item.empleado || "";
-
-      hojaRP.getCell(
-        `C${fila}`
-      ).value = item.puesto || "RP";
-
-      hojaRP.getCell(
-        `D${fila}`
-      ).value = tarifaPrimera;
-
-      hojaRP.getCell(
-        `E${fila}`
-      ).value = cantidadPrimera;
-
-      hojaRP.getCell(
+    if (
+      normalizarTexto(
+        item.modalidad_pago
+      ) === "SEMANAL"
+    ) {
+      hojaPrincipal.getCell(
         `F${fila}`
-      ).value = subtotalPrimera;
-
-      hojaRP.getCell(
-        `G${fila}`
-      ).value = tarifaSegunda;
-
-      hojaRP.getCell(
-        `H${fila}`
-      ).value = cantidadSegunda;
-
-      hojaRP.getCell(
-        `I${fila}`
-      ).value = subtotalSegunda;
-
-      hojaRP.getCell(
-        `J${fila}`
+      ).value = "SEMANA";
+    } else {
+      hojaPrincipal.getCell(
+        `F${fila}`
       ).value =
-        Number(item.total) ||
-        subtotalPrimera +
-          subtotalSegunda;
+        Number(item.dias) || 0;
+    }
 
-      ["D", "F", "G", "I", "J"].forEach(
-        (columna) => {
-          hojaRP.getCell(
-            `${columna}${fila}`
-          ).numFmt = '$#,##0.00';
-        }
+    hojaPrincipal.getCell(
+      `G${fila}`
+    ).value =
+      Number(item.costo_unitario) || 0;
+
+    hojaPrincipal.getCell(
+      `I${fila}`
+    ).value =
+      Number(item.total) || 0;
+
+    hojaPrincipal.getCell(
+      `C${fila}`
+    ).numFmt = "dd/mm/yyyy";
+
+    hojaPrincipal.getCell(
+      `G${fila}`
+    ).numFmt = '$#,##0.00';
+
+    hojaPrincipal.getCell(
+      `I${fila}`
+    ).numFmt = '$#,##0.00';
+  });
+}
+
+
+// ------------------------------------------------------------
+// TOTAL HOJA PRINCIPAL
+// ------------------------------------------------------------
+
+const totalPrincipal =
+  detallePrincipal.reduce(
+    (acumulado, item) =>
+      acumulado +
+      (Number(item.total) || 0),
+    0
+  );
+
+const filaTotalPrincipal =
+  114 + desplazamientoPrincipal;
+
+hojaPrincipal.getCell(
+  `I${filaTotalPrincipal}`
+).value = totalPrincipal;
+
+hojaPrincipal.getCell(
+  `I${filaTotalPrincipal}`
+).numFmt = '$#,##0.00';
+
+
+// ============================================================
+// 8. LLENAR NÓMINA OP. - FILAS DINÁMICAS
+// ============================================================
+
+const detalleNominaOp = detalle.filter(
+  (item) =>
+    normalizarTexto(item.hoja_excel) ===
+    "NOMINA_OP"
+);
+
+const capacidadOriginalNominaOp = 5;
+
+const filasExtraNominaOp =
+  Math.max(
+    0,
+    detalleNominaOp.length -
+      capacidadOriginalNominaOp
+  );
+
+// El total original está en la fila 14.
+// Insertamos justo antes del total.
+if (filasExtraNominaOp > 0) {
+  insertarFilasConFormato(
+    hojaNominaOp,
+    14,
+    filasExtraNominaOp
+  );
+}
+
+detalleNominaOp.forEach(
+  (item, index) => {
+    const fila = 9 + index;
+
+    hojaNominaOp.getCell(
+      `B${fila}`
+    ).value =
+      item.empleado || "";
+
+    hojaNominaOp.getCell(
+      `C${fila}`
+    ).value =
+      convertirFecha(
+        item.fecha_ingreso
       );
-    });
 
-    hojaRP.getCell("F24").value =
-      totalViernes;
+    hojaNominaOp.getCell(
+      `D${fila}`
+    ).value =
+      item.puesto || "";
 
-    hojaRP.getCell("I24").value =
-      totalSabado;
+    hojaNominaOp.getCell(
+      `E${fila}`
+    ).value =
+      Number(item.total) || 0;
 
-    hojaRP.getCell("J24").value =
-      totalViernes + totalSabado;
+    hojaNominaOp.getCell(
+      `C${fila}`
+    ).numFmt = "dd/mm/yyyy";
 
-    hojaRP.getCell("F24").numFmt =
-      '$#,##0.00';
+    hojaNominaOp.getCell(
+      `E${fila}`
+    ).numFmt = '$#,##0.00';
+  }
+);
 
-    hojaRP.getCell("I24").numFmt =
-      '$#,##0.00';
+const totalNominaOp =
+  detalleNominaOp.reduce(
+    (acumulado, item) =>
+      acumulado +
+      (Number(item.total) || 0),
+    0
+  );
 
-    hojaRP.getCell("J24").numFmt =
-      '$#,##0.00';
+const filaTotalNominaOp =
+  14 + filasExtraNominaOp;
+
+hojaNominaOp.getCell(
+  `E${filaTotalNominaOp}`
+).value = totalNominaOp;
+
+hojaNominaOp.getCell(
+  `E${filaTotalNominaOp}`
+).numFmt = '$#,##0.00';
+
+
+// ============================================================
+// 9. LLENAR RP - FILAS DINÁMICAS
+// ============================================================
+
+const detalleRP = detalle.filter(
+  (item) =>
+    normalizarTexto(item.hoja_excel) ===
+      "RP" ||
+    normalizarTexto(
+      item.modalidad_pago
+    ) === "POR_MESA"
+);
+
+const capacidadOriginalRP = 14;
+
+const filasExtraRP =
+  Math.max(
+    0,
+    detalleRP.length -
+      capacidadOriginalRP
+  );
+
+// Filas normales originales: 9 a 22.
+// Insertamos extras a partir de la 23.
+// El total original de RP está en la 24.
+if (filasExtraRP > 0) {
+  insertarFilasConFormato(
+    hojaRP,
+    23,
+    filasExtraRP
+  );
+}
+
+let totalViernes = 0;
+let totalSabado = 0;
+
+detalleRP.forEach((item, index) => {
+  const fila = 9 + index;
+
+  const mesasEmpleado = mesas
+    .filter(
+      (mesa) =>
+        Number(
+          mesa.prenomina_detalle_id
+        ) === Number(item.id)
+    )
+    .sort(
+      (a, b) =>
+        String(a.fecha).localeCompare(
+          String(b.fecha)
+        )
+    );
+
+  const primeraMesa =
+    mesasEmpleado[0] || null;
+
+  const segundaMesa =
+    mesasEmpleado[1] || null;
+
+  const tarifaPrimera =
+    Number(
+      primeraMesa?.tarifa_mesa
+    ) || 300;
+
+  const cantidadPrimera =
+    Number(
+      primeraMesa?.cantidad_mesas
+    ) || 0;
+
+  const subtotalPrimera =
+    cantidadPrimera *
+    tarifaPrimera;
+
+  const tarifaSegunda =
+    Number(
+      segundaMesa?.tarifa_mesa
+    ) || 200;
+
+  const cantidadSegunda =
+    Number(
+      segundaMesa?.cantidad_mesas
+    ) || 0;
+
+  const subtotalSegunda =
+    cantidadSegunda *
+    tarifaSegunda;
+
+  totalViernes += subtotalPrimera;
+  totalSabado += subtotalSegunda;
+
+  hojaRP.getCell(
+    `B${fila}`
+  ).value =
+    item.empleado || "";
+
+  hojaRP.getCell(
+    `C${fila}`
+  ).value =
+    item.puesto || "RP";
+
+  hojaRP.getCell(
+    `D${fila}`
+  ).value =
+    tarifaPrimera;
+
+  hojaRP.getCell(
+    `E${fila}`
+  ).value =
+    cantidadPrimera;
+
+  hojaRP.getCell(
+    `F${fila}`
+  ).value =
+    subtotalPrimera;
+
+  hojaRP.getCell(
+    `G${fila}`
+  ).value =
+    tarifaSegunda;
+
+  hojaRP.getCell(
+    `H${fila}`
+  ).value =
+    cantidadSegunda;
+
+  hojaRP.getCell(
+    `I${fila}`
+  ).value =
+    subtotalSegunda;
+
+  hojaRP.getCell(
+    `J${fila}`
+  ).value =
+    Number(item.total) ||
+    subtotalPrimera +
+      subtotalSegunda;
+
+  ["D", "F", "G", "I", "J"].forEach(
+    (columna) => {
+      hojaRP.getCell(
+        `${columna}${fila}`
+      ).numFmt = '$#,##0.00';
+    }
+  );
+});
+
+const filaTotalRP =
+  24 + filasExtraRP;
+
+hojaRP.getCell(
+  `F${filaTotalRP}`
+).value =
+  totalViernes;
+
+hojaRP.getCell(
+  `I${filaTotalRP}`
+).value =
+  totalSabado;
+
+hojaRP.getCell(
+  `J${filaTotalRP}`
+).value =
+  totalViernes + totalSabado;
+
+hojaRP.getCell(
+  `F${filaTotalRP}`
+).numFmt =
+  '$#,##0.00';
+
+hojaRP.getCell(
+  `I${filaTotalRP}`
+).numFmt =
+  '$#,##0.00';
+
+hojaRP.getCell(
+  `J${filaTotalRP}`
+).numFmt =
+  '$#,##0.00';
+
+
+// ============================================================
+// AJUSTAR ÁREA DE IMPRESIÓN AL TAMAÑO REAL
+// ============================================================
+
+hojaPrincipal.pageSetup.printArea =
+  `A1:I${filaTotalPrincipal}`;
+
+hojaNominaOp.pageSetup.printArea =
+  `A1:F${filaTotalNominaOp}`;
+
+hojaRP.pageSetup.printArea =
+  `A1:K${filaTotalRP}`;
 
     // ============================================================
     // 10. GENERAR ARCHIVO
