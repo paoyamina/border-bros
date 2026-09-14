@@ -7,6 +7,19 @@ import React, {
 
 import API_BASE_URL from "../config/api";
 
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ReferenceLine,
+} from "recharts";
+
 function AnalisisFinanciero({
   usuarioActivo,
   usuarioId,
@@ -66,6 +79,9 @@ function AnalisisFinanciero({
 
 const [diaSeleccionado, setDiaSeleccionado] =
   useState(null);
+
+  const [modoGrafica, setModoGrafica] =
+  useState("flujo");
 
   // ============================================================
   // FORMATO
@@ -276,8 +292,10 @@ const tooltipCambioEgresos = () => {
   [analisis]
 );
 
-  const semanas =
-    analisis?.evolucion_semanal || [];
+  const semanas = useMemo(
+  () => analisis?.evolucion_semanal || [],
+  [analisis]
+);
 
   const dias = useMemo(
   () => analisis?.evolucion_diaria || [],
@@ -535,80 +553,191 @@ const resumenSeleccion = useMemo(() => {
   });
 }, [dias, semanaSeleccionada]);
 
-const datosGrafica =
-  nivelGrafica === "periodo"
-    ? semanas.map((semana) => ({
-        id: semana.semana_inicio,
-        etiqueta: `${formatoFechaCorta(
-          semana.semana_inicio
-        )}–${formatoFechaCorta(
-          semana.semana_fin
-        )}`,
-        ingresos: Number(
-          semana.ingresos || 0
-        ),
-        egresos: Number(
-          semana.egresos || 0
-        ),
-        gm: Number(
-          semana.gm || 0
-        ),
-        gpm:
-          semana.gpm === null
-            ? null
-            : Number(semana.gpm),
-        provisional:
-          semana.estado_periodo ===
-          "PROVISIONAL",
-        original: semana,
-      }))
-    : diasSemanaSeleccionada.map((dia) => ({
-        id: dia.fecha_financiera,
-        etiqueta: formatoFechaCorta(
-          dia.fecha_financiera
-        ),
-        ingresos: Number(
-          dia.ingresos || 0
-        ),
-        egresos: Number(
-          dia.egresos || 0
-        ),
-        gm: Number(
-          dia.gm || 0
-        ),
-        gpm: Number(
-          dia.gpm || 0
-        ),
-        provisional: false,
-        original: dia,
-      }));
+const datosGrafica = useMemo(() => {
+  if (nivelGrafica === "periodo") {
+    return semanas.map((semana) => ({
+      id: semana.semana_inicio,
 
-const maximoGrafica = Math.max(
-  1,
-  ...datosGrafica.flatMap((item) => [
-    Math.abs(item.ingresos),
-    Math.abs(item.egresos),
-    Math.abs(item.gm),
-  ])
-);
+      etiqueta: `${formatoFechaCorta(
+        semana.semana_inicio
+      )}–${formatoFechaCorta(
+        semana.semana_fin
+      )}`,
+
+      ingresos: Number(
+        semana.ingresos || 0
+      ),
+
+      egresos: Number(
+        semana.egresos || 0
+      ),
+
+      nomina: Number(
+        semana.nomina || 0
+      ),
+
+      gm: Number(
+        semana.gm || 0
+      ),
+
+      gpm:
+        semana.gpm === null ||
+        semana.gpm === undefined
+          ? null
+          : Number(semana.gpm),
+
+      provisional:
+        semana.estado_periodo ===
+        "PROVISIONAL",
+
+      estado:
+        semana.estado_periodo,
+
+      original: semana,
+    }));
+  }
+
+  return diasSemanaSeleccionada.map((dia) => ({
+    id: dia.fecha_financiera,
+
+    etiqueta: formatoFechaCorta(
+      dia.fecha_financiera
+    ),
+
+    ingresos: Number(
+      dia.ingresos || 0
+    ),
+
+    egresos: Number(
+      dia.egresos || 0
+    ),
+
+    nomina: Number(
+      dia.nomina || 0
+    ),
+
+    gm: Number(
+      dia.gm || 0
+    ),
+
+    gpm:
+      dia.gpm === null ||
+      dia.gpm === undefined
+        ? null
+        : Number(dia.gpm),
+
+    provisional: false,
+
+    estado:
+      semanaSeleccionada?.estado_periodo,
+
+    original: dia,
+  }));
+}, [
+  nivelGrafica,
+  semanas,
+  diasSemanaSeleccionada,
+  semanaSeleccionada,
+]);
+
+const metricasSeleccion = useMemo(() => {
+  if (diaSeleccionado) {
+    return {
+      nivel: "dia",
+      etiqueta: formatoFecha(
+        diaSeleccionado.id
+      ),
+      ingresos: Number(
+        diaSeleccionado.ingresos || 0
+      ),
+      egresos: Number(
+        diaSeleccionado.egresos || 0
+      ),
+      nomina: Number(
+        diaSeleccionado.nomina || 0
+      ),
+      gm: Number(
+        diaSeleccionado.gm || 0
+      ),
+      gpm:
+        diaSeleccionado.gpm === null ||
+        diaSeleccionado.gpm === undefined
+          ? null
+          : Number(diaSeleccionado.gpm),
+    };
+  }
+
+  if (semanaSeleccionada) {
+    return {
+      nivel: "semana",
+      etiqueta: `${formatoFecha(
+        semanaSeleccionada.semana_inicio
+      )} — ${formatoFecha(
+        semanaSeleccionada.semana_fin
+      )}`,
+      ingresos: Number(
+        semanaSeleccionada.ingresos || 0
+      ),
+      egresos: Number(
+        semanaSeleccionada.egresos || 0
+      ),
+      nomina: Number(
+        semanaSeleccionada.nomina || 0
+      ),
+      gm: Number(
+        semanaSeleccionada.gm || 0
+      ),
+      gpm:
+        semanaSeleccionada.gpm === null ||
+        semanaSeleccionada.gpm === undefined
+          ? null
+          : Number(semanaSeleccionada.gpm),
+    };
+  }
+
+  return {
+    nivel: "periodo",
+    etiqueta: `${formatoFecha(
+      fechaInicio
+    )} — ${formatoFecha(fechaFin)}`,
+    ingresos: Number(
+      resumen.total_ingresos || 0
+    ),
+    egresos: Number(
+      resumen.total_egresos || 0
+    ),
+    nomina: Number(
+      resumen.total_nomina || 0
+    ),
+    gm: Number(resumen.gm || 0),
+    gpm:
+      resumen.gpm === null ||
+      resumen.gpm === undefined
+        ? null
+        : Number(resumen.gpm),
+  };
+}, [
+  diaSeleccionado,
+  semanaSeleccionada,
+  resumen,
+  fechaInicio,
+  fechaFin,
+]);
 
 const hallazgosEjecutivos = useMemo(() => {
   const hallazgos = [];
 
   const totalIngresosActual =
-    Number(resumen.total_ingresos || 0);
+  metricasSeleccion.ingresos;
 
-  const totalEgresosActual =
-    Number(resumen.total_egresos || 0);
+const totalEgresosActual =
+  metricasSeleccion.egresos;
 
-  const gmActual =
-    Number(resumen.gm || 0);
+const gmActual =
+  metricasSeleccion.gm;
 
-  const gpmActual =
-    resumen.gpm === null ||
-    resumen.gpm === undefined
-      ? null
-      : Number(resumen.gpm);
+const gpmActual =
+  metricasSeleccion.gpm;
 
   // 1. Periodo provisional
   if (provisional) {
@@ -720,7 +849,7 @@ const hallazgosEjecutivos = useMemo(() => {
 
   return hallazgos;
 }, [
-  resumen,
+  metricasSeleccion,
   provisional,
   categoriasFiltradas,
   prenominaEsperada,
@@ -784,8 +913,8 @@ const hallazgosEjecutivos = useMemo(() => {
           ? "1px solid #111"
           : "1px solid #e7e7e7",
         borderRadius: "14px",
-        padding: "18px",
-        minHeight: "130px",
+        padding: "13px 14px",
+minHeight: "105px",
         boxSizing: "border-box",
         boxShadow:
           "0 2px 8px rgba(0,0,0,.035)",
@@ -811,7 +940,7 @@ const hallazgosEjecutivos = useMemo(() => {
 
       <div
         style={{
-          fontSize: "27px",
+          fontSize: "23px",
           lineHeight: 1.15,
           fontWeight: "700",
           whiteSpace: "nowrap",
@@ -865,7 +994,7 @@ const hallazgosEjecutivos = useMemo(() => {
         justifyContent: "space-between",
         gap: "20px",
         alignItems: "flex-end",
-        marginBottom: "16px",
+        marginBottom: "12px",
       }}
     >
       <div>
@@ -897,7 +1026,98 @@ const hallazgosEjecutivos = useMemo(() => {
     </div>
   );
 
-  const GraficaFinanciera = () => {
+const TooltipFinanciero = ({
+  active,
+  payload,
+  label,
+}) => {
+  if (
+    !active ||
+    !payload ||
+    payload.length === 0
+  ) {
+    return null;
+  }
+
+  const item =
+    payload[0]?.payload || {};
+
+  return (
+    <div
+      style={{
+        background: "#111",
+        color: "#fff",
+        padding: "12px 14px",
+        borderRadius: "10px",
+        boxShadow:
+          "0 8px 25px rgba(0,0,0,.22)",
+        minWidth: "190px",
+        fontSize: "12px",
+      }}
+    >
+      <div
+        style={{
+          fontWeight: "700",
+          marginBottom: "9px",
+          fontSize: "13px",
+        }}
+      >
+        {label}
+      </div>
+
+      <div>
+        Ingresos:{" "}
+        <strong>
+          {formatoMoneda(item.ingresos)}
+        </strong>
+      </div>
+
+      <div style={{ marginTop: "4px" }}>
+        Egresos:{" "}
+        <strong>
+          {formatoMoneda(item.egresos)}
+        </strong>
+      </div>
+
+      <div style={{ marginTop: "4px" }}>
+        Nómina:{" "}
+        <strong>
+          {formatoMoneda(item.nomina)}
+        </strong>
+      </div>
+
+      <div style={{ marginTop: "4px" }}>
+        GM:{" "}
+        <strong>
+          {formatoMoneda(item.gm)}
+        </strong>
+      </div>
+
+      <div style={{ marginTop: "4px" }}>
+        GPM:{" "}
+        <strong>
+          {item.gpm === null
+            ? "Pendiente"
+            : formatoPorcentaje(item.gpm)}
+        </strong>
+      </div>
+
+      {item.provisional && (
+        <div
+          style={{
+            marginTop: "9px",
+            color: "#ffd76a",
+            fontWeight: "700",
+          }}
+        >
+          ● PERIODO PROVISIONAL
+        </div>
+      )}
+    </div>
+  );
+};
+
+const GraficaFinanciera = () => {
   if (datosGrafica.length === 0) {
     return (
       <div style={estadoVacio}>
@@ -906,28 +1126,50 @@ const hallazgosEjecutivos = useMemo(() => {
     );
   }
 
+  const manejarClickGrafica = (
+    estado
+  ) => {
+    const item =
+      estado?.activePayload?.[0]?.payload;
+
+    if (!item) return;
+
+    if (nivelGrafica === "periodo") {
+      setSemanaSeleccionada(
+        item.original
+      );
+
+      setDiaSeleccionado(null);
+      setNivelGrafica("semana");
+
+      return;
+    }
+
+    setDiaSeleccionado(item);
+  };
+
   return (
     <div>
-      {/* CABECERA DE NAVEGACIÓN */}
+      {/* HEADER */}
 
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: "12px",
+          gap: "10px",
           flexWrap: "wrap",
-          marginBottom: "18px",
+          marginBottom: "10px",
         }}
       >
         <div>
           <div
             style={{
-              fontSize: "11px",
-              color: "#777",
+              fontSize: "10px",
               textTransform: "uppercase",
               letterSpacing: "1px",
               fontWeight: "700",
+              color: "#777",
             }}
           >
             Nivel de análisis
@@ -935,341 +1177,288 @@ const hallazgosEjecutivos = useMemo(() => {
 
           <div
             style={{
-              marginTop: "4px",
+              fontSize: "14px",
               fontWeight: "700",
-              fontSize: "15px",
+              marginTop: "2px",
             }}
           >
             {nivelGrafica === "periodo"
-              ? `${formatoFecha(
-                  fechaInicio
-                )} — ${formatoFecha(
-                  fechaFin
-                )}`
-              : `Semana ${formatoFecha(
-                  semanaSeleccionada?.semana_inicio
-                )} — ${formatoFecha(
-                  semanaSeleccionada?.semana_fin
+              ? "Semanas"
+              : `Días · ${formatoFechaCorta(
+                  semanaSeleccionada
+                    ?.semana_inicio
+                )}–${formatoFechaCorta(
+                  semanaSeleccionada
+                    ?.semana_fin
                 )}`}
           </div>
         </div>
 
-        {nivelGrafica === "semana" && (
-          <button
-            type="button"
-            style={botonSecundario}
-            onClick={() => {
-  setNivelGrafica("periodo");
-  setDiaSeleccionado(null);
-  setSemanaSeleccionada(null);
-}}
-          >
-            ← Volver al periodo
-          </button>
-        )}
+        <div
+          style={{
+            display: "flex",
+            gap: "6px",
+            flexWrap: "wrap",
+          }}
+        >
+          {[
+            ["flujo", "Ingresos / Egresos"],
+            ["gpm", "GPM"],
+            ["nomina", "Nómina"],
+          ].map(([valor, etiqueta]) => (
+            <button
+              key={valor}
+              type="button"
+              onClick={() =>
+                setModoGrafica(valor)
+              }
+              style={{
+                padding: "6px 10px",
+                borderRadius: "6px",
+                border:
+                  "1px solid #ddd",
+                background:
+                  modoGrafica === valor
+                    ? "#111"
+                    : "#fff",
+                color:
+                  modoGrafica === valor
+                    ? "#fff"
+                    : "#111",
+                cursor: "pointer",
+                fontSize: "11px",
+                fontWeight: "600",
+              }}
+            >
+              {etiqueta}
+            </button>
+          ))}
+
+          {nivelGrafica !== "periodo" && (
+            <button
+              type="button"
+              onClick={() => {
+                setNivelGrafica("periodo");
+                setSemanaSeleccionada(null);
+                setDiaSeleccionado(null);
+              }}
+              style={{
+                ...botonSecundario,
+                padding: "6px 10px",
+                fontSize: "11px",
+              }}
+            >
+              ↑ Subir nivel
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* LEYENDA */}
+      {/* BREADCRUMB */}
 
       <div
         style={{
-          display: "flex",
-          gap: "18px",
-          flexWrap: "wrap",
-          marginBottom: "14px",
+          marginBottom: "8px",
+          color: "#777",
           fontSize: "11px",
-          color: "#666",
         }}
       >
-        <span>■ Ingresos</span>
-        <span>▨ Egresos</span>
-        <span>● GM</span>
+        Periodo
+        {semanaSeleccionada &&
+          ` › ${formatoFechaCorta(
+            semanaSeleccionada
+              .semana_inicio
+          )}–${formatoFechaCorta(
+            semanaSeleccionada
+              .semana_fin
+          )}`}
+
+        {diaSeleccionado &&
+          ` › ${formatoFechaCorta(
+            diaSeleccionado.id
+          )}`}
       </div>
 
       {/* GRÁFICA */}
 
       <div
         style={{
-          overflowX: "auto",
-          paddingBottom: "8px",
+          width: "100%",
+          height: "280px",
         }}
       >
-        <div
-          style={{
-            minWidth: Math.max(
-              700,
-              datosGrafica.length * 115
-            ),
-            height: "330px",
-            display: "flex",
-            alignItems: "flex-end",
-            gap: "14px",
-            padding:
-              "20px 10px 38px",
-            borderBottom:
-              "1px solid #ddd",
-            boxSizing: "border-box",
-          }}
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
         >
-          {datosGrafica.map((item) => {
-            const alturaIngresos =
-              (Math.abs(item.ingresos) /
-                maximoGrafica) *
-              235;
-
-            const alturaEgresos =
-              (Math.abs(item.egresos) /
-                maximoGrafica) *
-              235;
-
-            const alturaGM =
-              (Math.abs(item.gm) /
-                maximoGrafica) *
-              235;
-
-            const seleccionado =
-              diaSeleccionado?.id === item.id;
-
-            const tooltip = [
-              item.etiqueta,
-              `Ingresos: ${formatoMoneda(
-                item.ingresos
-              )}`,
-              `Egresos: ${formatoMoneda(
-                item.egresos
-              )}`,
-              `GM: ${formatoMoneda(
-                item.gm
-              )}`,
-              `GPM: ${
-                item.gpm === null
-                  ? "Pendiente"
-                  : formatoPorcentaje(
-                      item.gpm
-                    )
-              }`,
-              item.provisional
-                ? "Periodo provisional"
-                : "",
-            ]
-              .filter(Boolean)
-              .join("\n");
-
-            return (
-              <div
-                key={item.id}
-                title={tooltip}
-                onClick={() => {
-                  if (
-                    nivelGrafica === "periodo"
-                  ) {
-                    setSemanaSeleccionada(
-                      item.original
-                    );
-                    setNivelGrafica(
-                      "semana"
-                    );
-                    setDiaSeleccionado(
-                      null
-                    );
-                  } else {
-                    setDiaSeleccionado(
-                      item
-                    );
-                  }
-                }}
-                style={{
-                  flex:
-                    "0 0 95px",
-                  height: "270px",
-                  display: "flex",
-                  flexDirection:
-                    "column",
-                  justifyContent:
-                    "flex-end",
-                  alignItems:
-                    "center",
-                  cursor: "pointer",
-                  borderRadius:
-                    "9px",
-                  background:
-                    seleccionado
-                      ? "#f4f4f4"
-                      : "transparent",
-                  padding:
-                    "4px 5px",
-                  boxSizing:
-                    "border-box",
-                }}
-              >
-                <div
-                  style={{
-                    height: "235px",
-                    width: "100%",
-                    display: "flex",
-                    alignItems:
-                      "flex-end",
-                    justifyContent:
-                      "center",
-                    gap: "5px",
-                  }}
-                >
-                  {/* INGRESOS */}
-
-                  <div
-                    style={{
-                      height: `${Math.max(
-                        2,
-                        alturaIngresos
-                      )}px`,
-                      width: "20px",
-                      background:
-                        "#111",
-                      borderRadius:
-                        "4px 4px 0 0",
-                    }}
-                  />
-
-                  {/* EGRESOS */}
-
-                  <div
-                    style={{
-                      height: `${Math.max(
-                        2,
-                        alturaEgresos
-                      )}px`,
-                      width: "20px",
-                      background:
-                        "#aaa",
-                      borderRadius:
-                        "4px 4px 0 0",
-                    }}
-                  />
-
-                  {/* GM */}
-
-                  <div
-                    style={{
-                      height: `${Math.max(
-                        2,
-                        alturaGM
-                      )}px`,
-                      width: "8px",
-                      background:
-                        item.gm < 0
-                          ? "#555"
-                          : "#666",
-                      borderRadius:
-                        "999px 999px 0 0",
-                    }}
-                  />
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "8px",
-                    textAlign: "center",
-                    fontSize: "10px",
-                    fontWeight: "600",
-                    whiteSpace:
-                      "nowrap",
-                  }}
-                >
-                  {item.etiqueta}
-                </div>
-
-                {item.provisional && (
-                  <div
-                    style={{
-                      marginTop: "3px",
-                      fontSize: "8px",
-                      padding: "2px 5px",
-                      borderRadius:
-                        "999px",
-                      background:
-                        "#fff3cd",
-                      color: "#795a00",
-                    }}
-                  >
-                    PROV.
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* DETALLE DÍA */}
-
-      {nivelGrafica === "semana" &&
-        diaSeleccionado && (
-          <div
-            style={{
-              marginTop: "16px",
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(160px, 1fr))",
-              gap: "8px",
+          <ComposedChart
+            data={datosGrafica}
+            margin={{
+              top: 15,
+              right: 15,
+              bottom: 5,
+              left: 5,
             }}
+            onClick={
+              manejarClickGrafica
+            }
           >
-            <div style={miniDato}>
-              <span style={miniLabel}>
-                Día
-              </span>
-              <strong>
-                {formatoFecha(
-                  diaSeleccionado.id
-                )}
-              </strong>
-            </div>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              vertical={false}
+              stroke="#ececec"
+            />
 
-            <div style={miniDato}>
-              <span style={miniLabel}>
-                Ingresos
-              </span>
-              <strong>
-                {formatoMoneda(
-                  diaSeleccionado.ingresos
-                )}
-              </strong>
-            </div>
+            <XAxis
+              dataKey="etiqueta"
+              tick={{
+                fontSize: 10,
+              }}
+              tickLine={false}
+              axisLine={{
+                stroke: "#ddd",
+              }}
+            />
 
-            <div style={miniDato}>
-              <span style={miniLabel}>
-                Egresos
-              </span>
-              <strong>
-                {formatoMoneda(
-                  diaSeleccionado.egresos
-                )}
-              </strong>
-            </div>
+            <YAxis
+              yAxisId="dinero"
+              tickFormatter={(v) =>
+                `$${Number(v).toLocaleString(
+                  "es-MX",
+                  {
+                    notation: "compact",
+                    maximumFractionDigits: 1,
+                  }
+                )}`
+              }
+              tick={{
+                fontSize: 10,
+              }}
+              tickLine={false}
+              axisLine={false}
+              width={65}
+            />
 
-            <div style={miniDato}>
-              <span style={miniLabel}>
-                GM
-              </span>
-              <strong>
-                {formatoMoneda(
-                  diaSeleccionado.gm
-                )}
-              </strong>
-            </div>
+            {modoGrafica === "gpm" && (
+              <YAxis
+                yAxisId="porcentaje"
+                orientation="right"
+                tickFormatter={(v) =>
+                  `${Number(v).toFixed(0)}%`
+                }
+                tick={{
+                  fontSize: 10,
+                }}
+                tickLine={false}
+                axisLine={false}
+                width={45}
+              />
+            )}
 
-            <div style={miniDato}>
-              <span style={miniLabel}>
-                GPM
-              </span>
-              <strong>
-                {formatoPorcentaje(
-                  diaSeleccionado.gpm
-                )}
-              </strong>
-            </div>
-          </div>
-        )}
+            <Tooltip
+              content={
+                <TooltipFinanciero />
+              }
+            />
+
+            <Legend
+              wrapperStyle={{
+                fontSize: "11px",
+              }}
+            />
+
+            <ReferenceLine
+              yAxisId="dinero"
+              y={0}
+              stroke="#bbb"
+            />
+
+            {modoGrafica === "flujo" && (
+              <>
+                <Bar
+                  yAxisId="dinero"
+                  dataKey="ingresos"
+                  name="Ingresos"
+                  fill="#111"
+                  radius={[
+                    4,
+                    4,
+                    0,
+                    0,
+                  ]}
+                  maxBarSize={38}
+                />
+
+                <Bar
+                  yAxisId="dinero"
+                  dataKey="egresos"
+                  name="Egresos"
+                  fill="#aaa"
+                  radius={[
+                    4,
+                    4,
+                    0,
+                    0,
+                  ]}
+                  maxBarSize={38}
+                />
+
+                <Line
+                  yAxisId="dinero"
+                  type="monotone"
+                  dataKey="gm"
+                  name="GM"
+                  stroke="#666"
+                  strokeWidth={3}
+                  dot={{
+                    r: 4,
+                    fill: "#fff",
+                    strokeWidth: 2,
+                  }}
+                  activeDot={{
+                    r: 6,
+                  }}
+                />
+              </>
+            )}
+
+            {modoGrafica === "gpm" && (
+              <Line
+                yAxisId="porcentaje"
+                type="monotone"
+                dataKey="gpm"
+                name="GPM"
+                stroke="#111"
+                strokeWidth={3}
+                connectNulls={false}
+                dot={{
+                  r: 5,
+                }}
+                activeDot={{
+                  r: 7,
+                }}
+              />
+            )}
+
+            {modoGrafica === "nomina" && (
+              <Bar
+                yAxisId="dinero"
+                dataKey="nomina"
+                name="Nómina"
+                fill="#555"
+                radius={[
+                  5,
+                  5,
+                  0,
+                  0,
+                ]}
+                maxBarSize={48}
+              />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
       </div>
+    </div>
   );
 };
 
@@ -1503,7 +1692,7 @@ const descargarPDF = async () => {
       >
         <div
           style={{
-            maxWidth: "1500px",
+            maxWidth: "1760px",
             margin: "0 auto",
             padding: "18px 24px",
             display: "flex",
@@ -1638,9 +1827,9 @@ const descargarPDF = async () => {
 
       <main
         style={{
-          maxWidth: "1500px",
+          maxWidth: "1760px",
           margin: "0 auto",
-          padding: "26px 24px 60px",
+          padding: "14px 18px 30px",
         }}
       >
         {/* ====================================================
@@ -1825,8 +2014,8 @@ const descargarPDF = async () => {
                 display: "grid",
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(210px, 1fr))",
-                gap: "12px",
-                marginBottom: "22px",
+                gap: "8px",
+marginBottom: "12px",
               }}
             >
               <Kpi
@@ -1917,328 +2106,175 @@ const descargarPDF = async () => {
               />
             </div>
 
-{/* Hallazgos */}
+            {/* ====================================================
+    PANEL CENTRAL BI
+==================================================== */}
 
-<section
+<div
   style={{
-    ...tarjeta,
-    marginBottom: "22px",
+    display: "grid",
+    gridTemplateColumns:
+      "minmax(0, 2.2fr) minmax(280px, .8fr)",
+    gap: "12px",
+    marginBottom: "12px",
   }}
 >
-  <TituloSeccion
-    titulo="Hallazgos del periodo"
-    subtitulo="Lectura automática de los principales movimientos y desviaciones."
-  />
+  {/* GRÁFICA */}
 
-  <div
+  <section
     style={{
-      display: "grid",
-      gridTemplateColumns:
-        "repeat(auto-fit, minmax(250px, 1fr))",
-      gap: "10px",
+      ...tarjeta,
+      padding: "16px",
     }}
   >
-    {hallazgosEjecutivos.map(
-      (hallazgo, index) => {
-        const estilosHallazgo = {
-          positivo: {
-            background: "#edf7ee",
-            border: "#c9e6cd",
-            indicador: "●",
-          },
+    <TituloSeccion
+      titulo="Evolución financiera"
+      subtitulo="Haz clic en una semana para bajar a días."
+    />
 
-          advertencia: {
-            background: "#fff8e5",
-            border: "#ead9a3",
-            indicador: "▲",
-          },
+    <GraficaFinanciera />
+  </section>
 
-          critico: {
-            background: "#fff0f0",
-            border: "#efc4c4",
-            indicador: "!",
-          },
+  {/* INSIGHTS */}
 
-          informativo: {
-            background: "#f7f7f7",
-            border: "#e3e3e3",
-            indicador: "•",
-          },
-        };
+  <section
+    style={{
+      ...tarjeta,
+      padding: "16px",
+      maxHeight: "390px",
+      overflowY: "auto",
+    }}
+  >
+    <TituloSeccion
+      titulo="Insights"
+      subtitulo="Lectura automática del periodo."
+    />
 
-        const estilo =
-          estilosHallazgo[hallazgo.tipo] ||
-          estilosHallazgo.informativo;
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+      }}
+    >
+      {hallazgosEjecutivos.map(
+        (hallazgo, index) => {
+          const estilos = {
+            positivo: {
+              bg: "#edf7ee",
+              border: "#c9e6cd",
+              icono: "↑",
+            },
 
-        return (
-          <div
-            key={`${hallazgo.titulo}-${index}`}
-            style={{
-              padding: "14px",
-              borderRadius: "10px",
-              background: estilo.background,
-              border: `1px solid ${estilo.border}`,
-            }}
-          >
+            advertencia: {
+              bg: "#fff8e5",
+              border: "#ead9a3",
+              icono: "▲",
+            },
+
+            critico: {
+              bg: "#fff0f0",
+              border: "#efc4c4",
+              icono: "!",
+            },
+
+            informativo: {
+              bg: "#f7f7f7",
+              border: "#e3e3e3",
+              icono: "•",
+            },
+          };
+
+          const estilo =
+            estilos[hallazgo.tipo] ||
+            estilos.informativo;
+
+          return (
             <div
+              key={`${hallazgo.titulo}-${index}`}
               style={{
-                display: "flex",
-                gap: "8px",
-                alignItems: "flex-start",
+                padding: "10px",
+                borderRadius: "8px",
+                background: estilo.bg,
+                border: `1px solid ${estilo.border}`,
               }}
             >
               <div
                 style={{
-                  width: "22px",
-                  height: "22px",
-                  borderRadius: "50%",
-                  background: "#111",
-                  color: "#fff",
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                  fontSize: "11px",
-                  fontWeight: "700",
+                  gap: "8px",
+                  alignItems: "flex-start",
                 }}
               >
-                {estilo.indicador}
-              </div>
-
-              <div>
                 <div
                   style={{
+                    width: "20px",
+                    height: "20px",
+                    borderRadius: "50%",
+                    background: "#111",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    fontSize: "10px",
                     fontWeight: "700",
-                    fontSize: "13px",
-                    marginBottom: "5px",
                   }}
                 >
-                  {hallazgo.titulo}
+                  {estilo.icono}
                 </div>
 
-                <div
-                  style={{
-                    color: "#555",
-                    fontSize: "12px",
-                    lineHeight: 1.45,
-                  }}
-                >
-                  {hallazgo.texto}
+                <div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {hallazgo.titulo}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "#555",
+                      marginTop: "3px",
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {hallazgo.texto}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
-      }
-    )}
-  </div>
-</section>
+          );
+        }
+      )}
+    </div>
+  </section>
+</div>
 
-{/* Evolución financiera */}
+{/* GRID FINANCIERO 2x2 */}
 
-<section
+<div
   style={{
-    ...tarjeta,
-    marginBottom: "22px",
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(2, minmax(0, 1fr))",
+    gap: "12px",
+    alignItems: "start",
   }}
 >
-  <TituloSeccion
-    titulo="Evolución financiera"
-    subtitulo="Selecciona una semana para bajar al detalle diario."
-  />
-
-  <GraficaFinanciera />
-</section>
-
-            <section
-              style={{
-                ...tarjeta,
-                marginBottom: "22px",
-              }}
-            >
-              <TituloSeccion
-                titulo="Calendario financiero"
-                subtitulo="Semanas viernes → jueves. Selecciona una para revisar su detalle."
-              />
-
-              {semanas.length === 0 ? (
-                <div style={estadoVacio}>
-                  No hay semanas disponibles para
-                  este periodo.
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fit, minmax(190px, 1fr))",
-                    gap: "10px",
-                  }}
-                >
-                  {semanas.map(
-                    (semana) => {
-                      const activa =
-                        semanaSeleccionada
-                          ?.semana_inicio ===
-                        semana.semana_inicio;
-
-                      const esProvisional =
-                        semana.estado_periodo ===
-                        "PROVISIONAL";
-
-                      return (
-                        <button
-                          key={
-                            semana.semana_inicio
-                          }
-                          type="button"
-                          onClick={() => {
-                            setSemanaSeleccionada(
-                              activa
-                                ? null
-                                : semana
-                            );
-
-                            setVista(
-                              "detalle"
-                            );
-                          }}
-                          style={{
-                            textAlign: "left",
-                            background: activa
-                              ? "#111"
-                              : "#fff",
-                            color: activa
-                              ? "#fff"
-                              : "#111",
-                            border:
-                              "1px solid #dedede",
-                            borderRadius:
-                              "12px",
-                            padding: "14px",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize:
-                                "13px",
-                              fontWeight:
-                                "700",
-                            }}
-                          >
-                            {formatoFechaCorta(
-                              semana.semana_inicio
-                            )}
-                            {" — "}
-                            {formatoFechaCorta(
-                              semana.semana_fin
-                            )}
-                          </div>
-
-                          <div
-                            style={{
-                              fontSize:
-                                "18px",
-                              fontWeight:
-                                "700",
-                              marginTop:
-                                "10px",
-                            }}
-                          >
-                            {formatoMoneda(
-                              semana.ingresos
-                            )}
-                          </div>
-
-                          <div
-                            style={{
-                              fontSize:
-                                "11px",
-                              marginTop:
-                                "4px",
-                              color: activa
-                                ? "#bbb"
-                                : "#777",
-                            }}
-                          >
-                            Ingresos
-                          </div>
-
-                          <div
-                            style={{
-                              marginTop:
-                                "10px",
-                              display:
-                                "flex",
-                              justifyContent:
-                                "space-between",
-                              alignItems:
-                                "center",
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize:
-                                  "12px",
-                              }}
-                            >
-                              GPM{" "}
-                              {semana.gpm ==
-                              null
-                                ? "—"
-                                : formatoPorcentaje(
-                                    semana.gpm
-                                  )}
-                            </span>
-
-                            <span
-                              style={{
-                                padding:
-                                  "3px 7px",
-                                borderRadius:
-                                  "999px",
-                                fontSize:
-                                  "9px",
-                                fontWeight:
-                                  "700",
-                                background:
-                                  esProvisional
-                                    ? "#fff3cd"
-                                    : "#e8f5e9",
-                                color:
-                                  esProvisional
-                                    ? "#795a00"
-                                    : "#256029",
-                              }}
-                            >
-                              {
-                                semana.estado_periodo
-                              }
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    }
-                  )}
-                </div>
-              )}
-            </section>
-
-            {/* Dos columnas */}
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "minmax(0, 1.25fr) minmax(320px, .75fr)",
-                gap: "18px",
-                marginBottom: "22px",
-              }}
-            >
+  
               {/* Categorías */}
 
-              <section style={tarjeta}>
+              <section
+  style={{
+    ...tarjeta,
+    padding: "16px",
+    minHeight: "260px",
+  }}
+>
                 <TituloSeccion
                   titulo="Egresos por categoría"
                   subtitulo="Participación de cada categoría sobre los egresos del periodo."
@@ -2400,7 +2436,13 @@ const descargarPDF = async () => {
 
               {/* Socios */}
 
-              <section style={tarjeta}>
+              <section
+  style={{
+    ...tarjeta,
+    padding: "16px",
+    minHeight: "260px",
+  }}
+>
                 <TituloSeccion
                   titulo="Distribución por socio"
                   subtitulo="El porcentaje de participación es fijo."
@@ -2552,19 +2594,16 @@ const descargarPDF = async () => {
                   )
                 )}
               </section>
-            </div>
 
-            {/* Cambio divisa y prenomina */}
+{/* Resultado cambiario */}
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(360px, 1fr))",
-                gap: "18px",
-              }}
-            >
-              <section style={tarjeta}>
+<section
+  style={{
+    ...tarjeta,
+    padding: "16px",
+    minHeight: "260px",
+  }}
+>
                 <TituloSeccion
                   titulo="Resultado cambiario"
                   subtitulo="Ganancia o pérdida realizada al convertir USD."
@@ -2664,7 +2703,13 @@ const descargarPDF = async () => {
                 )}
               </section>
 
-              <section style={tarjeta}>
+              <section
+  style={{
+    ...tarjeta,
+    padding: "16px",
+    minHeight: "260px",
+  }}
+>
   <TituloSeccion
     titulo="Prenómina vs nómina real"
     subtitulo="La prenómina es solo referencia. La contabilidad usa exclusivamente los egresos reales."
