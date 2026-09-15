@@ -71,10 +71,13 @@ function AnalisisFinanciero({
   const [categoriaSeleccionada, setCategoriaSeleccionada] =
     useState("");
 
-  const [semanaSeleccionada, setSemanaSeleccionada] =
-    useState(null);
+const [mesSeleccionado, setMesSeleccionado] =
+  useState(null);
 
-    const [nivelGrafica, setNivelGrafica] =
+const [semanaSeleccionada, setSemanaSeleccionada] =
+  useState(null);
+
+const [nivelGrafica, setNivelGrafica] =
   useState("periodo");
 
 const [diaSeleccionado, setDiaSeleccionado] =
@@ -302,6 +305,84 @@ const tooltipCambioEgresos = () => {
   [analisis]
 );
 
+const meses = useMemo(() => {
+  const mapa = new Map();
+
+  dias.forEach((dia) => {
+    const fechaTexto = String(
+      dia.fecha_financiera || ""
+    ).split("T")[0];
+
+    if (!fechaTexto) return;
+
+    const [anio, mes] = fechaTexto.split("-");
+
+    if (!anio || !mes) return;
+
+    const clave = `${anio}-${mes}`;
+
+    if (!mapa.has(clave)) {
+      mapa.set(clave, {
+        id: clave,
+        anio: Number(anio),
+        mes: Number(mes),
+        ingresos: 0,
+        egresos: 0,
+        nomina: 0,
+      });
+    }
+
+    const acumulado = mapa.get(clave);
+
+    acumulado.ingresos += Number(
+      dia.ingresos || 0
+    );
+
+    acumulado.egresos += Number(
+      dia.egresos || 0
+    );
+
+    acumulado.nomina += Number(
+      dia.nomina || 0
+    );
+  });
+
+  return Array.from(mapa.values())
+    .map((mes) => {
+      const gm =
+        mes.ingresos - mes.egresos;
+
+      const gpm =
+        mes.ingresos > 0
+          ? (gm / mes.ingresos) * 100
+          : null;
+
+      const fechaMes = new Date(
+        mes.anio,
+        mes.mes - 1,
+        1
+      );
+
+      return {
+        ...mes,
+
+        etiqueta: fechaMes.toLocaleDateString(
+          "es-MX",
+          {
+            month: "short",
+            year: "numeric",
+          }
+        ),
+
+        gm,
+        gpm,
+      };
+    })
+    .sort((a, b) =>
+      a.id.localeCompare(b.id)
+    );
+}, [dias]);
+
   const socios =
     analisis?.distribucion_socios || [];
 
@@ -359,7 +440,8 @@ const diferenciaNominaPct =
       return Array.from(nombres).sort();
     }, [egresosDetalle]);
 
-    const rangoSeleccionado = useMemo(() => {
+const rangoSeleccionado = useMemo(() => {
+  // DÍA
   if (diaSeleccionado) {
     const fecha = String(
       diaSeleccionado.id
@@ -372,6 +454,7 @@ const diferenciaNominaPct =
     };
   }
 
+  // SEMANA
   if (semanaSeleccionada) {
     return {
       tipo: "semana",
@@ -384,6 +467,28 @@ const diferenciaNominaPct =
     };
   }
 
+  // MES
+  if (mesSeleccionado) {
+    const inicio = `${mesSeleccionado.id}-01`;
+
+    const ultimoDia = new Date(
+      mesSeleccionado.anio,
+      mesSeleccionado.mes,
+      0
+    ).getDate();
+
+    const fin = `${mesSeleccionado.id}-${String(
+      ultimoDia
+    ).padStart(2, "0")}`;
+
+    return {
+      tipo: "mes",
+      inicio,
+      fin,
+    };
+  }
+
+  // PERIODO COMPLETO
   return {
     tipo: "periodo",
     inicio: fechaInicio,
@@ -392,10 +497,10 @@ const diferenciaNominaPct =
 }, [
   diaSeleccionado,
   semanaSeleccionada,
+  mesSeleccionado,
   fechaInicio,
   fechaFin,
 ]);
-
 
 const egresosFiltrados = useMemo(() => {
   const texto =
@@ -554,88 +659,171 @@ const resumenSeleccion = useMemo(() => {
 }, [dias, semanaSeleccionada]);
 
 const datosGrafica = useMemo(() => {
+  // NIVEL 1: MESES
   if (nivelGrafica === "periodo") {
-    return semanas.map((semana) => ({
-      id: semana.semana_inicio,
-
-      etiqueta: `${formatoFechaCorta(
-        semana.semana_inicio
-      )}–${formatoFechaCorta(
-        semana.semana_fin
-      )}`,
+    return meses.map((mes) => ({
+      id: mes.id,
+      etiqueta: mes.etiqueta,
 
       ingresos: Number(
-        semana.ingresos || 0
+        mes.ingresos || 0
       ),
 
       egresos: Number(
-        semana.egresos || 0
+        mes.egresos || 0
       ),
 
       nomina: Number(
-        semana.nomina || 0
+        mes.nomina || 0
       ),
 
       gm: Number(
-        semana.gm || 0
+        mes.gm || 0
       ),
 
       gpm:
-        semana.gpm === null ||
-        semana.gpm === undefined
+        mes.gpm === null ||
+        mes.gpm === undefined
           ? null
-          : Number(semana.gpm),
+          : Number(mes.gpm),
 
-      provisional:
-        semana.estado_periodo ===
-        "PROVISIONAL",
+      provisional: false,
 
-      estado:
-        semana.estado_periodo,
+      estado: null,
 
-      original: semana,
+      original: mes,
     }));
   }
 
-  return diasSemanaSeleccionada.map((dia) => ({
-    id: dia.fecha_financiera,
+  // NIVEL 2: SEMANAS DEL MES
+  if (
+    nivelGrafica === "mes" &&
+    mesSeleccionado
+  ) {
+    return semanas
+      .filter((semana) => {
+        const inicio = String(
+          semana.semana_inicio || ""
+        ).split("T")[0];
 
-    etiqueta: formatoFechaCorta(
-      dia.fecha_financiera
-    ),
+        const fin = String(
+          semana.semana_fin || ""
+        ).split("T")[0];
 
-    ingresos: Number(
-      dia.ingresos || 0
-    ),
+        if (!inicio || !fin) {
+          return false;
+        }
 
-    egresos: Number(
-      dia.egresos || 0
-    ),
+        const inicioMes =
+          `${mesSeleccionado.id}-01`;
 
-    nomina: Number(
-      dia.nomina || 0
-    ),
+        const ultimoDiaMes = new Date(
+          mesSeleccionado.anio,
+          mesSeleccionado.mes,
+          0
+        )
+          .toISOString()
+          .split("T")[0];
 
-    gm: Number(
-      dia.gm || 0
-    ),
+        return (
+          fin >= inicioMes &&
+          inicio <= ultimoDiaMes
+        );
+      })
+      .map((semana) => ({
+        id: semana.semana_inicio,
 
-    gpm:
-      dia.gpm === null ||
-      dia.gpm === undefined
-        ? null
-        : Number(dia.gpm),
+        etiqueta: `${formatoFechaCorta(
+          semana.semana_inicio
+        )}–${formatoFechaCorta(
+          semana.semana_fin
+        )}`,
 
-    provisional: false,
+        ingresos: Number(
+          semana.ingresos || 0
+        ),
 
-    estado:
-      semanaSeleccionada?.estado_periodo,
+        egresos: Number(
+          semana.egresos || 0
+        ),
 
-    original: dia,
-  }));
+        nomina: Number(
+          semana.nomina || 0
+        ),
+
+        gm: Number(
+          semana.gm || 0
+        ),
+
+        gpm:
+          semana.gpm === null ||
+          semana.gpm === undefined
+            ? null
+            : Number(semana.gpm),
+
+        provisional:
+          semana.estado_periodo ===
+          "PROVISIONAL",
+
+        estado:
+          semana.estado_periodo,
+
+        original: semana,
+      }));
+  }
+
+  // NIVEL 3: DÍAS DE LA SEMANA
+  if (
+    nivelGrafica === "semana" &&
+    semanaSeleccionada
+  ) {
+    return diasSemanaSeleccionada.map(
+      (dia) => ({
+        id: dia.fecha_financiera,
+
+        etiqueta: formatoFechaCorta(
+          dia.fecha_financiera
+        ),
+
+        ingresos: Number(
+          dia.ingresos || 0
+        ),
+
+        egresos: Number(
+          dia.egresos || 0
+        ),
+
+        nomina: Number(
+          dia.nomina || 0
+        ),
+
+        gm: Number(
+          dia.gm || 0
+        ),
+
+        gpm:
+          dia.gpm === null ||
+          dia.gpm === undefined
+            ? null
+            : Number(dia.gpm),
+
+        provisional: false,
+
+        estado:
+          semanaSeleccionada
+            ?.estado_periodo,
+
+        original: dia,
+      })
+    );
+  }
+
+  return [];
 }, [
   nivelGrafica,
+  meses,
   semanas,
+  mesSeleccionado,
   diasSemanaSeleccionada,
   semanaSeleccionada,
 ]);
@@ -1127,26 +1315,45 @@ const GraficaFinanciera = () => {
   }
 
   const manejarClickGrafica = (
-    estado
-  ) => {
-    const item =
-      estado?.activePayload?.[0]?.payload;
+  estado
+) => {
+  const item =
+    estado?.activePayload?.[0]?.payload;
 
-    if (!item) return;
+  if (!item) return;
 
-    if (nivelGrafica === "periodo") {
-      setSemanaSeleccionada(
-        item.original
-      );
+  // MES → SEMANAS
+  if (nivelGrafica === "periodo") {
+    setMesSeleccionado(
+      item.original
+    );
 
-      setDiaSeleccionado(null);
-      setNivelGrafica("semana");
+    setSemanaSeleccionada(null);
+    setDiaSeleccionado(null);
 
-      return;
-    }
+    setNivelGrafica("mes");
 
+    return;
+  }
+
+  // SEMANA → DÍAS
+  if (nivelGrafica === "mes") {
+    setSemanaSeleccionada(
+      item.original
+    );
+
+    setDiaSeleccionado(null);
+
+    setNivelGrafica("semana");
+
+    return;
+  }
+
+  // DÍA → SELECCIONAR DÍA
+  if (nivelGrafica === "semana") {
     setDiaSeleccionado(item);
-  };
+  }
+};
 
   return (
     <div>
@@ -1183,14 +1390,16 @@ const GraficaFinanciera = () => {
             }}
           >
             {nivelGrafica === "periodo"
-              ? "Semanas"
-              : `Días · ${formatoFechaCorta(
-                  semanaSeleccionada
-                    ?.semana_inicio
-                )}–${formatoFechaCorta(
-                  semanaSeleccionada
-                    ?.semana_fin
-                )}`}
+  ? "Meses"
+  : nivelGrafica === "mes"
+  ? `Semanas · ${
+      mesSeleccionado?.etiqueta || ""
+    }`
+  : `Días · ${formatoFechaCorta(
+      semanaSeleccionada?.semana_inicio
+    )}–${formatoFechaCorta(
+      semanaSeleccionada?.semana_fin
+    )}`}
           </div>
         </div>
 
@@ -1235,13 +1444,25 @@ const GraficaFinanciera = () => {
           ))}
 
           {nivelGrafica !== "periodo" && (
-            <button
-              type="button"
-              onClick={() => {
-                setNivelGrafica("periodo");
-                setSemanaSeleccionada(null);
-                setDiaSeleccionado(null);
-              }}
+  <button
+    type="button"
+    onClick={() => {
+      // DÍAS → SEMANAS
+      if (nivelGrafica === "semana") {
+        setNivelGrafica("mes");
+        setSemanaSeleccionada(null);
+        setDiaSeleccionado(null);
+        return;
+      }
+
+      // SEMANAS → MESES
+      if (nivelGrafica === "mes") {
+        setNivelGrafica("periodo");
+        setMesSeleccionado(null);
+        setSemanaSeleccionada(null);
+        setDiaSeleccionado(null);
+      }
+    }}
               style={{
                 ...botonSecundario,
                 padding: "6px 10px",
@@ -1264,19 +1485,21 @@ const GraficaFinanciera = () => {
         }}
       >
         Periodo
-        {semanaSeleccionada &&
-          ` › ${formatoFechaCorta(
-            semanaSeleccionada
-              .semana_inicio
-          )}–${formatoFechaCorta(
-            semanaSeleccionada
-              .semana_fin
-          )}`}
 
-        {diaSeleccionado &&
-          ` › ${formatoFechaCorta(
-            diaSeleccionado.id
-          )}`}
+{mesSeleccionado &&
+  ` › ${mesSeleccionado.etiqueta}`}
+
+{semanaSeleccionada &&
+  ` › ${formatoFechaCorta(
+    semanaSeleccionada.semana_inicio
+  )}–${formatoFechaCorta(
+    semanaSeleccionada.semana_fin
+  )}`}
+
+{diaSeleccionado &&
+  ` › ${formatoFechaCorta(
+    diaSeleccionado.id
+  )}`}
       </div>
 
       {/* GRÁFICA */}
