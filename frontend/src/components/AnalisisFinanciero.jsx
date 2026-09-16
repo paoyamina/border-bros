@@ -83,6 +83,22 @@ const [nivelGrafica, setNivelGrafica] =
 const [diaSeleccionado, setDiaSeleccionado] =
   useState(null);
 
+  // ============================================================
+// CONSTRUCTOR DE ANÁLISIS
+// ============================================================
+
+const [campoEjeX, setCampoEjeX] =
+  useState("categoria");
+
+const [campoValor, setCampoValor] =
+  useState("monto_mxn");
+
+const [agregacion, setAgregacion] =
+  useState("SUM");
+
+const [tipoGrafica, setTipoGrafica] =
+  useState("barras");
+
   const [modoGrafica, setModoGrafica] =
   useState("flujo");
 
@@ -613,6 +629,160 @@ const resumenSeleccion = useMemo(() => {
   };
 }, [egresosFiltrados]);
 
+// ============================================================
+// MOTOR DEL CONSTRUCTOR DE ANÁLISIS
+// ============================================================
+
+const camposConstructor = [
+  {
+    valor: "fecha_financiera",
+    etiqueta: "Fecha financiera",
+    tipo: "dimension",
+  },
+  {
+    valor: "categoria",
+    etiqueta: "Categoría",
+    tipo: "dimension",
+  },
+  {
+    valor: "tipo_egreso",
+    etiqueta: "Tipo de egreso",
+    tipo: "dimension",
+  },
+  {
+    valor: "proveedor",
+    etiqueta: "Proveedor",
+    tipo: "dimension",
+  },
+  {
+    valor: "concepto",
+    etiqueta: "Concepto",
+    tipo: "dimension",
+  },
+  {
+    valor: "cuenta",
+    etiqueta: "Cuenta",
+    tipo: "dimension",
+  },
+  {
+    valor: "usuario_nombre",
+    etiqueta: "Usuario",
+    tipo: "dimension",
+  },
+  {
+    valor: "es_nomina",
+    etiqueta: "Es nómina",
+    tipo: "dimension",
+  },
+];
+
+const metricasConstructor = [
+  {
+    valor: "monto_mxn",
+    etiqueta: "Monto MXN",
+  },
+];
+
+const datosConstructor = useMemo(() => {
+  const grupos = new Map();
+
+  egresosFiltrados.forEach((registro) => {
+    let dimension =
+      registro[campoEjeX];
+
+    if (
+      dimension === null ||
+      dimension === undefined ||
+      dimension === ""
+    ) {
+      dimension = "Sin dato";
+    }
+
+    if (campoEjeX === "fecha_financiera") {
+      dimension = String(dimension)
+        .split("T")[0];
+    }
+
+    if (campoEjeX === "es_nomina") {
+      dimension = dimension
+        ? "Nómina"
+        : "No nómina";
+    }
+
+    const valor =
+      Number(registro[campoValor] || 0);
+
+    if (!grupos.has(dimension)) {
+      grupos.set(dimension, {
+        etiqueta: String(dimension),
+        suma: 0,
+        cantidad: 0,
+        minimo: null,
+        maximo: null,
+      });
+    }
+
+    const grupo =
+      grupos.get(dimension);
+
+    grupo.suma += valor;
+    grupo.cantidad += 1;
+
+    grupo.minimo =
+      grupo.minimo === null
+        ? valor
+        : Math.min(grupo.minimo, valor);
+
+    grupo.maximo =
+      grupo.maximo === null
+        ? valor
+        : Math.max(grupo.maximo, valor);
+  });
+
+  return Array.from(grupos.values())
+    .map((grupo) => {
+      let valor = grupo.suma;
+
+      if (agregacion === "COUNT") {
+        valor = grupo.cantidad;
+      }
+
+      if (agregacion === "AVG") {
+        valor =
+          grupo.cantidad > 0
+            ? grupo.suma /
+              grupo.cantidad
+            : 0;
+      }
+
+      if (agregacion === "MIN") {
+        valor =
+          grupo.minimo ?? 0;
+      }
+
+      if (agregacion === "MAX") {
+        valor =
+          grupo.maximo ?? 0;
+      }
+
+      return {
+        etiqueta: grupo.etiqueta,
+        valor,
+        cantidad: grupo.cantidad,
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.valor) -
+        Number(a.valor)
+    );
+}, [
+  egresosFiltrados,
+  campoEjeX,
+  campoValor,
+  agregacion,
+]);
+
   // ============================================================
   // MÉTRICAS DERIVADAS
   // ============================================================
@@ -717,13 +887,16 @@ const datosGrafica = useMemo(() => {
         const inicioMes =
           `${mesSeleccionado.id}-01`;
 
-        const ultimoDiaMes = new Date(
-          mesSeleccionado.anio,
-          mesSeleccionado.mes,
-          0
-        )
-          .toISOString()
-          .split("T")[0];
+       const ultimoDia = new Date(
+  mesSeleccionado.anio,
+  mesSeleccionado.mes,
+  0
+).getDate();
+
+const ultimoDiaMes =
+  `${mesSeleccionado.id}-${String(
+    ultimoDia
+  ).padStart(2, "0")}`;
 
         return (
           fin >= inicioMes &&
@@ -855,34 +1028,29 @@ const metricasSeleccion = useMemo(() => {
     };
   }
 
-  if (semanaSeleccionada) {
-    return {
-      nivel: "semana",
-      etiqueta: `${formatoFecha(
-        semanaSeleccionada.semana_inicio
-      )} — ${formatoFecha(
-        semanaSeleccionada.semana_fin
-      )}`,
-      ingresos: Number(
-        semanaSeleccionada.ingresos || 0
-      ),
-      egresos: Number(
-        semanaSeleccionada.egresos || 0
-      ),
-      nomina: Number(
-        semanaSeleccionada.nomina || 0
-      ),
-      gm: Number(
-        semanaSeleccionada.gm || 0
-      ),
-      gpm:
-        semanaSeleccionada.gpm === null ||
-        semanaSeleccionada.gpm === undefined
-          ? null
-          : Number(semanaSeleccionada.gpm),
-    };
-  }
-
+  if (mesSeleccionado) {
+  return {
+    nivel: "mes",
+    etiqueta: mesSeleccionado.etiqueta,
+    ingresos: Number(
+      mesSeleccionado.ingresos || 0
+    ),
+    egresos: Number(
+      mesSeleccionado.egresos || 0
+    ),
+    nomina: Number(
+      mesSeleccionado.nomina || 0
+    ),
+    gm: Number(
+      mesSeleccionado.gm || 0
+    ),
+    gpm:
+      mesSeleccionado.gpm === null ||
+      mesSeleccionado.gpm === undefined
+        ? null
+        : Number(mesSeleccionado.gpm),
+  };
+}
   return {
     nivel: "periodo",
     etiqueta: `${formatoFecha(
@@ -906,7 +1074,7 @@ const metricasSeleccion = useMemo(() => {
   };
 }, [
   diaSeleccionado,
-  semanaSeleccionada,
+  mesSeleccionado,
   resumen,
   fechaInicio,
   fechaFin,
@@ -2083,6 +2251,25 @@ const descargarPDF = async () => {
             >
               Análisis detallado
             </button>
+
+<button
+  onClick={() =>
+    setVista("constructor")
+  }
+  style={{
+    ...botonTab,
+    background:
+      vista === "constructor"
+        ? "#111"
+        : "#fff",
+    color:
+      vista === "constructor"
+        ? "#fff"
+        : "#111",
+  }}
+>
+  Constructor
+</button>
 
             <button
   type="button"
@@ -3623,6 +3810,380 @@ marginBottom: "12px",
                       )}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </section>
+          </>
+        )}
+
+        {/* ====================================================
+            CONSTRUCTOR DE ANÁLISIS
+        ==================================================== */}
+
+        {vista === "constructor" && (
+          <>
+            <section style={tarjeta}>
+              <TituloSeccion
+                titulo="Constructor de análisis"
+                subtitulo="Construye visualizaciones dinámicas con los movimientos del periodo y filtros actuales."
+              />
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: "12px",
+                  marginBottom: "18px",
+                }}
+              >
+                <div>
+                  <label style={labelFiltro}>Eje X</label>
+                  <select
+                    value={campoEjeX}
+                    onChange={(e) =>
+                      setCampoEjeX(e.target.value)
+                    }
+                    style={{
+                      ...inputFiltro,
+                      width: "100%",
+                    }}
+                  >
+                    {camposConstructor.map((campo) => (
+                      <option
+                        key={campo.valor}
+                        value={campo.valor}
+                      >
+                        {campo.etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelFiltro}>Métrica</label>
+                  <select
+                    value={campoValor}
+                    onChange={(e) =>
+                      setCampoValor(e.target.value)
+                    }
+                    style={{
+                      ...inputFiltro,
+                      width: "100%",
+                    }}
+                  >
+                    {metricasConstructor.map((campo) => (
+                      <option
+                        key={campo.valor}
+                        value={campo.valor}
+                      >
+                        {campo.etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelFiltro}>Agregación</label>
+                  <select
+                    value={agregacion}
+                    onChange={(e) =>
+                      setAgregacion(e.target.value)
+                    }
+                    style={{
+                      ...inputFiltro,
+                      width: "100%",
+                    }}
+                  >
+                    <option value="SUM">Suma</option>
+                    <option value="COUNT">
+                      Conteo de movimientos
+                    </option>
+                    <option value="AVG">Promedio</option>
+                    <option value="MIN">Mínimo</option>
+                    <option value="MAX">Máximo</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelFiltro}>
+                    Visualización
+                  </label>
+                  <select
+                    value={tipoGrafica}
+                    onChange={(e) =>
+                      setTipoGrafica(e.target.value)
+                    }
+                    style={{
+                      ...inputFiltro,
+                      width: "100%",
+                    }}
+                  >
+                    <option value="barras">Barras</option>
+                    <option value="linea">Línea</option>
+                    <option value="tabla">Tabla</option>
+                    <option value="kpi">KPI</option>
+                  </select>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  marginBottom: "14px",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#666",
+                  }}
+                >
+                  {egresosFiltrados.length.toLocaleString(
+                    "es-MX"
+                  )}{" "}
+                  movimientos ·{" "}
+                  {datosConstructor.length.toLocaleString(
+                    "es-MX"
+                  )}{" "}
+                  grupos
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "#777",
+                  }}
+                >
+                  Usa los mismos filtros y periodo del análisis
+                  detallado.
+                </div>
+              </div>
+
+              {datosConstructor.length === 0 ? (
+                <div style={estadoVacio}>
+                  No hay datos suficientes para construir la
+                  visualización.
+                </div>
+              ) : tipoGrafica === "tabla" ? (
+                <div
+                  style={{
+                    overflowX: "auto",
+                    border: "1px solid #eee",
+                    borderRadius: "10px",
+                  }}
+                >
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse: "collapse",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <thead>
+                      <tr
+                        style={{
+                          background: "#fafafa",
+                          textAlign: "left",
+                        }}
+                      >
+                        <th style={td}>
+                          {camposConstructor.find(
+                            (c) => c.valor === campoEjeX
+                          )?.etiqueta || "Dimensión"}
+                        </th>
+                        <th
+                          style={{
+                            ...td,
+                            textAlign: "right",
+                          }}
+                        >
+                          {agregacion === "COUNT"
+                            ? "Movimientos"
+                            : `${
+                                metricasConstructor.find(
+                                  (c) =>
+                                    c.valor === campoValor
+                                )?.etiqueta || "Valor"
+                              } · ${agregacion}`}
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {datosConstructor.map((item) => (
+                        <tr key={item.etiqueta}>
+                          <td style={td}>
+                            {item.etiqueta}
+                          </td>
+                          <td
+                            style={{
+                              ...td,
+                              textAlign: "right",
+                              fontWeight: "700",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {agregacion === "COUNT"
+                              ? Number(
+                                  item.valor || 0
+                                ).toLocaleString("es-MX")
+                              : formatoMoneda(item.valor)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : tipoGrafica === "kpi" ? (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(180px, 1fr))",
+                    gap: "12px",
+                  }}
+                >
+                  {datosConstructor
+                    .slice(0, 12)
+                    .map((item, index) => (
+                      <Kpi
+                        key={item.etiqueta}
+                        titulo={item.etiqueta}
+                        valor={
+                          agregacion === "COUNT"
+                            ? Number(
+                                item.valor || 0
+                              ).toLocaleString("es-MX")
+                            : formatoMoneda(item.valor)
+                        }
+                        subtitulo={`${item.cantidad} movimiento${
+                          item.cantidad === 1 ? "" : "s"
+                        }`}
+                        destaque={index === 0}
+                      />
+                    ))}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "420px",
+                  }}
+                >
+                  <ResponsiveContainer
+                    width="100%"
+                    height="100%"
+                  >
+                    <ComposedChart
+                      data={datosConstructor.slice(0, 30)}
+                      margin={{
+                        top: 15,
+                        right: 20,
+                        bottom: 75,
+                        left: 10,
+                      }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="#ececec"
+                      />
+
+                      <XAxis
+                        dataKey="etiqueta"
+                        interval={0}
+                        angle={-35}
+                        textAnchor="end"
+                        height={90}
+                        tick={{
+                          fontSize: 10,
+                        }}
+                        tickLine={false}
+                        axisLine={{
+                          stroke: "#ddd",
+                        }}
+                      />
+
+                      <YAxis
+                        tickFormatter={(v) =>
+                          agregacion === "COUNT"
+                            ? Number(v).toLocaleString(
+                                "es-MX"
+                              )
+                            : `$${Number(v).toLocaleString(
+                                "es-MX",
+                                {
+                                  notation: "compact",
+                                  maximumFractionDigits: 1,
+                                }
+                              )}`
+                        }
+                        tick={{
+                          fontSize: 10,
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                        width={70}
+                      />
+
+                      <Tooltip
+                        formatter={(value) => [
+                          agregacion === "COUNT"
+                            ? Number(value).toLocaleString(
+                                "es-MX"
+                              )
+                            : formatoMoneda(value),
+                          agregacion === "COUNT"
+                            ? "Movimientos"
+                            : `${
+                                metricasConstructor.find(
+                                  (c) =>
+                                    c.valor === campoValor
+                                )?.etiqueta || "Valor"
+                              } · ${agregacion}`,
+                        ]}
+                      />
+
+                      {tipoGrafica === "barras" && (
+                        <Bar
+                          dataKey="valor"
+                          name={
+                            agregacion === "COUNT"
+                              ? "Movimientos"
+                              : "Valor"
+                          }
+                          fill="#111"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={48}
+                        />
+                      )}
+
+                      {tipoGrafica === "linea" && (
+                        <Line
+                          type="monotone"
+                          dataKey="valor"
+                          name={
+                            agregacion === "COUNT"
+                              ? "Movimientos"
+                              : "Valor"
+                          }
+                          stroke="#111"
+                          strokeWidth={3}
+                          dot={{
+                            r: 4,
+                          }}
+                          activeDot={{
+                            r: 6,
+                          }}
+                        />
+                      )}
+                    </ComposedChart>
+                  </ResponsiveContainer>
                 </div>
               )}
             </section>
