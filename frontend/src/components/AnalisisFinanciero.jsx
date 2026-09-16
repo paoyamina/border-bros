@@ -1443,9 +1443,21 @@ const GraficaFinanciera = () => {
             </button>
           ))}
 
-          {nivelGrafica !== "periodo" && (
+       {/* CONTROLES DE DRILL TIPO POWER BI */}
+
+<div
+  style={{
+    display: "flex",
+    gap: "4px",
+    alignItems: "center",
+    marginLeft: "4px",
+  }}
+>
+  {/* SUBIR NIVEL */}
   <button
     type="button"
+    title="Subir un nivel"
+    disabled={nivelGrafica === "periodo"}
     onClick={() => {
       // DÍAS → SEMANAS
       if (nivelGrafica === "semana") {
@@ -1463,15 +1475,91 @@ const GraficaFinanciera = () => {
         setDiaSeleccionado(null);
       }
     }}
-              style={{
-                ...botonSecundario,
-                padding: "6px 10px",
-                fontSize: "11px",
-              }}
-            >
-              ↑ Subir nivel
-            </button>
-          )}
+    style={{
+      ...botonSecundario,
+      width: "32px",
+      height: "30px",
+      padding: 0,
+      fontSize: "16px",
+      fontWeight: "700",
+      opacity:
+        nivelGrafica === "periodo"
+          ? 0.35
+          : 1,
+      cursor:
+        nivelGrafica === "periodo"
+          ? "not-allowed"
+          : "pointer",
+    }}
+  >
+    ↑
+  </button>
+
+  {/* BAJAR NIVEL */}
+  <button
+    type="button"
+    title="Bajar un nivel"
+    disabled={
+      nivelGrafica === "semana" ||
+      (nivelGrafica === "periodo" &&
+        meses.length === 0) ||
+      (nivelGrafica === "mes" &&
+        datosGrafica.length === 0)
+    }
+    onClick={() => {
+      // MESES → SEMANAS
+      if (nivelGrafica === "periodo") {
+        if (meses.length === 0) return;
+
+        const mes =
+          mesSeleccionado ||
+          meses[meses.length - 1];
+
+        setMesSeleccionado(mes);
+        setSemanaSeleccionada(null);
+        setDiaSeleccionado(null);
+        setNivelGrafica("mes");
+
+        return;
+      }
+
+      // SEMANAS → DÍAS
+      if (nivelGrafica === "mes") {
+        if (datosGrafica.length === 0) return;
+
+        const semana =
+          semanaSeleccionada ||
+          datosGrafica[
+            datosGrafica.length - 1
+          ]?.original;
+
+        if (!semana) return;
+
+        setSemanaSeleccionada(semana);
+        setDiaSeleccionado(null);
+        setNivelGrafica("semana");
+      }
+    }}
+    style={{
+      ...botonSecundario,
+      width: "32px",
+      height: "30px",
+      padding: 0,
+      fontSize: "16px",
+      fontWeight: "700",
+      opacity:
+        nivelGrafica === "semana"
+          ? 0.35
+          : 1,
+      cursor:
+        nivelGrafica === "semana"
+          ? "not-allowed"
+          : "pointer",
+    }}
+  >
+    ↓
+  </button>
+</div>
         </div>
       </div>
 
