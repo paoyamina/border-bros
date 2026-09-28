@@ -1578,6 +1578,40 @@ const GraficaFinanciera = () => {
             flexWrap: "wrap",
           }}
         >
+
+          <select
+  value={metricaGrafica}
+  onChange={(e) =>
+    setMetricaGrafica(e.target.value)
+  }
+  style={{
+    padding: "6px 10px",
+    borderRadius: "6px",
+    border: "1px solid #ddd",
+    background: "#fff",
+    color: "#111",
+    fontSize: "11px",
+    fontWeight: "600",
+    cursor: "pointer",
+  }}
+>
+  <option value="ingresos">
+    Ingresos
+  </option>
+  <option value="egresos">
+    Egresos
+  </option>
+  <option value="gm">
+    GM
+  </option>
+  <option value="gpm">
+    GPM
+  </option>
+  <option value="nomina">
+    Nómina
+  </option>
+</select>
+
           {[
             ["flujo", "Ingresos / Egresos"],
             ["gpm", "GPM"],
@@ -1852,56 +1886,26 @@ const GraficaFinanciera = () => {
               stroke="#bbb"
             />
 
-            {modoGrafica === "flujo" && (
-              <>
-                <Bar
-                  yAxisId="dinero"
-                  dataKey="ingresos"
-                  name="Ingresos"
-                  fill="#111"
-                  radius={[
-                    4,
-                    4,
-                    0,
-                    0,
-                  ]}
-                  maxBarSize={38}
-                />
+            {metricaGrafica !== "gpm" && (
+  <Bar
+    yAxisId="dinero"
+    dataKey={metricaGrafica}
+    name={
+      metricaGrafica === "ingresos"
+        ? "Ingresos"
+        : metricaGrafica === "egresos"
+        ? "Egresos"
+        : metricaGrafica === "gm"
+        ? "GM"
+        : "Nómina"
+    }
+    fill="#111"
+    radius={[4, 4, 0, 0]}
+    maxBarSize={48}
+  />
+)}
 
-                <Bar
-                  yAxisId="dinero"
-                  dataKey="egresos"
-                  name="Egresos"
-                  fill="#aaa"
-                  radius={[
-                    4,
-                    4,
-                    0,
-                    0,
-                  ]}
-                  maxBarSize={38}
-                />
-
-                <Line
-                  yAxisId="dinero"
-                  type="monotone"
-                  dataKey="gm"
-                  name="GM"
-                  stroke="#666"
-                  strokeWidth={3}
-                  dot={{
-                    r: 4,
-                    fill: "#fff",
-                    strokeWidth: 2,
-                  }}
-                  activeDot={{
-                    r: 6,
-                  }}
-                />
-              </>
-            )}
-
-            {modoGrafica === "gpm" && (
+            {metricaGrafica === "gpm" && (
               <Line
                 yAxisId="porcentaje"
                 type="monotone"
@@ -1919,21 +1923,6 @@ const GraficaFinanciera = () => {
               />
             )}
 
-            {modoGrafica === "nomina" && (
-              <Bar
-                yAxisId="dinero"
-                dataKey="nomina"
-                name="Nómina"
-                fill="#555"
-                radius={[
-                  5,
-                  5,
-                  0,
-                  0,
-                ]}
-                maxBarSize={48}
-              />
-            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
