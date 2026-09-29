@@ -99,6 +99,12 @@ const [agregacion, setAgregacion] =
 const [tipoGrafica, setTipoGrafica] =
   useState("barras");
 
+  const [campoSerie, setCampoSerie] =
+  useState("");
+
+  const [metricaGrafica, setMetricaGrafica] =
+  useState("ingresos");
+
   const [modoGrafica, setModoGrafica] =
   useState("flujo");
 
@@ -683,38 +689,85 @@ const metricasConstructor = [
   },
 ];
 
-const datosConstructor = useMemo(() => {
+const valorDimensionConstructor = (
+  registro,
+  campo
+) => {
+  if (!campo) return "Valor";
+
+  let valor = registro[campo];
+
+  if (
+    valor === null ||
+    valor === undefined ||
+    valor === ""
+  ) {
+    return "Sin dato";
+  }
+
+  if (campo === "fecha_financiera") {
+    return String(valor).split("T")[0];
+  }
+
+  if (campo === "es_nomina") {
+    return valor ? "Nómina" : "No nómina";
+  }
+
+  return String(valor);
+};
+
+const resultadoConstructor = useMemo(() => {
   const grupos = new Map();
+  const nombresSeries = new Set();
+
+  const calcularValor = (grupo) => {
+    if (!grupo) return 0;
+
+    if (agregacion === "COUNT") {
+      return grupo.cantidad;
+    }
+
+    if (agregacion === "AVG") {
+      return grupo.cantidad > 0
+        ? grupo.suma / grupo.cantidad
+        : 0;
+    }
+
+    if (agregacion === "MIN") {
+      return grupo.minimo ?? 0;
+    }
+
+    if (agregacion === "MAX") {
+      return grupo.maximo ?? 0;
+    }
+
+    return grupo.suma;
+  };
 
   egresosFiltrados.forEach((registro) => {
-    let dimension =
-      registro[campoEjeX];
+    const dimension =
+      valorDimensionConstructor(
+        registro,
+        campoEjeX
+      );
 
-    if (
-      dimension === null ||
-      dimension === undefined ||
-      dimension === ""
-    ) {
-      dimension = "Sin dato";
-    }
+    const serie = campoSerie
+      ? valorDimensionConstructor(
+          registro,
+          campoSerie
+        )
+      : "Valor";
 
-    if (campoEjeX === "fecha_financiera") {
-      dimension = String(dimension)
-        .split("T")[0];
-    }
-
-    if (campoEjeX === "es_nomina") {
-      dimension = dimension
-        ? "Nómina"
-        : "No nómina";
-    }
-
-    const valor =
-      Number(registro[campoValor] || 0);
+    nombresSeries.add(serie);
 
     if (!grupos.has(dimension)) {
-      grupos.set(dimension, {
-        etiqueta: String(dimension),
+      grupos.set(dimension, new Map());
+    }
+
+    const porSerie = grupos.get(dimension);
+
+    if (!porSerie.has(serie)) {
+      porSerie.set(serie, {
         suma: 0,
         cantidad: 0,
         minimo: null,
@@ -722,8 +775,11 @@ const datosConstructor = useMemo(() => {
       });
     }
 
-    const grupo =
-      grupos.get(dimension);
+    const grupo = porSerie.get(serie);
+
+    const valor = Number(
+      registro[campoValor] || 0
+    );
 
     grupo.suma += valor;
     grupo.cantidad += 1;
@@ -739,49 +795,78 @@ const datosConstructor = useMemo(() => {
         : Math.max(grupo.maximo, valor);
   });
 
-  return Array.from(grupos.values())
-    .map((grupo) => {
-      let valor = grupo.suma;
+  const series = Array.from(
+    nombresSeries
+  ).sort((a, b) =>
+    String(a).localeCompare(
+      String(b),
+      "es"
+    )
+  );
 
-      if (agregacion === "COUNT") {
-        valor = grupo.cantidad;
-      }
+  const datos = Array.from(
+    grupos.entries()
+  ).map(([etiqueta, porSerie]) => {
+    const fila = {
+      etiqueta,
+      cantidad: 0,
+    };
 
-      if (agregacion === "AVG") {
-        valor =
-          grupo.cantidad > 0
-            ? grupo.suma /
-              grupo.cantidad
-            : 0;
-      }
+    series.forEach((serie) => {
+      const grupo = porSerie.get(serie);
 
-      if (agregacion === "MIN") {
-        valor =
-          grupo.minimo ?? 0;
-      }
+      fila[serie] =
+        calcularValor(grupo);
 
-      if (agregacion === "MAX") {
-        valor =
-          grupo.maximo ?? 0;
-      }
+      fila.cantidad +=
+        grupo?.cantidad || 0;
+    });
 
-      return {
-        etiqueta: grupo.etiqueta,
-        valor,
-        cantidad: grupo.cantidad,
-      };
-    })
-    .sort(
+    fila.valor = series.reduce(
+      (acc, serie) =>
+        acc + Number(
+          fila[serie] || 0
+        ),
+      0
+    );
+
+    return fila;
+  });
+
+  if (
+    campoEjeX ===
+    "fecha_financiera"
+  ) {
+    datos.sort((a, b) =>
+      String(a.etiqueta).localeCompare(
+        String(b.etiqueta)
+      )
+    );
+  } else {
+    datos.sort(
       (a, b) =>
         Number(b.valor) -
         Number(a.valor)
     );
+  }
+
+  return {
+    datos,
+    series,
+  };
 }, [
   egresosFiltrados,
   campoEjeX,
   campoValor,
+  campoSerie,
   agregacion,
 ]);
+
+const datosConstructor =
+  resultadoConstructor.datos;
+
+const seriesConstructor =
+  resultadoConstructor.series;
 
   // ============================================================
   // MÉTRICAS DERIVADAS
@@ -3893,7 +3978,40 @@ marginBottom: "12px",
                     <option value="MAX">Máximo</option>
                   </select>
                 </div>
+<div>
+  <label style={labelFiltro}>
+    Leyenda / Serie
+  </label>
 
+  <select
+    value={campoSerie}
+    onChange={(e) =>
+      setCampoSerie(e.target.value)
+    }
+    style={{
+      ...inputFiltro,
+      width: "100%",
+    }}
+  >
+    <option value="">
+      Sin serie
+    </option>
+
+    {camposConstructor
+      .filter(
+        (campo) =>
+          campo.valor !== campoEjeX
+      )
+      .map((campo) => (
+        <option
+          key={campo.valor}
+          value={campo.valor}
+        >
+          {campo.etiqueta}
+        </option>
+      ))}
+  </select>
+</div>
                 <div>
                   <label style={labelFiltro}>
                     Visualización
@@ -4137,40 +4255,76 @@ marginBottom: "12px",
                               } · ${agregacion}`,
                         ]}
                       />
+{campoSerie && (
+  <Legend
+    wrapperStyle={{
+      fontSize: "11px",
+    }}
+  />
+)}
+                      {tipoGrafica === "barras" &&
+  seriesConstructor.map(
+    (serie, index) => (
+      <Bar
+        key={serie}
+        dataKey={serie}
+        name={
+          campoSerie
+            ? serie
+            : agregacion === "COUNT"
+            ? "Movimientos"
+            : "Valor"
+        }
+        fill={
+          [
+            "#111111",
+            "#4b5563",
+            "#6b7280",
+            "#9ca3af",
+            "#374151",
+            "#737373",
+            "#a3a3a3",
+            "#525252",
+          ][index % 8]
+        }
+        radius={[4, 4, 0, 0]}
+        maxBarSize={48}
+      />
+    )
+  )}
 
-                      {tipoGrafica === "barras" && (
-                        <Bar
-                          dataKey="valor"
-                          name={
-                            agregacion === "COUNT"
-                              ? "Movimientos"
-                              : "Valor"
-                          }
-                          fill="#111"
-                          radius={[4, 4, 0, 0]}
-                          maxBarSize={48}
-                        />
-                      )}
-
-                      {tipoGrafica === "linea" && (
-                        <Line
-                          type="monotone"
-                          dataKey="valor"
-                          name={
-                            agregacion === "COUNT"
-                              ? "Movimientos"
-                              : "Valor"
-                          }
-                          stroke="#111"
-                          strokeWidth={3}
-                          dot={{
-                            r: 4,
-                          }}
-                          activeDot={{
-                            r: 6,
-                          }}
-                        />
-                      )}
+                     {tipoGrafica === "linea" &&
+  seriesConstructor.map(
+    (serie, index) => (
+      <Line
+        key={serie}
+        type="monotone"
+        dataKey={serie}
+        name={
+          campoSerie
+            ? serie
+            : agregacion === "COUNT"
+            ? "Movimientos"
+            : "Valor"
+        }
+        stroke={
+          [
+            "#111111",
+            "#4b5563",
+            "#6b7280",
+            "#9ca3af",
+            "#374151",
+            "#737373",
+            "#a3a3a3",
+            "#525252",
+          ][index % 8]
+        }
+        strokeWidth={3}
+        dot={{ r: 4 }}
+        activeDot={{ r: 6 }}
+      />
+    )
+  )}
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
