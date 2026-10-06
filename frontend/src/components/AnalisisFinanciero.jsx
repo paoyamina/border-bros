@@ -637,7 +637,35 @@ ${pregunta}`
       }
     );
 
-    const resultado = await respuesta.json();
+    const tipoContenido =
+      respuesta.headers.get("content-type") || "";
+
+    const textoRespuestaHttp =
+      await respuesta.text();
+
+    let resultado;
+
+    if (tipoContenido.includes("application/json")) {
+      try {
+        resultado = JSON.parse(textoRespuestaHttp);
+      } catch {
+        throw new Error(
+          "BorderBro recibió una respuesta JSON inválida del servidor."
+        );
+      }
+    } else {
+      console.error(
+        "Respuesta no JSON de BorderBro:",
+        respuesta.status,
+        textoRespuestaHttp.slice(0, 300)
+      );
+
+      throw new Error(
+        respuesta.status === 404
+          ? "BorderBro todavía no está disponible en el servidor desplegado."
+          : "El servidor de BorderBro no respondió correctamente. Revisa el despliegue del backend."
+      );
+    }
 
     if (
       !respuesta.ok ||
@@ -4509,637 +4537,267 @@ marginBottom: "12px",
             </main>
 
             {/* ======================================================
-          BORDERBRO · AI COPILOT
+          BORDERBRO · AI INTELLIGENCE
       ====================================================== */}
 
       {!borderBroAbierto && (
-        <button
-          type="button"
-          onClick={() => setBorderBroAbierto(true)}
-          title="Pregúntale a BorderBro"
-          style={{
-            position: "fixed",
-            right: "26px",
-            bottom: "26px",
-            zIndex: 1000,
-            border: "1px solid rgba(255,255,255,.16)",
-            background:
-              "linear-gradient(135deg, #111 0%, #1c1c24 55%, #2a1f3d 100%)",
-            color: "#fff",
-            borderRadius: "22px",
-            padding: "8px 16px 8px 8px",
-            display: "flex",
-            alignItems: "center",
-            gap: "11px",
-            cursor: "pointer",
-            boxShadow:
-              "0 18px 50px rgba(0,0,0,.28), 0 0 0 1px rgba(124,58,237,.08)",
-            fontFamily: "inherit",
-            transition: "all .2s ease",
-          }}
-        >
-          <div
-            style={{
-              width: "54px",
-              height: "54px",
-              borderRadius: "17px",
-              position: "relative",
-              display: "grid",
-              placeItems: "center",
-              background:
-                "linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.04))",
-              border: "1px solid rgba(255,255,255,.14)",
-            }}
-          >
-            <img
-              src="/borderbro/borderbro-button.png"
-              alt="BorderBro"
-              style={{
-                width: "49px",
-                height: "49px",
-                objectFit: "contain",
-              }}
-            />
+  <button
+    type="button"
+    onClick={() => setBorderBroAbierto(true)}
+    title="Pregúntale a BorderBro"
+    aria-label="Abrir BorderBro AI"
+    style={{
+      position: "fixed",
+      right: "22px",
+      bottom: "22px",
+      zIndex: 1000,
 
-            <div
-              style={{
-                position: "absolute",
-                right: "-3px",
-                top: "-3px",
-                width: "17px",
-                height: "17px",
-                borderRadius: "50%",
-                background:
-                  "linear-gradient(135deg, #8b5cf6, #3b82f6)",
-                border: "2px solid #17171c",
-                display: "grid",
-                placeItems: "center",
-                fontSize: "8px",
-                boxShadow:
-                  "0 0 14px rgba(139,92,246,.65)",
-              }}
-            >
-              ✦
-            </div>
-          </div>
+      width: "68px",
+      height: "68px",
+      padding: "3px",
 
-          <div
-            style={{
-              textAlign: "left",
-              paddingRight: "4px",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "10px",
-                color: "#aaa",
-                textTransform: "uppercase",
-                letterSpacing: "1.4px",
-                fontWeight: "700",
-              }}
-            >
-              AI Analyst
-            </div>
+      borderRadius: "50%",
+      border: "1px solid rgba(167, 139, 250, 0.45)",
 
-            <div
-              style={{
-                fontSize: "13px",
-                fontWeight: "750",
-                marginTop: "2px",
-              }}
-            >
-              Pregúntale a BorderBro
-            </div>
-          </div>
+      background:
+        "linear-gradient(145deg, #171026 0%, #090713 100%)",
 
-          <div
-            style={{
-              color: "#aaa",
-              fontSize: "17px",
-              marginLeft: "2px",
-            }}
-          >
-            ↗
-          </div>
-        </button>
-      )}
+      boxShadow:
+        "0 14px 38px rgba(35, 15, 70, 0.38), 0 0 24px rgba(124, 58, 237, 0.22)",
+
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+
+      cursor: "pointer",
+      overflow: "visible",
+    }}
+  >
+    <span
+      style={{
+        width: "60px",
+        height: "60px",
+
+        borderRadius: "50%",
+        overflow: "hidden",
+
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+
+        background:
+          "radial-gradient(circle at 50% 35%, rgba(139,92,246,.25), rgba(15,10,25,.95))",
+
+        position: "relative",
+      }}
+    >
+      <img
+        src="/borderbro/borderbro-button.png"
+        alt="BorderBro"
+        style={{
+          width: "58px",
+          height: "58px",
+          objectFit: "contain",
+          display: "block",
+        }}
+      />
+    </span>
+
+    <span
+      style={{
+        position: "absolute",
+        right: "3px",
+        bottom: "4px",
+
+        width: "13px",
+        height: "13px",
+
+        borderRadius: "50%",
+        background: "#34d399",
+        border: "3px solid #0b0813",
+
+        boxShadow:
+          "0 0 10px rgba(52,211,153,.85)",
+      }}
+    />
+  </button>
+)}
 
       {borderBroAbierto && (
         <>
-          {/* SOMBRA / OVERLAY */}
-
           <div
+            className="bb-backdrop"
             onClick={() => setBorderBroAbierto(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 1090,
-              background: "rgba(15,15,20,.18)",
-              backdropFilter: "blur(2px)",
-            }}
           />
 
-          {/* PANEL */}
-
-          <div
-            style={{
-              position: "fixed",
-              top: "14px",
-              right: "14px",
-              bottom: "14px",
-              width: "min(480px, calc(100vw - 28px))",
-              zIndex: 1200,
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              borderRadius: "24px",
-              background:
-                "rgba(250,250,252,.96)",
-              backdropFilter: "blur(22px)",
-              border: "1px solid rgba(255,255,255,.9)",
-              boxShadow:
-                "-10px 20px 70px rgba(0,0,0,.22), 0 0 0 1px rgba(0,0,0,.04)",
-            }}
+          <section
+            className="bb-shell"
+            role="dialog"
+            aria-modal="true"
+            aria-label="BorderBro AI"
           >
-            {/* HEADER IA */}
+            <div className="bb-aurora bb-aurora-one" />
+            <div className="bb-aurora bb-aurora-two" />
+            <div className="bb-grid" />
 
-            <div
-              style={{
-                position: "relative",
-                overflow: "hidden",
-                padding: "18px 18px 17px",
-                background:
-                  "linear-gradient(135deg, #101014 0%, #171720 52%, #241a38 100%)",
-                color: "#fff",
-              }}
-            >
-              {/* GLOW DECORATIVO */}
-
-              <div
-                style={{
-                  position: "absolute",
-                  width: "190px",
-                  height: "190px",
-                  borderRadius: "50%",
-                  right: "-65px",
-                  top: "-95px",
-                  background:
-                    "radial-gradient(circle, rgba(124,58,237,.42) 0%, rgba(124,58,237,0) 68%)",
-                  pointerEvents: "none",
-                }}
-              />
-
-              <div
-                style={{
-                  position: "absolute",
-                  width: "150px",
-                  height: "150px",
-                  borderRadius: "50%",
-                  left: "80px",
-                  bottom: "-120px",
-                  background:
-                    "radial-gradient(circle, rgba(59,130,246,.25) 0%, rgba(59,130,246,0) 70%)",
-                  pointerEvents: "none",
-                }}
-              />
-
-              <div
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "14px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "13px",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "64px",
-                      height: "64px",
-                      borderRadius: "20px",
-                      background:
-                        "linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.05))",
-                      border:
-                        "1px solid rgba(255,255,255,.13)",
-                      display: "grid",
-                      placeItems: "center",
-                      position: "relative",
-                      boxShadow:
-                        "inset 0 1px 0 rgba(255,255,255,.1)",
-                    }}
-                  >
-                    <img
-                      src={imagenBorderBro}
-                      alt="BorderBro"
-                      style={{
-                        width: "59px",
-                        height: "59px",
-                        objectFit: "contain",
-                      }}
-                    />
-
-                    <div
-                      style={{
-                        position: "absolute",
-                        right: "-2px",
-                        bottom: "-2px",
-                        width: "18px",
-                        height: "18px",
-                        borderRadius: "50%",
-                        background:
-                          borderBroCargando
-                            ? "#8b5cf6"
-                            : "#22c55e",
-                        border: "3px solid #17171e",
-                        boxShadow: borderBroCargando
-                          ? "0 0 14px rgba(139,92,246,.8)"
-                          : "0 0 10px rgba(34,197,94,.5)",
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "7px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: "18px",
-                          fontWeight: "800",
-                          letterSpacing: "-.3px",
-                        }}
-                      >
-                        BorderBro
-                      </div>
-
-                      <div
-                        style={{
-                          padding: "3px 7px",
-                          borderRadius: "999px",
-                          background:
-                            "linear-gradient(135deg, rgba(139,92,246,.28), rgba(59,130,246,.20))",
-                          border:
-                            "1px solid rgba(167,139,250,.25)",
-                          fontSize: "8px",
-                          letterSpacing: "1px",
-                          fontWeight: "800",
-                          color: "#ddd6fe",
-                        }}
-                      >
-                        AI
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop: "3px",
-                        fontSize: "11px",
-                        color: "#a5a5b0",
-                      }}
-                    >
-                      Analista financiero de BOSSE
-                    </div>
-                  </div>
+            <header className="bb-header">
+              <div className="bb-brand">
+                <div className="bb-brand-avatar">
+                  <img src={imagenBorderBro} alt="BorderBro" />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setBorderBroAbierto(false)
-                  }
-                  style={{
-                    width: "36px",
-                    height: "36px",
-                    borderRadius: "12px",
-                    border:
-                      "1px solid rgba(255,255,255,.1)",
-                    background:
-                      "rgba(255,255,255,.06)",
-                    color: "#ddd",
-                    cursor: "pointer",
-                    fontSize: "18px",
-                  }}
-                >
-                  ×
-                </button>
+                <div>
+                  <div className="bb-brand-row">
+                    <strong>BorderBro AI</strong>
+                    <span className="bb-online">
+                      <i />
+                      ONLINE
+                    </span>
+                  </div>
+                  <span className="bb-subtitle">
+                    Inteligencia financiera de BOSSE
+                  </span>
+                </div>
               </div>
 
-              {/* CONTEXTO */}
-
-              <div
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "7px",
-                  marginTop: "14px",
-                  padding: "8px 10px",
-                  borderRadius: "11px",
-                  background:
-                    "rgba(255,255,255,.055)",
-                  border:
-                    "1px solid rgba(255,255,255,.07)",
-                  color: "#b7b7c1",
-                  fontSize: "10px",
-                }}
+              <button
+                type="button"
+                className="bb-close"
+                onClick={() => setBorderBroAbierto(false)}
+                aria-label="Cerrar BorderBro"
               >
-                <span
-                  style={{
-                    width: "6px",
-                    height: "6px",
-                    borderRadius: "50%",
-                    background: "#8b5cf6",
-                    boxShadow:
-                      "0 0 8px rgba(139,92,246,.8)",
-                  }}
-                />
+                ×
+              </button>
+            </header>
 
-                Analizando contexto de
-
-                <strong
-                  style={{
-                    color: "#fff",
-                    fontWeight: "650",
-                  }}
-                >
-                  {formatoFecha(
-                    rangoSeleccionado.inicio
-                  )}
+            <div className="bb-context">
+              <span className="bb-context-icon">✦</span>
+              <div>
+                <small>CONTEXTO ACTUAL</small>
+                <strong>
+                  {formatoFecha(rangoSeleccionado.inicio)}
                   {" — "}
-                  {formatoFecha(
-                    rangoSeleccionado.fin
-                  )}
+                  {formatoFecha(rangoSeleccionado.fin)}
                 </strong>
               </div>
+              <span className="bb-context-pill">
+                BOSSE LIVE
+              </span>
             </div>
 
-            {/* ÁREA CHAT */}
-
-            <div
-              style={{
-                flex: 1,
-                overflowY: "auto",
-                padding: "18px",
-                background:
-                  "linear-gradient(180deg, #f7f7fa 0%, #fbfbfc 100%)",
-              }}
-            >
-              {/* STARTER */}
-
+            <div className="bb-chat">
               {borderBroConversacion.length <= 1 && (
-                <div
-                  style={{
-                    marginBottom: "20px",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "20px",
-                      fontWeight: "750",
-                      letterSpacing: "-.5px",
-                      color: "#18181b",
-                    }}
-                  >
-                    ¿Qué quieres analizar?
+                <div className="bb-hero">
+                  <div className="bb-orbit">
+                    <span className="bb-ring bb-ring-one" />
+                    <span className="bb-ring bb-ring-two" />
+                    <span className="bb-orbit-glow" />
+                    <img
+                      src="/borderbro/borderbro-normal.png"
+                      alt="BorderBro"
+                    />
+                    <span className="bb-orbit-star bb-star-one">✦</span>
+                    <span className="bb-orbit-star bb-star-two">✦</span>
                   </div>
 
-                  <div
-                    style={{
-                      marginTop: "5px",
-                      fontSize: "12px",
-                      lineHeight: 1.5,
-                      color: "#71717a",
-                    }}
-                  >
-                    Puedo cruzar tus datos de ingresos,
-                    egresos, nómina y cortes para buscar
-                    patrones y oportunidades.
-                  </div>
+                  <span className="bb-eyebrow">
+                    ✦ TU ANALISTA DE NEGOCIO
+                  </span>
+                  <h2>¿Qué quieres saber de tu negocio?</h2>
+                  <p>
+                    Pregunta en lenguaje natural. BorderBro cruza
+                    ingresos, egresos, nómina y cortes para encontrar
+                    patrones, riesgos y oportunidades.
+                  </p>
 
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(2, minmax(0, 1fr))",
-                      gap: "8px",
-                      marginTop: "15px",
-                    }}
-                  >
-                    {preguntasBorderBro.map(
-                      (pregunta, index) => (
-                        <button
-                          key={pregunta}
-                          type="button"
-                          disabled={borderBroCargando}
-                          onClick={() =>
-                            enviarPreguntaBorderBro(
-                              pregunta
-                            )
-                          }
-                          style={{
-                            minHeight: "78px",
-                            border:
-                              "1px solid #e5e5ea",
-                            background: "#fff",
-                            borderRadius: "14px",
-                            padding: "11px",
-                            textAlign: "left",
-                            cursor:
-                              borderBroCargando
-                                ? "not-allowed"
-                                : "pointer",
-                            boxShadow:
-                              "0 2px 8px rgba(0,0,0,.025)",
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: "15px",
-                              marginBottom: "7px",
-                            }}
-                          >
-                            {index === 0
-                              ? "↘"
-                              : index === 1
-                              ? "↔"
-                              : index === 2
-                              ? "✦"
-                              : "⌁"}
-                          </div>
-
-                          <div
-                            style={{
-                              fontSize: "10px",
-                              lineHeight: 1.35,
-                              fontWeight: "650",
-                              color: "#3f3f46",
-                            }}
-                          >
-                            {pregunta}
-                          </div>
-                        </button>
-                      )
-                    )}
+                  <div className="bb-prompts">
+                    {preguntasBorderBro.map((pregunta, index) => (
+                      <button
+                        key={pregunta}
+                        type="button"
+                        disabled={borderBroCargando}
+                        onClick={() =>
+                          enviarPreguntaBorderBro(pregunta)
+                        }
+                        className="bb-prompt"
+                      >
+                        <span className="bb-prompt-icon">
+                          {index === 0
+                            ? "↘"
+                            : index === 1
+                            ? "↔"
+                            : index === 2
+                            ? "✦"
+                            : "⌁"}
+                        </span>
+                        <span>{pregunta}</span>
+                        <b>›</b>
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {/* MENSAJES */}
+              <div className="bb-thread">
+                {borderBroConversacion.map((mensaje, index) => {
+                  const esUsuario = mensaje.rol === "user";
+                  const esSaludoInicial =
+                    index === 0 &&
+                    borderBroConversacion.length <= 1;
 
-              {borderBroConversacion.map(
-                (mensaje, index) => {
-                  const esUsuario =
-                    mensaje.rol === "user";
+                  if (esSaludoInicial) return null;
 
                   return (
                     <div
                       key={`${mensaje.rol}-${index}`}
-                      style={{
-                        display: "flex",
-                        flexDirection: esUsuario
-                          ? "row-reverse"
-                          : "row",
-                        alignItems: "flex-start",
-                        gap: "9px",
-                        marginBottom: "16px",
-                      }}
+                      className={
+                        esUsuario
+                          ? "bb-message bb-message-user"
+                          : "bb-message bb-message-ai"
+                      }
                     >
                       {!esUsuario && (
-                        <div
-                          style={{
-                            width: "34px",
-                            height: "34px",
-                            flexShrink: 0,
-                            borderRadius: "11px",
-                            background:
-                              "linear-gradient(145deg, #18181b, #302542)",
-                            display: "grid",
-                            placeItems: "center",
-                          }}
-                        >
+                        <div className="bb-message-avatar">
                           <img
                             src="/borderbro/borderbro-inline.png"
-                            alt="BorderBro"
-                            style={{
-                              width: "31px",
-                              height: "31px",
-                              objectFit:
-                                "contain",
-                            }}
+                            alt=""
                           />
                         </div>
                       )}
 
-                      <div
-                        style={{
-                          maxWidth: esUsuario
-                            ? "78%"
-                            : "86%",
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding: esUsuario
-                              ? "10px 13px"
-                              : "12px 13px",
-                            borderRadius: esUsuario
-                              ? "16px 5px 16px 16px"
-                              : "5px 16px 16px 16px",
-                            background: esUsuario
-                              ? "linear-gradient(135deg, #18181b, #27272a)"
-                              : "#fff",
-                            color: esUsuario
-                              ? "#fff"
-                              : "#27272a",
-                            border: esUsuario
-                              ? "none"
-                              : "1px solid #e7e7eb",
-                            boxShadow: esUsuario
-                              ? "0 5px 15px rgba(0,0,0,.12)"
-                              : "0 3px 12px rgba(0,0,0,.035)",
-                            fontSize: "12px",
-                            lineHeight: 1.6,
-                            whiteSpace: "pre-wrap",
-                          }}
-                        >
+                      <div className="bb-message-content">
+                        {!esUsuario && (
+                          <div className="bb-message-label">
+                            <span>BorderBro</span>
+                            <small>AI ANALYSIS</small>
+                          </div>
+                        )}
+
+                        <div className="bb-message-bubble">
                           {mensaje.texto}
                         </div>
 
                         {!esUsuario &&
-                          mensaje.meta
-                            ?.herramientas_utilizadas
+                          mensaje.meta?.herramientas_utilizadas
                             ?.length > 0 && (
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems:
-                                  "center",
-                                gap: "5px",
-                                marginTop: "7px",
-                                color: "#8b5cf6",
-                                fontSize: "9px",
-                                fontWeight: "650",
-                              }}
-                            >
-                              ✦{" "}
-                              {mensaje.meta
-                                .cantidad_consultas ||
+                            <div className="bb-analysis-meta">
+                              <span>✦</span>
+                              {mensaje.meta.cantidad_consultas ||
                                 mensaje.meta
-                                  .herramientas_utilizadas
-                                  .length}{" "}
-                              consultas realizadas
+                                  .herramientas_utilizadas.length}{" "}
+                              consultas a BOSSE
                             </div>
                           )}
 
                         {!esUsuario &&
-                          mensaje.evidencia
-                            ?.length > 0 && (
-                            <details
-                              style={{
-                                marginTop: "7px",
-                                fontSize: "10px",
-                                color: "#71717a",
-                              }}
-                            >
-                              <summary
-                                style={{
-                                  cursor:
-                                    "pointer",
-                                  fontWeight:
-                                    "650",
-                                }}
-                              >
+                          mensaje.evidencia?.length > 0 && (
+                            <details className="bb-sources">
+                              <summary>
+                                <span>⌁</span>
                                 Ver datos utilizados
+                                <b>+</b>
                               </summary>
-
-                              <pre
-                                style={{
-                                  marginTop: "7px",
-                                  padding: "10px",
-                                  background:
-                                    "#f1f1f4",
-                                  borderRadius:
-                                    "10px",
-                                  overflowX:
-                                    "auto",
-                                  whiteSpace:
-                                    "pre-wrap",
-                                  fontSize:
-                                    "9px",
-                                }}
-                              >
+                              <pre>
                                 {JSON.stringify(
                                   mensaje.evidencia,
                                   null,
@@ -5151,216 +4809,1159 @@ marginBottom: "12px",
                       </div>
                     </div>
                   );
-                }
-              )}
+                })}
 
-              {/* PENSANDO */}
-
-              {borderBroCargando && (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "9px",
-                    alignItems: "center",
-                    marginTop: "4px",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "42px",
-                      height: "42px",
-                      borderRadius: "13px",
-                      background:
-                        "linear-gradient(145deg, #18181b, #33264b)",
-                      display: "grid",
-                      placeItems: "center",
-                      boxShadow:
-                        "0 0 22px rgba(139,92,246,.16)",
-                    }}
-                  >
-                    <img
-                      src="/borderbro/borderbro-thinking.png"
-                      alt="BorderBro analizando"
-                      style={{
-                        width: "39px",
-                        height: "39px",
-                        objectFit: "contain",
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: "700",
-                        color: "#3f3f46",
-                      }}
-                    >
-                      Analizando tus datos...
+                {borderBroCargando && (
+                  <div className="bb-thinking">
+                    <div className="bb-thinking-avatar">
+                      <span />
+                      <img
+                        src="/borderbro/borderbro-thinking.png"
+                        alt="BorderBro analizando"
+                      />
                     </div>
-
-                    <div
-                      style={{
-                        fontSize: "9px",
-                        color: "#a1a1aa",
-                        marginTop: "2px",
-                      }}
-                    >
-                      BorderBro está consultando BOSSE
+                    <div>
+                      <strong>Analizando BOSSE</strong>
+                      <p>
+                        Cruzando datos y buscando patrones
+                        <span className="bb-dots">•••</span>
+                      </p>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {borderBroError && (
-                <div
-                  style={{
-                    marginTop: "12px",
-                    padding: "11px 12px",
-                    borderRadius: "12px",
-                    background: "#fff1f2",
-                    border: "1px solid #fecdd3",
-                    color: "#9f1239",
-                    fontSize: "11px",
-                  }}
-                >
-                  {borderBroError}
-                </div>
-              )}
+                {borderBroError && (
+                  <div className="bb-error">
+                    <span>!</span>
+                    <div>
+                      <strong>No pude completar la consulta</strong>
+                      <p>{borderBroError}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* COMPOSER */}
-
-            <div
-              style={{
-                padding: "12px 14px 14px",
-                background:
-                  "rgba(255,255,255,.95)",
-                borderTop: "1px solid #ececf0",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-end",
-                  gap: "8px",
-                  padding: "6px 6px 6px 12px",
-                  borderRadius: "16px",
-                  background: "#fff",
-                  border:
-                    "1px solid #dedee5",
-                  boxShadow:
-                    "0 5px 20px rgba(0,0,0,.055), 0 0 0 3px rgba(139,92,246,.025)",
-                }}
-              >
-                <div
-                  style={{
-                    color: "#8b5cf6",
-                    fontSize: "14px",
-                    alignSelf: "center",
-                  }}
-                >
-                  ✦
-                </div>
-
+            <footer className="bb-composer-wrap">
+              <div className="bb-composer">
+                <span className="bb-composer-spark">✦</span>
                 <textarea
                   value={borderBroMensaje}
                   disabled={borderBroCargando}
                   onChange={(e) =>
-                    setBorderBroMensaje(
-                      e.target.value
-                    )
+                    setBorderBroMensaje(e.target.value)
                   }
                   onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      !e.shiftKey
-                    ) {
+                    if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       enviarPreguntaBorderBro();
                     }
                   }}
-                  placeholder="Pregunta sobre tus datos..."
-                  rows={2}
-                  style={{
-                    flex: 1,
-                    resize: "none",
-                    border: "none",
-                    background:
-                      "transparent",
-                    padding: "8px 2px",
-                    fontFamily: "inherit",
-                    fontSize: "12px",
-                    outline: "none",
-                    color: "#27272a",
-                    boxSizing:
-                      "border-box",
-                  }}
+                  placeholder="Pregunta lo que quieras sobre BOSSE..."
+                  rows={1}
                 />
-
                 <button
                   type="button"
                   disabled={
                     borderBroCargando ||
                     !borderBroMensaje.trim()
                   }
-                  onClick={() =>
-                    enviarPreguntaBorderBro()
-                  }
-                  style={{
-                    width: "39px",
-                    height: "39px",
-                    flexShrink: 0,
-                    border: "none",
-                    borderRadius: "12px",
-                    background:
-                      borderBroCargando ||
-                      !borderBroMensaje.trim()
-                        ? "#e4e4e7"
-                        : "linear-gradient(135deg, #18181b, #33264b)",
-                    color: "#fff",
-                    cursor:
-                      borderBroCargando ||
-                      !borderBroMensaje.trim()
-                        ? "not-allowed"
-                        : "pointer",
-                    fontSize: "17px",
-                    boxShadow:
-                      borderBroCargando ||
-                      !borderBroMensaje.trim()
-                        ? "none"
-                        : "0 5px 14px rgba(0,0,0,.16)",
-                  }}
+                  onClick={() => enviarPreguntaBorderBro()}
+                  aria-label="Enviar pregunta"
                 >
                   ↑
                 </button>
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent:
-                    "center",
-                  gap: "5px",
-                  marginTop: "8px",
-                  color: "#a1a1aa",
-                  fontSize: "8px",
-                  letterSpacing: ".2px",
-                }}
-              >
-                <span
-                  style={{
-                    color: "#8b5cf6",
-                  }}
-                >
-                  ✦
-                </span>
+              <div className="bb-powered">
+                <span>✦</span>
                 Powered by BOSSE Intelligence
+                <i />
+                Los datos pueden requerir revisión humana
               </div>
-            </div>
-          </div>
+            </footer>
+          </section>
+
+          <style>{`
+            .bb-launcher {
+              position: fixed;
+              right: 24px;
+              bottom: 24px;
+              z-index: 1000;
+              height: 72px;
+              padding: 8px 15px 8px 8px;
+              border: 1px solid rgba(196,181,253,.24);
+              border-radius: 24px;
+              color: #fff;
+              background:
+                radial-gradient(circle at 15% 20%, rgba(139,92,246,.30), transparent 42%),
+                linear-gradient(135deg, #090713 0%, #171026 55%, #211238 100%);
+              box-shadow:
+                0 24px 60px rgba(17,8,38,.38),
+                0 0 0 1px rgba(139,92,246,.08),
+                inset 0 1px rgba(255,255,255,.08);
+              display: flex;
+              align-items: center;
+              gap: 11px;
+              cursor: pointer;
+              font-family: inherit;
+              overflow: hidden;
+              transition: transform .2s ease, box-shadow .2s ease;
+            }
+
+            .bb-launcher:hover {
+              transform: translateY(-3px);
+              box-shadow:
+                0 28px 70px rgba(17,8,38,.45),
+                0 0 30px rgba(124,58,237,.16);
+            }
+
+            .bb-launcher-glow {
+              position: absolute;
+              width: 100px;
+              height: 100px;
+              left: -25px;
+              top: -35px;
+              border-radius: 50%;
+              background: rgba(124,58,237,.22);
+              filter: blur(25px);
+              pointer-events: none;
+            }
+
+            .bb-launcher-avatar {
+              width: 55px;
+              height: 55px;
+              border-radius: 18px;
+              position: relative;
+              flex: 0 0 auto;
+              display: grid;
+              place-items: center;
+              background: rgba(255,255,255,.07);
+              border: 1px solid rgba(255,255,255,.12);
+            }
+
+            .bb-launcher-avatar img {
+              width: 52px;
+              height: 52px;
+              object-fit: contain;
+              position: relative;
+              z-index: 1;
+            }
+
+            .bb-launcher-online {
+              position: absolute;
+              right: -1px;
+              bottom: -1px;
+              width: 11px;
+              height: 11px;
+              border-radius: 50%;
+              background: #34d399;
+              border: 2px solid #130d21;
+              box-shadow: 0 0 12px rgba(52,211,153,.75);
+              z-index: 2;
+            }
+
+            .bb-launcher-copy {
+              display: flex;
+              flex-direction: column;
+              text-align: left;
+              line-height: 1.15;
+            }
+
+            .bb-launcher-copy strong {
+              font-size: 12px;
+              font-weight: 760;
+              white-space: nowrap;
+            }
+
+            .bb-launcher-copy small {
+              color: #aaa0bd;
+              font-size: 9px;
+              margin-top: 5px;
+              letter-spacing: .3px;
+            }
+
+            .bb-launcher-spark {
+              color: #c4b5fd;
+              font-size: 13px;
+              margin-left: 3px;
+            }
+
+            .bb-backdrop {
+              position: fixed;
+              inset: 0;
+              z-index: 1090;
+              background: rgba(3,2,8,.55);
+              backdrop-filter: blur(7px);
+              -webkit-backdrop-filter: blur(7px);
+              animation: bbFade .18s ease;
+            }
+
+            .bb-shell {
+              --bb-border: rgba(196,181,253,.13);
+              position: fixed;
+              z-index: 1100;
+              right: 24px;
+              bottom: 24px;
+              width: min(470px, calc(100vw - 48px));
+              height: min(780px, calc(100dvh - 48px));
+              min-height: 560px;
+              border-radius: 30px;
+              overflow: hidden;
+              display: flex;
+              flex-direction: column;
+              isolation: isolate;
+              color: #f8f7ff;
+              font-family: inherit;
+              background:
+                radial-gradient(circle at 78% -10%, rgba(109,40,217,.24), transparent 34%),
+                linear-gradient(180deg, #0b0813 0%, #100b1b 48%, #09070f 100%);
+              border: 1px solid var(--bb-border);
+              box-shadow:
+                0 35px 100px rgba(0,0,0,.55),
+                0 0 0 1px rgba(124,58,237,.05),
+                inset 0 1px rgba(255,255,255,.05);
+              animation: bbOpen .24s cubic-bezier(.2,.8,.2,1);
+            }
+
+            .bb-aurora {
+              position: absolute;
+              z-index: -2;
+              border-radius: 50%;
+              filter: blur(65px);
+              pointer-events: none;
+            }
+
+            .bb-aurora-one {
+              width: 280px;
+              height: 280px;
+              right: -130px;
+              top: 60px;
+              background: rgba(124,58,237,.22);
+            }
+
+            .bb-aurora-two {
+              width: 240px;
+              height: 240px;
+              left: -130px;
+              bottom: 100px;
+              background: rgba(37,99,235,.12);
+            }
+
+            .bb-grid {
+              position: absolute;
+              inset: 0;
+              z-index: -1;
+              opacity: .055;
+              pointer-events: none;
+              background-image:
+                linear-gradient(rgba(255,255,255,.35) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,.35) 1px, transparent 1px);
+              background-size: 34px 34px;
+              mask-image: linear-gradient(to bottom, #000, transparent 58%);
+            }
+
+            .bb-header {
+              padding: 17px 18px 11px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 12px;
+              flex: 0 0 auto;
+            }
+
+            .bb-brand {
+              display: flex;
+              align-items: center;
+              gap: 11px;
+              min-width: 0;
+            }
+
+            .bb-brand-avatar {
+              width: 43px;
+              height: 43px;
+              border-radius: 14px;
+              flex: 0 0 auto;
+              display: grid;
+              place-items: center;
+              background: linear-gradient(145deg, rgba(139,92,246,.18), rgba(255,255,255,.035));
+              border: 1px solid rgba(196,181,253,.14);
+              box-shadow: 0 0 22px rgba(124,58,237,.09);
+            }
+
+            .bb-brand-avatar img {
+              width: 40px;
+              height: 40px;
+              object-fit: contain;
+            }
+
+            .bb-brand-row {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              min-width: 0;
+            }
+
+            .bb-brand-row strong {
+              font-size: 15px;
+              letter-spacing: -.25px;
+              white-space: nowrap;
+            }
+
+            .bb-online {
+              display: inline-flex;
+              align-items: center;
+              gap: 5px;
+              border: 1px solid rgba(52,211,153,.15);
+              background: rgba(52,211,153,.07);
+              color: #6ee7b7;
+              padding: 4px 7px;
+              border-radius: 999px;
+              font-size: 7px;
+              letter-spacing: .8px;
+              font-weight: 800;
+            }
+
+            .bb-online i {
+              width: 5px;
+              height: 5px;
+              border-radius: 50%;
+              background: #34d399;
+              box-shadow: 0 0 8px #34d399;
+            }
+
+            .bb-subtitle {
+              display: block;
+              color: #8f879d;
+              font-size: 9px;
+              margin-top: 4px;
+            }
+
+            .bb-close {
+              width: 38px;
+              height: 38px;
+              flex: 0 0 auto;
+              border-radius: 13px;
+              border: 1px solid rgba(255,255,255,.08);
+              background: rgba(255,255,255,.035);
+              color: #b9b2c5;
+              cursor: pointer;
+              font-size: 19px;
+            }
+
+            .bb-context {
+              margin: 0 18px 10px;
+              padding: 9px 11px;
+              border-radius: 14px;
+              display: flex;
+              align-items: center;
+              gap: 9px;
+              flex: 0 0 auto;
+              background: rgba(255,255,255,.035);
+              border: 1px solid rgba(255,255,255,.065);
+              backdrop-filter: blur(12px);
+            }
+
+            .bb-context-icon {
+              color: #a78bfa;
+              font-size: 12px;
+            }
+
+            .bb-context > div {
+              display: flex;
+              flex-direction: column;
+              min-width: 0;
+              flex: 1;
+            }
+
+            .bb-context small {
+              color: #746d80;
+              font-size: 7px;
+              font-weight: 800;
+              letter-spacing: .9px;
+            }
+
+            .bb-context strong {
+              margin-top: 3px;
+              font-size: 9px;
+              color: #d8d3e2;
+              font-weight: 650;
+            }
+
+            .bb-context-pill {
+              flex: 0 0 auto;
+              color: #a78bfa;
+              font-size: 7px;
+              font-weight: 800;
+              letter-spacing: .6px;
+              border: 1px solid rgba(167,139,250,.13);
+              border-radius: 999px;
+              padding: 5px 7px;
+              background: rgba(124,58,237,.07);
+            }
+
+            .bb-chat {
+              flex: 1 1 auto;
+              min-height: 0;
+              overflow-y: auto;
+              overscroll-behavior: contain;
+              scrollbar-width: thin;
+              scrollbar-color: rgba(139,92,246,.25) transparent;
+            }
+
+            .bb-chat::-webkit-scrollbar {
+              width: 5px;
+            }
+
+            .bb-chat::-webkit-scrollbar-thumb {
+              background: rgba(139,92,246,.24);
+              border-radius: 99px;
+            }
+
+            .bb-hero {
+              padding: 12px 22px 18px;
+              text-align: center;
+            }
+
+            .bb-orbit {
+              width: 142px;
+              height: 142px;
+              margin: 1px auto 12px;
+              position: relative;
+              display: grid;
+              place-items: center;
+            }
+
+            .bb-orbit img {
+              width: 112px;
+              height: 112px;
+              object-fit: contain;
+              position: relative;
+              z-index: 3;
+              filter: drop-shadow(0 15px 24px rgba(0,0,0,.28));
+              animation: bbFloat 4s ease-in-out infinite;
+            }
+
+            .bb-orbit-glow {
+              position: absolute;
+              width: 90px;
+              height: 90px;
+              border-radius: 50%;
+              background: rgba(124,58,237,.32);
+              filter: blur(28px);
+              z-index: 1;
+            }
+
+            .bb-ring {
+              position: absolute;
+              border-radius: 50%;
+              border: 1px solid rgba(167,139,250,.18);
+            }
+
+            .bb-ring-one {
+              width: 120px;
+              height: 120px;
+              animation: bbPulse 3s ease-in-out infinite;
+            }
+
+            .bb-ring-two {
+              width: 142px;
+              height: 142px;
+              border-style: dashed;
+              opacity: .55;
+              animation: bbSpin 18s linear infinite;
+            }
+
+            .bb-orbit-star {
+              position: absolute;
+              z-index: 4;
+              color: #c4b5fd;
+              text-shadow: 0 0 14px #8b5cf6;
+            }
+
+            .bb-star-one {
+              top: 22px;
+              right: 10px;
+              font-size: 12px;
+            }
+
+            .bb-star-two {
+              left: 9px;
+              bottom: 30px;
+              font-size: 8px;
+              opacity: .65;
+            }
+
+            .bb-eyebrow {
+              color: #a78bfa;
+              font-size: 8px;
+              letter-spacing: 1.4px;
+              font-weight: 800;
+            }
+
+            .bb-hero h2 {
+              margin: 8px auto 0;
+              max-width: 360px;
+              color: #fff;
+              font-size: 24px;
+              line-height: 1.1;
+              letter-spacing: -.8px;
+              font-weight: 760;
+            }
+
+            .bb-hero p {
+              max-width: 380px;
+              margin: 10px auto 0;
+              color: #92899f;
+              font-size: 10px;
+              line-height: 1.6;
+            }
+
+            .bb-prompts {
+              display: grid;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 8px;
+              margin-top: 18px;
+            }
+
+            .bb-prompt {
+              min-height: 68px;
+              padding: 11px;
+              border-radius: 15px;
+              border: 1px solid rgba(255,255,255,.075);
+              background:
+                linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.018));
+              color: #d8d3e2;
+              font-family: inherit;
+              text-align: left;
+              display: grid;
+              grid-template-columns: 27px 1fr 10px;
+              align-items: center;
+              gap: 8px;
+              cursor: pointer;
+              transition: border-color .18s ease, transform .18s ease, background .18s ease;
+              backdrop-filter: blur(10px);
+            }
+
+            .bb-prompt:hover {
+              transform: translateY(-2px);
+              border-color: rgba(167,139,250,.25);
+              background: rgba(124,58,237,.075);
+            }
+
+            .bb-prompt:disabled {
+              opacity: .5;
+              cursor: not-allowed;
+            }
+
+            .bb-prompt-icon {
+              width: 27px;
+              height: 27px;
+              border-radius: 9px;
+              display: grid;
+              place-items: center;
+              color: #c4b5fd;
+              background: rgba(124,58,237,.12);
+              border: 1px solid rgba(167,139,250,.10);
+            }
+
+            .bb-prompt span:nth-child(2) {
+              font-size: 9px;
+              line-height: 1.35;
+              font-weight: 650;
+            }
+
+            .bb-prompt b {
+              color: #5e566b;
+              font-size: 16px;
+              font-weight: 400;
+            }
+
+            .bb-thread {
+              padding: 12px 18px 22px;
+            }
+
+            .bb-message {
+              display: flex;
+              gap: 9px;
+              margin-bottom: 18px;
+            }
+
+            .bb-message-user {
+              justify-content: flex-end;
+            }
+
+            .bb-message-avatar {
+              width: 34px;
+              height: 34px;
+              flex: 0 0 auto;
+              border-radius: 11px;
+              display: grid;
+              place-items: center;
+              background: rgba(124,58,237,.10);
+              border: 1px solid rgba(167,139,250,.10);
+            }
+
+            .bb-message-avatar img {
+              width: 31px;
+              height: 31px;
+              object-fit: contain;
+            }
+
+            .bb-message-content {
+              max-width: 86%;
+              min-width: 0;
+            }
+
+            .bb-message-user .bb-message-content {
+              max-width: 80%;
+            }
+
+            .bb-message-label {
+              display: flex;
+              align-items: center;
+              gap: 7px;
+              margin: 0 0 6px 2px;
+            }
+
+            .bb-message-label span {
+              color: #ddd7e8;
+              font-size: 9px;
+              font-weight: 750;
+            }
+
+            .bb-message-label small {
+              color: #7c6f90;
+              font-size: 6px;
+              letter-spacing: .9px;
+              font-weight: 800;
+            }
+
+            .bb-message-bubble {
+              white-space: pre-wrap;
+              font-size: 11px;
+              line-height: 1.65;
+            }
+
+            .bb-message-ai .bb-message-bubble {
+              color: #d5d0de;
+              padding: 13px 14px;
+              border-radius: 5px 17px 17px 17px;
+              background: rgba(255,255,255,.035);
+              border: 1px solid rgba(255,255,255,.065);
+              box-shadow: inset 0 1px rgba(255,255,255,.025);
+              backdrop-filter: blur(10px);
+            }
+
+            .bb-message-user .bb-message-bubble {
+              color: #fff;
+              padding: 11px 14px;
+              border-radius: 17px 5px 17px 17px;
+              background: linear-gradient(135deg, #5b21b6, #312e81);
+              box-shadow: 0 8px 24px rgba(76,29,149,.22);
+            }
+
+            .bb-analysis-meta {
+              margin-top: 7px;
+              color: #8f7daa;
+              font-size: 8px;
+              display: flex;
+              align-items: center;
+              gap: 5px;
+            }
+
+            .bb-analysis-meta span {
+              color: #a78bfa;
+            }
+
+            .bb-sources {
+              margin-top: 8px;
+              border-radius: 12px;
+              border: 1px solid rgba(255,255,255,.055);
+              background: rgba(255,255,255,.022);
+              overflow: hidden;
+            }
+
+            .bb-sources summary {
+              list-style: none;
+              cursor: pointer;
+              display: flex;
+              align-items: center;
+              gap: 7px;
+              padding: 10px 11px;
+              color: #968ba7;
+              font-size: 8px;
+              font-weight: 650;
+            }
+
+            .bb-sources summary::-webkit-details-marker {
+              display: none;
+            }
+
+            .bb-sources summary span {
+              color: #a78bfa;
+            }
+
+            .bb-sources summary b {
+              margin-left: auto;
+              font-size: 13px;
+              font-weight: 400;
+            }
+
+            .bb-sources pre {
+              margin: 0;
+              padding: 11px;
+              max-height: 230px;
+              overflow: auto;
+              border-top: 1px solid rgba(255,255,255,.045);
+              color: #a8a0b3;
+              background: rgba(0,0,0,.18);
+              white-space: pre-wrap;
+              word-break: break-word;
+              font-size: 8px;
+              line-height: 1.5;
+            }
+
+            .bb-thinking {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin: 8px 0 6px;
+              padding: 12px;
+              border-radius: 15px;
+              background: rgba(124,58,237,.055);
+              border: 1px solid rgba(167,139,250,.09);
+            }
+
+            .bb-thinking-avatar {
+              width: 48px;
+              height: 48px;
+              flex: 0 0 auto;
+              position: relative;
+              display: grid;
+              place-items: center;
+            }
+
+            .bb-thinking-avatar span {
+              position: absolute;
+              inset: 0;
+              border-radius: 50%;
+              border: 1px solid rgba(167,139,250,.20);
+              box-shadow: 0 0 25px rgba(124,58,237,.12);
+              animation: bbPulse 1.5s ease-in-out infinite;
+            }
+
+            .bb-thinking-avatar img {
+              width: 43px;
+              height: 43px;
+              object-fit: contain;
+              position: relative;
+              z-index: 1;
+            }
+
+            .bb-thinking strong {
+              color: #ddd7e8;
+              font-size: 10px;
+            }
+
+            .bb-thinking p {
+              margin: 4px 0 0;
+              color: #7f758d;
+              font-size: 8px;
+            }
+
+            .bb-dots {
+              display: inline-block;
+              margin-left: 4px;
+              color: #a78bfa;
+              letter-spacing: 2px;
+              animation: bbBlink 1.1s ease-in-out infinite;
+            }
+
+            .bb-error {
+              display: flex;
+              gap: 10px;
+              align-items: flex-start;
+              padding: 12px;
+              border-radius: 14px;
+              color: #fecdd3;
+              background: rgba(159,18,57,.12);
+              border: 1px solid rgba(251,113,133,.16);
+            }
+
+            .bb-error > span {
+              width: 23px;
+              height: 23px;
+              border-radius: 8px;
+              display: grid;
+              place-items: center;
+              flex: 0 0 auto;
+              background: rgba(251,113,133,.12);
+              font-weight: 800;
+            }
+
+            .bb-error strong {
+              display: block;
+              font-size: 9px;
+            }
+
+            .bb-error p {
+              margin: 4px 0 0;
+              color: #cfa5af;
+              font-size: 8px;
+              line-height: 1.45;
+            }
+
+            .bb-composer-wrap {
+              flex: 0 0 auto;
+              padding: 10px 14px max(13px, env(safe-area-inset-bottom));
+              background: linear-gradient(180deg, rgba(9,7,15,.60), rgba(9,7,15,.97) 28%);
+              border-top: 1px solid rgba(255,255,255,.045);
+              backdrop-filter: blur(18px);
+            }
+
+            .bb-composer {
+              min-height: 49px;
+              display: flex;
+              align-items: flex-end;
+              gap: 8px;
+              padding: 5px 5px 5px 12px;
+              border-radius: 17px;
+              background: rgba(255,255,255,.045);
+              border: 1px solid rgba(196,181,253,.11);
+              box-shadow:
+                inset 0 1px rgba(255,255,255,.035),
+                0 10px 30px rgba(0,0,0,.16);
+            }
+
+            .bb-composer:focus-within {
+              border-color: rgba(167,139,250,.28);
+              box-shadow:
+                0 0 0 3px rgba(124,58,237,.055),
+                inset 0 1px rgba(255,255,255,.04);
+            }
+
+            .bb-composer-spark {
+              align-self: center;
+              color: #a78bfa;
+              font-size: 12px;
+            }
+
+            .bb-composer textarea {
+              flex: 1;
+              min-width: 0;
+              max-height: 100px;
+              resize: none;
+              border: 0;
+              outline: 0;
+              padding: 10px 2px;
+              background: transparent;
+              color: #f3eff9;
+              font: inherit;
+              font-size: 10px;
+              line-height: 1.45;
+            }
+
+            .bb-composer textarea::placeholder {
+              color: #6f667b;
+            }
+
+            .bb-composer button {
+              width: 39px;
+              height: 39px;
+              flex: 0 0 auto;
+              border: 0;
+              border-radius: 13px;
+              color: #fff;
+              background: linear-gradient(135deg, #7c3aed, #4f46e5);
+              box-shadow: 0 7px 18px rgba(79,70,229,.22);
+              cursor: pointer;
+              font-size: 17px;
+            }
+
+            .bb-composer button:disabled {
+              color: #5d5667;
+              background: rgba(255,255,255,.045);
+              box-shadow: none;
+              cursor: not-allowed;
+            }
+
+            .bb-powered {
+              margin-top: 7px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 5px;
+              color: #554d61;
+              font-size: 6.5px;
+              letter-spacing: .2px;
+              text-align: center;
+            }
+
+            .bb-powered span {
+              color: #7c3aed;
+            }
+
+            .bb-powered i {
+              width: 2px;
+              height: 2px;
+              border-radius: 50%;
+              background: #554d61;
+            }
+
+            @keyframes bbOpen {
+              from { opacity: 0; transform: translateY(16px) scale(.98); }
+              to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+
+            @keyframes bbFade {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+
+            @keyframes bbFloat {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-7px); }
+            }
+
+            @keyframes bbPulse {
+              0%, 100% { transform: scale(.96); opacity: .45; }
+              50% { transform: scale(1.04); opacity: 1; }
+            }
+
+            @keyframes bbSpin {
+              to { transform: rotate(360deg); }
+            }
+
+            @keyframes bbBlink {
+              0%, 100% { opacity: .25; }
+              50% { opacity: 1; }
+            }
+
+            @media (max-width: 680px) {
+              .bb-launcher {
+                right: 14px;
+                bottom: max(14px, env(safe-area-inset-bottom));
+                height: 62px;
+                border-radius: 21px;
+                padding: 7px;
+              }
+
+              .bb-launcher-avatar {
+                width: 48px;
+                height: 48px;
+                border-radius: 16px;
+              }
+
+              .bb-launcher-avatar img {
+                width: 46px;
+                height: 46px;
+              }
+
+              .bb-launcher-copy,
+              .bb-launcher-spark {
+                display: none;
+              }
+
+              .bb-backdrop {
+                background: #09070f;
+                backdrop-filter: none;
+              }
+
+              .bb-shell {
+                inset: 0;
+                width: 100vw;
+                height: 100dvh;
+                min-height: 0;
+                max-width: none;
+                max-height: none;
+                border: 0;
+                border-radius: 0;
+                box-shadow: none;
+              }
+
+              .bb-header {
+                padding:
+                  max(13px, env(safe-area-inset-top))
+                  14px
+                  9px;
+              }
+
+              .bb-brand-avatar {
+                width: 39px;
+                height: 39px;
+                border-radius: 13px;
+              }
+
+              .bb-brand-avatar img {
+                width: 37px;
+                height: 37px;
+              }
+
+              .bb-brand-row strong {
+                font-size: 14px;
+              }
+
+              .bb-subtitle {
+                font-size: 8px;
+              }
+
+              .bb-context {
+                margin: 0 14px 7px;
+                padding: 8px 10px;
+              }
+
+              .bb-context-pill {
+                display: none;
+              }
+
+              .bb-hero {
+                padding: 8px 15px 16px;
+              }
+
+              .bb-orbit {
+                width: 126px;
+                height: 126px;
+                margin-bottom: 8px;
+              }
+
+              .bb-orbit img {
+                width: 100px;
+                height: 100px;
+              }
+
+              .bb-ring-one {
+                width: 108px;
+                height: 108px;
+              }
+
+              .bb-ring-two {
+                width: 126px;
+                height: 126px;
+              }
+
+              .bb-hero h2 {
+                font-size: 22px;
+                max-width: 300px;
+              }
+
+              .bb-hero p {
+                font-size: 9px;
+                max-width: 330px;
+              }
+
+              .bb-prompts {
+                gap: 7px;
+                margin-top: 15px;
+              }
+
+              .bb-prompt {
+                min-height: 62px;
+                padding: 9px;
+                grid-template-columns: 25px 1fr;
+              }
+
+              .bb-prompt-icon {
+                width: 25px;
+                height: 25px;
+              }
+
+              .bb-prompt b {
+                display: none;
+              }
+
+              .bb-prompt span:nth-child(2) {
+                font-size: 8.5px;
+              }
+
+              .bb-thread {
+                padding: 10px 14px 18px;
+              }
+
+              .bb-message-content {
+                max-width: calc(100% - 43px);
+              }
+
+              .bb-message-user .bb-message-content {
+                max-width: 86%;
+              }
+
+              .bb-message-bubble {
+                font-size: 10.5px;
+              }
+
+              .bb-composer-wrap {
+                padding:
+                  9px
+                  10px
+                  max(10px, env(safe-area-inset-bottom));
+              }
+
+              .bb-powered {
+                font-size: 6px;
+              }
+            }
+
+            @media (max-width: 370px) {
+              .bb-online {
+                display: none;
+              }
+
+              .bb-hero h2 {
+                font-size: 20px;
+              }
+
+              .bb-prompts {
+                grid-template-columns: 1fr;
+              }
+
+              .bb-prompt {
+                min-height: 50px;
+              }
+            }
+
+            @media (max-height: 700px) and (min-width: 681px) {
+              .bb-shell {
+                height: calc(100dvh - 28px);
+                bottom: 14px;
+              }
+
+              .bb-orbit {
+                width: 105px;
+                height: 105px;
+              }
+
+              .bb-orbit img {
+                width: 84px;
+                height: 84px;
+              }
+
+              .bb-ring-one {
+                width: 92px;
+                height: 92px;
+              }
+
+              .bb-ring-two {
+                width: 105px;
+                height: 105px;
+              }
+
+              .bb-hero h2 {
+                font-size: 21px;
+              }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+              .bb-shell,
+              .bb-backdrop,
+              .bb-orbit img,
+              .bb-ring,
+              .bb-thinking-avatar span,
+              .bb-dots {
+                animation: none !important;
+              }
+            }
+          `}</style>
         </>
       )}
     </div>
