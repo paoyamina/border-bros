@@ -84,6 +84,35 @@ const [diaSeleccionado, setDiaSeleccionado] =
   useState(null);
 
   // ============================================================
+// BORDERBRO
+// ============================================================
+
+const [borderBroAbierto, setBorderBroAbierto] =
+  useState(false);
+
+const [borderBroMensaje, setBorderBroMensaje] =
+  useState("");
+
+const [borderBroCargando, setBorderBroCargando] =
+  useState(false);
+
+const [borderBroEstado, setBorderBroEstado] =
+  useState("normal");
+
+const [borderBroError, setBorderBroError] =
+  useState("");
+
+const [borderBroConversacion, setBorderBroConversacion] =
+  useState([
+    {
+      rol: "assistant",
+      texto:
+        "Hola, soy BorderBro. Puedo analizar los datos financieros de este periodo. Pregúntame lo que quieras sobre ingresos, egresos, nómina o cortes.",
+      evidencia: [],
+    },
+  ]);
+
+  // ============================================================
 // CONSTRUCTOR DE ANÁLISIS
 // ============================================================
 
@@ -523,6 +552,151 @@ const rangoSeleccionado = useMemo(() => {
   fechaInicio,
   fechaFin,
 ]);
+
+// ============================================================
+// BORDERBRO - CHAT
+// ============================================================
+
+const preguntasBorderBro = [
+  "¿Dónde estoy perdiendo dinero?",
+  "¿Qué cambió contra el periodo anterior?",
+  "¿Hay algo raro en mis egresos?",
+  "Analiza mis cortes y dime qué debería revisar.",
+];
+
+const enviarPreguntaBorderBro = async (
+  preguntaDirecta = null
+) => {
+  const pregunta = String(
+    preguntaDirecta ?? borderBroMensaje
+  ).trim();
+
+  if (!pregunta || borderBroCargando) {
+    return;
+  }
+
+  if (!negocioId) {
+    setBorderBroError(
+      "No se encontró el negocio asociado al usuario."
+    );
+    return;
+  }
+
+  const historialAnterior =
+    borderBroConversacion
+      .slice(-6)
+      .map((mensaje) => {
+        const autor =
+          mensaje.rol === "user"
+            ? "Usuario"
+            : "BorderBro";
+
+        return `${autor}: ${mensaje.texto}`;
+      })
+      .join("\n");
+
+  const mensajeParaAgente =
+    historialAnterior
+      ? `Contexto reciente de la conversación:
+${historialAnterior}
+
+Nueva pregunta del usuario:
+${pregunta}`
+      : pregunta;
+
+  setBorderBroConversacion((actual) => [
+    ...actual,
+    {
+      rol: "user",
+      texto: pregunta,
+      evidencia: [],
+    },
+  ]);
+
+  setBorderBroMensaje("");
+  setBorderBroError("");
+  setBorderBroCargando(true);
+  setBorderBroEstado("thinking");
+
+  try {
+    const respuesta = await fetch(
+      `${API_BASE_URL}/api/borderbro/chat`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mensaje: mensajeParaAgente,
+          negocio_id: Number(negocioId),
+          fecha_inicio:
+            rangoSeleccionado.inicio,
+          fecha_fin:
+            rangoSeleccionado.fin,
+        }),
+      }
+    );
+
+    const resultado = await respuesta.json();
+
+    if (
+      !respuesta.ok ||
+      !resultado.success
+    ) {
+      throw new Error(
+        resultado.error ||
+          "BorderBro no pudo completar el análisis."
+      );
+    }
+
+    const textoRespuesta =
+      resultado.respuesta ||
+      "Terminé el análisis, pero no recibí una respuesta textual.";
+
+    const pareceAlerta =
+      /anomal|inusual|raro|alerta|revisar|diferencia|fuera de lo normal/i.test(
+        textoRespuesta
+      );
+
+    setBorderBroEstado(
+      pareceAlerta ? "alert" : "talking"
+    );
+
+    setBorderBroConversacion((actual) => [
+      ...actual,
+      {
+        rol: "assistant",
+        texto: textoRespuesta,
+        evidencia:
+          resultado.evidencia || [],
+        meta: resultado.meta || null,
+      },
+    ]);
+  } catch (error) {
+    console.error(
+      "Error consultando BorderBro:",
+      error
+    );
+
+    setBorderBroError(
+      error.message ||
+        "No fue posible consultar a BorderBro."
+    );
+
+    setBorderBroEstado("normal");
+  } finally {
+    setBorderBroCargando(false);
+  }
+};
+
+const imagenBorderBro =
+  borderBroEstado === "thinking"
+    ? "/borderbro/borderbro-thinking.png"
+    : borderBroEstado === "talking"
+    ? "/borderbro/borderbro-talking.png"
+    : borderBroEstado === "alert"
+    ? "/borderbro/borderbro-alert.png"
+    : "/borderbro/borderbro-normal.png";
 
 const egresosFiltrados = useMemo(() => {
   const texto =
@@ -4332,7 +4506,863 @@ marginBottom: "12px",
             </section>
           </>
         )}
-      </main>
+            </main>
+
+            {/* ======================================================
+          BORDERBRO · AI COPILOT
+      ====================================================== */}
+
+      {!borderBroAbierto && (
+        <button
+          type="button"
+          onClick={() => setBorderBroAbierto(true)}
+          title="Pregúntale a BorderBro"
+          style={{
+            position: "fixed",
+            right: "26px",
+            bottom: "26px",
+            zIndex: 1000,
+            border: "1px solid rgba(255,255,255,.16)",
+            background:
+              "linear-gradient(135deg, #111 0%, #1c1c24 55%, #2a1f3d 100%)",
+            color: "#fff",
+            borderRadius: "22px",
+            padding: "8px 16px 8px 8px",
+            display: "flex",
+            alignItems: "center",
+            gap: "11px",
+            cursor: "pointer",
+            boxShadow:
+              "0 18px 50px rgba(0,0,0,.28), 0 0 0 1px rgba(124,58,237,.08)",
+            fontFamily: "inherit",
+            transition: "all .2s ease",
+          }}
+        >
+          <div
+            style={{
+              width: "54px",
+              height: "54px",
+              borderRadius: "17px",
+              position: "relative",
+              display: "grid",
+              placeItems: "center",
+              background:
+                "linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.04))",
+              border: "1px solid rgba(255,255,255,.14)",
+            }}
+          >
+            <img
+              src="/borderbro/borderbro-button.png"
+              alt="BorderBro"
+              style={{
+                width: "49px",
+                height: "49px",
+                objectFit: "contain",
+              }}
+            />
+
+            <div
+              style={{
+                position: "absolute",
+                right: "-3px",
+                top: "-3px",
+                width: "17px",
+                height: "17px",
+                borderRadius: "50%",
+                background:
+                  "linear-gradient(135deg, #8b5cf6, #3b82f6)",
+                border: "2px solid #17171c",
+                display: "grid",
+                placeItems: "center",
+                fontSize: "8px",
+                boxShadow:
+                  "0 0 14px rgba(139,92,246,.65)",
+              }}
+            >
+              ✦
+            </div>
+          </div>
+
+          <div
+            style={{
+              textAlign: "left",
+              paddingRight: "4px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "10px",
+                color: "#aaa",
+                textTransform: "uppercase",
+                letterSpacing: "1.4px",
+                fontWeight: "700",
+              }}
+            >
+              AI Analyst
+            </div>
+
+            <div
+              style={{
+                fontSize: "13px",
+                fontWeight: "750",
+                marginTop: "2px",
+              }}
+            >
+              Pregúntale a BorderBro
+            </div>
+          </div>
+
+          <div
+            style={{
+              color: "#aaa",
+              fontSize: "17px",
+              marginLeft: "2px",
+            }}
+          >
+            ↗
+          </div>
+        </button>
+      )}
+
+      {borderBroAbierto && (
+        <>
+          {/* SOMBRA / OVERLAY */}
+
+          <div
+            onClick={() => setBorderBroAbierto(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 1090,
+              background: "rgba(15,15,20,.18)",
+              backdropFilter: "blur(2px)",
+            }}
+          />
+
+          {/* PANEL */}
+
+          <div
+            style={{
+              position: "fixed",
+              top: "14px",
+              right: "14px",
+              bottom: "14px",
+              width: "min(480px, calc(100vw - 28px))",
+              zIndex: 1200,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              borderRadius: "24px",
+              background:
+                "rgba(250,250,252,.96)",
+              backdropFilter: "blur(22px)",
+              border: "1px solid rgba(255,255,255,.9)",
+              boxShadow:
+                "-10px 20px 70px rgba(0,0,0,.22), 0 0 0 1px rgba(0,0,0,.04)",
+            }}
+          >
+            {/* HEADER IA */}
+
+            <div
+              style={{
+                position: "relative",
+                overflow: "hidden",
+                padding: "18px 18px 17px",
+                background:
+                  "linear-gradient(135deg, #101014 0%, #171720 52%, #241a38 100%)",
+                color: "#fff",
+              }}
+            >
+              {/* GLOW DECORATIVO */}
+
+              <div
+                style={{
+                  position: "absolute",
+                  width: "190px",
+                  height: "190px",
+                  borderRadius: "50%",
+                  right: "-65px",
+                  top: "-95px",
+                  background:
+                    "radial-gradient(circle, rgba(124,58,237,.42) 0%, rgba(124,58,237,0) 68%)",
+                  pointerEvents: "none",
+                }}
+              />
+
+              <div
+                style={{
+                  position: "absolute",
+                  width: "150px",
+                  height: "150px",
+                  borderRadius: "50%",
+                  left: "80px",
+                  bottom: "-120px",
+                  background:
+                    "radial-gradient(circle, rgba(59,130,246,.25) 0%, rgba(59,130,246,0) 70%)",
+                  pointerEvents: "none",
+                }}
+              />
+
+              <div
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "14px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "13px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "64px",
+                      height: "64px",
+                      borderRadius: "20px",
+                      background:
+                        "linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.05))",
+                      border:
+                        "1px solid rgba(255,255,255,.13)",
+                      display: "grid",
+                      placeItems: "center",
+                      position: "relative",
+                      boxShadow:
+                        "inset 0 1px 0 rgba(255,255,255,.1)",
+                    }}
+                  >
+                    <img
+                      src={imagenBorderBro}
+                      alt="BorderBro"
+                      style={{
+                        width: "59px",
+                        height: "59px",
+                        objectFit: "contain",
+                      }}
+                    />
+
+                    <div
+                      style={{
+                        position: "absolute",
+                        right: "-2px",
+                        bottom: "-2px",
+                        width: "18px",
+                        height: "18px",
+                        borderRadius: "50%",
+                        background:
+                          borderBroCargando
+                            ? "#8b5cf6"
+                            : "#22c55e",
+                        border: "3px solid #17171e",
+                        boxShadow: borderBroCargando
+                          ? "0 0 14px rgba(139,92,246,.8)"
+                          : "0 0 10px rgba(34,197,94,.5)",
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "7px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "18px",
+                          fontWeight: "800",
+                          letterSpacing: "-.3px",
+                        }}
+                      >
+                        BorderBro
+                      </div>
+
+                      <div
+                        style={{
+                          padding: "3px 7px",
+                          borderRadius: "999px",
+                          background:
+                            "linear-gradient(135deg, rgba(139,92,246,.28), rgba(59,130,246,.20))",
+                          border:
+                            "1px solid rgba(167,139,250,.25)",
+                          fontSize: "8px",
+                          letterSpacing: "1px",
+                          fontWeight: "800",
+                          color: "#ddd6fe",
+                        }}
+                      >
+                        AI
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: "3px",
+                        fontSize: "11px",
+                        color: "#a5a5b0",
+                      }}
+                    >
+                      Analista financiero de BOSSE
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setBorderBroAbierto(false)
+                  }
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "12px",
+                    border:
+                      "1px solid rgba(255,255,255,.1)",
+                    background:
+                      "rgba(255,255,255,.06)",
+                    color: "#ddd",
+                    cursor: "pointer",
+                    fontSize: "18px",
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* CONTEXTO */}
+
+              <div
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "7px",
+                  marginTop: "14px",
+                  padding: "8px 10px",
+                  borderRadius: "11px",
+                  background:
+                    "rgba(255,255,255,.055)",
+                  border:
+                    "1px solid rgba(255,255,255,.07)",
+                  color: "#b7b7c1",
+                  fontSize: "10px",
+                }}
+              >
+                <span
+                  style={{
+                    width: "6px",
+                    height: "6px",
+                    borderRadius: "50%",
+                    background: "#8b5cf6",
+                    boxShadow:
+                      "0 0 8px rgba(139,92,246,.8)",
+                  }}
+                />
+
+                Analizando contexto de
+
+                <strong
+                  style={{
+                    color: "#fff",
+                    fontWeight: "650",
+                  }}
+                >
+                  {formatoFecha(
+                    rangoSeleccionado.inicio
+                  )}
+                  {" — "}
+                  {formatoFecha(
+                    rangoSeleccionado.fin
+                  )}
+                </strong>
+              </div>
+            </div>
+
+            {/* ÁREA CHAT */}
+
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "18px",
+                background:
+                  "linear-gradient(180deg, #f7f7fa 0%, #fbfbfc 100%)",
+              }}
+            >
+              {/* STARTER */}
+
+              {borderBroConversacion.length <= 1 && (
+                <div
+                  style={{
+                    marginBottom: "20px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "20px",
+                      fontWeight: "750",
+                      letterSpacing: "-.5px",
+                      color: "#18181b",
+                    }}
+                  >
+                    ¿Qué quieres analizar?
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: "5px",
+                      fontSize: "12px",
+                      lineHeight: 1.5,
+                      color: "#71717a",
+                    }}
+                  >
+                    Puedo cruzar tus datos de ingresos,
+                    egresos, nómina y cortes para buscar
+                    patrones y oportunidades.
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(2, minmax(0, 1fr))",
+                      gap: "8px",
+                      marginTop: "15px",
+                    }}
+                  >
+                    {preguntasBorderBro.map(
+                      (pregunta, index) => (
+                        <button
+                          key={pregunta}
+                          type="button"
+                          disabled={borderBroCargando}
+                          onClick={() =>
+                            enviarPreguntaBorderBro(
+                              pregunta
+                            )
+                          }
+                          style={{
+                            minHeight: "78px",
+                            border:
+                              "1px solid #e5e5ea",
+                            background: "#fff",
+                            borderRadius: "14px",
+                            padding: "11px",
+                            textAlign: "left",
+                            cursor:
+                              borderBroCargando
+                                ? "not-allowed"
+                                : "pointer",
+                            boxShadow:
+                              "0 2px 8px rgba(0,0,0,.025)",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "15px",
+                              marginBottom: "7px",
+                            }}
+                          >
+                            {index === 0
+                              ? "↘"
+                              : index === 1
+                              ? "↔"
+                              : index === 2
+                              ? "✦"
+                              : "⌁"}
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize: "10px",
+                              lineHeight: 1.35,
+                              fontWeight: "650",
+                              color: "#3f3f46",
+                            }}
+                          >
+                            {pregunta}
+                          </div>
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* MENSAJES */}
+
+              {borderBroConversacion.map(
+                (mensaje, index) => {
+                  const esUsuario =
+                    mensaje.rol === "user";
+
+                  return (
+                    <div
+                      key={`${mensaje.rol}-${index}`}
+                      style={{
+                        display: "flex",
+                        flexDirection: esUsuario
+                          ? "row-reverse"
+                          : "row",
+                        alignItems: "flex-start",
+                        gap: "9px",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      {!esUsuario && (
+                        <div
+                          style={{
+                            width: "34px",
+                            height: "34px",
+                            flexShrink: 0,
+                            borderRadius: "11px",
+                            background:
+                              "linear-gradient(145deg, #18181b, #302542)",
+                            display: "grid",
+                            placeItems: "center",
+                          }}
+                        >
+                          <img
+                            src="/borderbro/borderbro-inline.png"
+                            alt="BorderBro"
+                            style={{
+                              width: "31px",
+                              height: "31px",
+                              objectFit:
+                                "contain",
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      <div
+                        style={{
+                          maxWidth: esUsuario
+                            ? "78%"
+                            : "86%",
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: esUsuario
+                              ? "10px 13px"
+                              : "12px 13px",
+                            borderRadius: esUsuario
+                              ? "16px 5px 16px 16px"
+                              : "5px 16px 16px 16px",
+                            background: esUsuario
+                              ? "linear-gradient(135deg, #18181b, #27272a)"
+                              : "#fff",
+                            color: esUsuario
+                              ? "#fff"
+                              : "#27272a",
+                            border: esUsuario
+                              ? "none"
+                              : "1px solid #e7e7eb",
+                            boxShadow: esUsuario
+                              ? "0 5px 15px rgba(0,0,0,.12)"
+                              : "0 3px 12px rgba(0,0,0,.035)",
+                            fontSize: "12px",
+                            lineHeight: 1.6,
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {mensaje.texto}
+                        </div>
+
+                        {!esUsuario &&
+                          mensaje.meta
+                            ?.herramientas_utilizadas
+                            ?.length > 0 && (
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems:
+                                  "center",
+                                gap: "5px",
+                                marginTop: "7px",
+                                color: "#8b5cf6",
+                                fontSize: "9px",
+                                fontWeight: "650",
+                              }}
+                            >
+                              ✦{" "}
+                              {mensaje.meta
+                                .cantidad_consultas ||
+                                mensaje.meta
+                                  .herramientas_utilizadas
+                                  .length}{" "}
+                              consultas realizadas
+                            </div>
+                          )}
+
+                        {!esUsuario &&
+                          mensaje.evidencia
+                            ?.length > 0 && (
+                            <details
+                              style={{
+                                marginTop: "7px",
+                                fontSize: "10px",
+                                color: "#71717a",
+                              }}
+                            >
+                              <summary
+                                style={{
+                                  cursor:
+                                    "pointer",
+                                  fontWeight:
+                                    "650",
+                                }}
+                              >
+                                Ver datos utilizados
+                              </summary>
+
+                              <pre
+                                style={{
+                                  marginTop: "7px",
+                                  padding: "10px",
+                                  background:
+                                    "#f1f1f4",
+                                  borderRadius:
+                                    "10px",
+                                  overflowX:
+                                    "auto",
+                                  whiteSpace:
+                                    "pre-wrap",
+                                  fontSize:
+                                    "9px",
+                                }}
+                              >
+                                {JSON.stringify(
+                                  mensaje.evidencia,
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            </details>
+                          )}
+                      </div>
+                    </div>
+                  );
+                }
+              )}
+
+              {/* PENSANDO */}
+
+              {borderBroCargando && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "9px",
+                    alignItems: "center",
+                    marginTop: "4px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "42px",
+                      height: "42px",
+                      borderRadius: "13px",
+                      background:
+                        "linear-gradient(145deg, #18181b, #33264b)",
+                      display: "grid",
+                      placeItems: "center",
+                      boxShadow:
+                        "0 0 22px rgba(139,92,246,.16)",
+                    }}
+                  >
+                    <img
+                      src="/borderbro/borderbro-thinking.png"
+                      alt="BorderBro analizando"
+                      style={{
+                        width: "39px",
+                        height: "39px",
+                        objectFit: "contain",
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: "700",
+                        color: "#3f3f46",
+                      }}
+                    >
+                      Analizando tus datos...
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: "9px",
+                        color: "#a1a1aa",
+                        marginTop: "2px",
+                      }}
+                    >
+                      BorderBro está consultando BOSSE
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {borderBroError && (
+                <div
+                  style={{
+                    marginTop: "12px",
+                    padding: "11px 12px",
+                    borderRadius: "12px",
+                    background: "#fff1f2",
+                    border: "1px solid #fecdd3",
+                    color: "#9f1239",
+                    fontSize: "11px",
+                  }}
+                >
+                  {borderBroError}
+                </div>
+              )}
+            </div>
+
+            {/* COMPOSER */}
+
+            <div
+              style={{
+                padding: "12px 14px 14px",
+                background:
+                  "rgba(255,255,255,.95)",
+                borderTop: "1px solid #ececf0",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: "8px",
+                  padding: "6px 6px 6px 12px",
+                  borderRadius: "16px",
+                  background: "#fff",
+                  border:
+                    "1px solid #dedee5",
+                  boxShadow:
+                    "0 5px 20px rgba(0,0,0,.055), 0 0 0 3px rgba(139,92,246,.025)",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#8b5cf6",
+                    fontSize: "14px",
+                    alignSelf: "center",
+                  }}
+                >
+                  ✦
+                </div>
+
+                <textarea
+                  value={borderBroMensaje}
+                  disabled={borderBroCargando}
+                  onChange={(e) =>
+                    setBorderBroMensaje(
+                      e.target.value
+                    )
+                  }
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === "Enter" &&
+                      !e.shiftKey
+                    ) {
+                      e.preventDefault();
+                      enviarPreguntaBorderBro();
+                    }
+                  }}
+                  placeholder="Pregunta sobre tus datos..."
+                  rows={2}
+                  style={{
+                    flex: 1,
+                    resize: "none",
+                    border: "none",
+                    background:
+                      "transparent",
+                    padding: "8px 2px",
+                    fontFamily: "inherit",
+                    fontSize: "12px",
+                    outline: "none",
+                    color: "#27272a",
+                    boxSizing:
+                      "border-box",
+                  }}
+                />
+
+                <button
+                  type="button"
+                  disabled={
+                    borderBroCargando ||
+                    !borderBroMensaje.trim()
+                  }
+                  onClick={() =>
+                    enviarPreguntaBorderBro()
+                  }
+                  style={{
+                    width: "39px",
+                    height: "39px",
+                    flexShrink: 0,
+                    border: "none",
+                    borderRadius: "12px",
+                    background:
+                      borderBroCargando ||
+                      !borderBroMensaje.trim()
+                        ? "#e4e4e7"
+                        : "linear-gradient(135deg, #18181b, #33264b)",
+                    color: "#fff",
+                    cursor:
+                      borderBroCargando ||
+                      !borderBroMensaje.trim()
+                        ? "not-allowed"
+                        : "pointer",
+                    fontSize: "17px",
+                    boxShadow:
+                      borderBroCargando ||
+                      !borderBroMensaje.trim()
+                        ? "none"
+                        : "0 5px 14px rgba(0,0,0,.16)",
+                  }}
+                >
+                  ↑
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent:
+                    "center",
+                  gap: "5px",
+                  marginTop: "8px",
+                  color: "#a1a1aa",
+                  fontSize: "8px",
+                  letterSpacing: ".2px",
+                }}
+              >
+                <span
+                  style={{
+                    color: "#8b5cf6",
+                  }}
+                >
+                  ✦
+                </span>
+                Powered by BOSSE Intelligence
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

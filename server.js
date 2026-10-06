@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
@@ -7,7 +9,13 @@ const multer = require('multer');
 const fs = require('fs');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
+const OpenAI = require('openai');
+
 const app = express();
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // Configuración de CORS más robusta
 app.use(cors({
@@ -9565,6 +9573,3462 @@ app.get("/api/cortes/:id", async (req, res) => {
       error:
         error.message ||
         "No fue posible consultar el detalle del corte.",
+    });
+  }
+});
+
+// ============================================================
+// BORDERBRO - HERRAMIENTAS DE DATOS
+// ============================================================
+
+async function borderBroObtenerResumenFinanciero({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const negocioIdNumero = Number(negocioId);
+
+  if (
+    !Number.isInteger(negocioIdNumero) ||
+    negocioIdNumero <= 0
+  ) {
+    throw new Error("negocio_id no válido.");
+  }
+
+  const result = await pool.query(
+    `
+    SELECT
+      COALESCE(
+        SUM(
+          CASE
+            WHEN naturaleza = 'INGRESO'
+            THEN monto_mxn
+            ELSE 0
+          END
+        ),
+        0
+      ) AS total_ingresos,
+
+      COALESCE(
+        SUM(
+          CASE
+            WHEN naturaleza = 'EGRESO'
+            THEN monto_mxn
+            ELSE 0
+          END
+        ),
+        0
+      ) AS total_egresos,
+
+      COALESCE(
+        SUM(
+          CASE
+            WHEN naturaleza = 'EGRESO'
+              AND es_nomina = TRUE
+            THEN monto_mxn
+            ELSE 0
+          END
+        ),
+        0
+      ) AS total_nomina,
+
+      COALESCE(
+        SUM(
+          CASE
+            WHEN naturaleza = 'RESULTADO_CAMBIARIO'
+            THEN monto_con_signo
+            ELSE 0
+          END
+        ),
+        0
+      ) AS resultado_cambiario,
+
+      COALESCE(
+        SUM(monto_con_signo),
+        0
+      ) AS gm
+
+    FROM vw_analisis_movimientos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera
+        BETWEEN $2::date AND $3::date
+      AND incluir_calculo = TRUE
+    `,
+    [
+      negocioIdNumero,
+      fechaInicio,
+      fechaFin,
+    ]
+  );
+
+  const fila = result.rows[0];
+
+  const totalIngresos =
+    Number(fila.total_ingresos) || 0;
+
+  const totalEgresos =
+    Number(fila.total_egresos) || 0;
+
+  const totalNomina =
+    Number(fila.total_nomina) || 0;
+
+  const resultadoCambiario =
+    Number(fila.resultado_cambiario) || 0;
+
+  const gm =
+    Number(fila.gm) || 0;
+
+  const gpm =
+    totalIngresos > 0
+      ? (gm / totalIngresos) * 100
+      : 0;
+
+  return {
+    periodo: {
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    },
+
+    total_ingresos: totalIngresos,
+    total_egresos: totalEgresos,
+
+    total_nomina: totalNomina,
+
+    total_egresos_operativos:
+      totalEgresos - totalNomina,
+
+    resultado_cambiario: resultadoCambiario,
+
+    gm,
+    gpm,
+  };
+}
+
+// ============================================================
+// BORDERBRO - EGRESOS POR CATEGORÍA
+// ============================================================
+
+async function borderBroObtenerEgresosPorCategoria({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const negocioIdNumero = Number(negocioId);
+
+  if (
+    !Number.isInteger(negocioIdNumero) ||
+    negocioIdNumero <= 0
+  ) {
+    throw new Error("negocio_id no válido.");
+  }
+
+  const result = await pool.query(
+    `
+    SELECT
+      COALESCE(categoria, 'Sin categoría') AS categoria,
+      COUNT(*) AS cantidad_movimientos,
+      COALESCE(SUM(monto_mxn), 0) AS total_mxn
+
+    FROM vw_analisis_egresos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera
+        BETWEEN $2::date AND $3::date
+      AND incluir_calculo = TRUE
+
+    GROUP BY
+      COALESCE(categoria, 'Sin categoría')
+
+    ORDER BY
+      total_mxn DESC
+    `,
+    [
+      negocioIdNumero,
+      fechaInicio,
+      fechaFin,
+    ]
+  );
+
+  const categorias = result.rows.map((fila) => ({
+    categoria: fila.categoria,
+
+    cantidad_movimientos:
+      Number(fila.cantidad_movimientos) || 0,
+
+    total_mxn:
+      Number(fila.total_mxn) || 0,
+  }));
+
+  const totalEgresos = categorias.reduce(
+    (acumulado, categoria) =>
+      acumulado + categoria.total_mxn,
+    0
+  );
+
+  return {
+    periodo: {
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    },
+
+    total_egresos: totalEgresos,
+
+    categorias: categorias.map((categoria) => ({
+      ...categoria,
+
+      porcentaje:
+        totalEgresos > 0
+          ? (categoria.total_mxn / totalEgresos) * 100
+          : 0,
+    })),
+  };
+}
+
+// ============================================================
+// BORDERBRO - EGRESOS POR USUARIO
+// ============================================================
+
+async function borderBroObtenerEgresosPorUsuario({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const result = await pool.query(
+    `
+    SELECT
+      COALESCE(usuario_nombre, 'Sin usuario') AS usuario,
+      COUNT(*) AS cantidad_movimientos,
+      COALESCE(SUM(monto_mxn), 0) AS total_mxn,
+      COALESCE(AVG(monto_mxn), 0) AS promedio_mxn,
+      COALESCE(MAX(monto_mxn), 0) AS mayor_movimiento_mxn
+
+    FROM vw_analisis_egresos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera BETWEEN $2::date AND $3::date
+      AND incluir_calculo = TRUE
+
+    GROUP BY COALESCE(usuario_nombre, 'Sin usuario')
+
+    ORDER BY total_mxn DESC
+    `,
+    [Number(negocioId), fechaInicio, fechaFin]
+  );
+
+  return {
+    periodo: {
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    },
+
+    usuarios: result.rows.map((fila) => ({
+      usuario: fila.usuario,
+      cantidad_movimientos:
+        Number(fila.cantidad_movimientos) || 0,
+      total_mxn:
+        Number(fila.total_mxn) || 0,
+      promedio_mxn:
+        Number(fila.promedio_mxn) || 0,
+      mayor_movimiento_mxn:
+        Number(fila.mayor_movimiento_mxn) || 0,
+    })),
+  };
+}
+
+
+// ============================================================
+// BORDERBRO - EGRESOS SIN CONCEPTO
+// ============================================================
+
+async function borderBroObtenerEgresosSinConcepto({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const resumenResult = await pool.query(
+    `
+    SELECT
+      COALESCE(usuario_nombre, 'Sin usuario') AS usuario,
+      COUNT(*) AS cantidad_movimientos,
+      COALESCE(SUM(monto_mxn), 0) AS total_mxn
+
+    FROM vw_analisis_egresos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera BETWEEN $2::date AND $3::date
+      AND incluir_calculo = TRUE
+
+      AND (
+        concepto IS NULL
+        OR BTRIM(concepto) = ''
+      )
+
+    GROUP BY COALESCE(usuario_nombre, 'Sin usuario')
+
+    ORDER BY total_mxn DESC
+    `,
+    [Number(negocioId), fechaInicio, fechaFin]
+  );
+
+  const detalleResult = await pool.query(
+    `
+    SELECT
+      egreso_id,
+      fecha_financiera,
+      monto_mxn,
+      categoria,
+      proveedor,
+      referencia,
+      usuario_nombre
+
+    FROM vw_analisis_egresos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera BETWEEN $2::date AND $3::date
+      AND incluir_calculo = TRUE
+
+      AND (
+        concepto IS NULL
+        OR BTRIM(concepto) = ''
+      )
+
+    ORDER BY monto_mxn DESC
+
+    LIMIT 100
+    `,
+    [Number(negocioId), fechaInicio, fechaFin]
+  );
+
+  const total = resumenResult.rows.reduce(
+    (acumulado, fila) =>
+      acumulado + Number(fila.total_mxn || 0),
+    0
+  );
+
+  const cantidad = resumenResult.rows.reduce(
+    (acumulado, fila) =>
+      acumulado +
+      Number(fila.cantidad_movimientos || 0),
+    0
+  );
+
+  return {
+    periodo: {
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    },
+
+    cantidad_movimientos: cantidad,
+    total_mxn: total,
+
+    por_usuario: resumenResult.rows.map((fila) => ({
+      usuario: fila.usuario,
+      cantidad_movimientos:
+        Number(fila.cantidad_movimientos) || 0,
+      total_mxn:
+        Number(fila.total_mxn) || 0,
+    })),
+
+    movimientos_mayores:
+      detalleResult.rows.map((fila) => ({
+        egreso_id: fila.egreso_id,
+        fecha_financiera: fila.fecha_financiera,
+        monto_mxn: Number(fila.monto_mxn) || 0,
+        categoria: fila.categoria,
+        proveedor: fila.proveedor,
+        referencia: fila.referencia,
+        usuario:
+          fila.usuario_nombre || "Sin usuario",
+      })),
+  };
+}
+
+
+// ============================================================
+// BORDERBRO - COMPARAR PERIODO ACTUAL VS PERIODO ANTERIOR
+// ============================================================
+
+async function borderBroCompararPeriodos({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const periodoAnterior =
+    obtenerPeriodoComparable(fechaInicio, fechaFin);
+
+  const actual =
+    await borderBroObtenerResumenFinanciero({
+      negocioId,
+      fechaInicio,
+      fechaFin,
+    });
+
+  const anterior =
+    await borderBroObtenerResumenFinanciero({
+      negocioId,
+      fechaInicio: periodoAnterior.fecha_inicio,
+      fechaFin: periodoAnterior.fecha_fin,
+    });
+
+  const categoriasActual =
+    await borderBroObtenerEgresosPorCategoria({
+      negocioId,
+      fechaInicio,
+      fechaFin,
+    });
+
+  const categoriasAnterior =
+    await borderBroObtenerEgresosPorCategoria({
+      negocioId,
+      fechaInicio: periodoAnterior.fecha_inicio,
+      fechaFin: periodoAnterior.fecha_fin,
+    });
+
+  const variacion = (valorActual, valorAnterior) => {
+    const actualNumero = Number(valorActual || 0);
+    const anteriorNumero = Number(valorAnterior || 0);
+
+    return {
+      actual: actualNumero,
+      anterior: anteriorNumero,
+
+      diferencia:
+        actualNumero - anteriorNumero,
+
+      porcentaje:
+        anteriorNumero !== 0
+          ? (
+              (actualNumero - anteriorNumero) /
+              Math.abs(anteriorNumero)
+            ) * 100
+          : actualNumero === 0
+          ? 0
+          : null,
+    };
+  };
+
+  const mapaActual = new Map(
+    categoriasActual.categorias.map((item) => [
+      item.categoria,
+      item.total_mxn,
+    ])
+  );
+
+  const mapaAnterior = new Map(
+    categoriasAnterior.categorias.map((item) => [
+      item.categoria,
+      item.total_mxn,
+    ])
+  );
+
+  const nombresCategorias = new Set([
+    ...mapaActual.keys(),
+    ...mapaAnterior.keys(),
+  ]);
+
+  const cambiosCategorias =
+    Array.from(nombresCategorias)
+      .map((categoria) => {
+        const valorActual =
+          Number(mapaActual.get(categoria) || 0);
+
+        const valorAnterior =
+          Number(mapaAnterior.get(categoria) || 0);
+
+        return {
+          categoria,
+
+          ...variacion(
+            valorActual,
+            valorAnterior
+          ),
+        };
+      })
+      .sort(
+        (a, b) =>
+          Math.abs(b.diferencia) -
+          Math.abs(a.diferencia)
+      );
+
+  return {
+    tipo_comparacion:
+      periodoAnterior.tipo,
+
+    descripcion:
+      periodoAnterior.descripcion,
+
+    periodo_actual: {
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    },
+
+    periodo_anterior: {
+      fecha_inicio:
+        periodoAnterior.fecha_inicio,
+
+      fecha_fin:
+        periodoAnterior.fecha_fin,
+    },
+
+    ingresos: variacion(
+      actual.total_ingresos,
+      anterior.total_ingresos
+    ),
+
+    egresos: variacion(
+      actual.total_egresos,
+      anterior.total_egresos
+    ),
+
+    nomina: variacion(
+      actual.total_nomina,
+      anterior.total_nomina
+    ),
+
+    gm: variacion(
+      actual.gm,
+      anterior.gm
+    ),
+
+    gpm: {
+      actual: actual.gpm,
+      anterior: anterior.gpm,
+
+      diferencia_pp:
+        actual.gpm - anterior.gpm,
+    },
+
+    principales_cambios_egresos:
+      cambiosCategorias
+        .filter(
+          (item) => item.diferencia !== 0
+        )
+        .slice(0, 10),
+  };
+}
+
+// ============================================================
+// BORDERBRO - DETALLE DE EGRESOS
+// ============================================================
+
+async function borderBroObtenerDetalleEgresos({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const result = await pool.query(
+    `
+    SELECT
+      egreso_id,
+      fecha_financiera,
+      tipo_egreso,
+      monto_mxn,
+      categoria,
+      proveedor,
+      concepto,
+      referencia,
+      cuenta,
+      usuario_nombre,
+      es_nomina,
+      estatus
+
+    FROM vw_analisis_egresos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera BETWEEN $2::date AND $3::date
+      AND incluir_calculo = TRUE
+
+    ORDER BY monto_mxn DESC, fecha_financiera DESC
+
+    LIMIT 200
+    `,
+    [
+      Number(negocioId),
+      fechaInicio,
+      fechaFin,
+    ]
+  );
+
+  const movimientos =
+    result.rows.map((fila) => ({
+      egreso_id: fila.egreso_id,
+      fecha_financiera:
+        fila.fecha_financiera,
+
+      tipo_egreso:
+        fila.tipo_egreso || "Sin tipo",
+
+      monto_mxn:
+        Number(fila.monto_mxn) || 0,
+
+      categoria:
+        fila.categoria || "Sin categoría",
+
+      proveedor:
+        fila.proveedor || "Sin proveedor",
+
+      concepto:
+        fila.concepto || "",
+
+      referencia:
+        fila.referencia || "",
+
+      cuenta:
+        fila.cuenta || "",
+
+      usuario:
+        fila.usuario_nombre || "Sin usuario",
+
+      es_nomina:
+        Boolean(fila.es_nomina),
+
+      estatus:
+        fila.estatus || "",
+    }));
+
+  return {
+    periodo: {
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    },
+
+    cantidad_devuelta:
+      movimientos.length,
+
+    limite:
+      200,
+
+    movimientos,
+  };
+}
+
+// ============================================================
+// BORDERBRO - EGRESOS POR PROVEEDOR
+// ============================================================
+
+async function borderBroObtenerEgresosPorProveedor({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const result = await pool.query(
+    `
+    SELECT
+      COALESCE(proveedor, 'Sin proveedor') AS proveedor,
+      COUNT(*) AS cantidad_movimientos,
+      COALESCE(SUM(monto_mxn), 0) AS total_mxn,
+      COALESCE(AVG(monto_mxn), 0) AS promedio_mxn,
+      COALESCE(MAX(monto_mxn), 0) AS mayor_movimiento_mxn
+
+    FROM vw_analisis_egresos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera BETWEEN $2::date AND $3::date
+      AND incluir_calculo = TRUE
+
+    GROUP BY COALESCE(proveedor, 'Sin proveedor')
+
+    ORDER BY total_mxn DESC
+    `,
+    [
+      Number(negocioId),
+      fechaInicio,
+      fechaFin,
+    ]
+  );
+
+  const proveedores = result.rows.map((fila) => ({
+    proveedor: fila.proveedor,
+
+    cantidad_movimientos:
+      Number(fila.cantidad_movimientos) || 0,
+
+    total_mxn:
+      Number(fila.total_mxn) || 0,
+
+    promedio_mxn:
+      Number(fila.promedio_mxn) || 0,
+
+    mayor_movimiento_mxn:
+      Number(fila.mayor_movimiento_mxn) || 0,
+  }));
+
+  const totalEgresos = proveedores.reduce(
+    (acumulado, item) =>
+      acumulado + item.total_mxn,
+    0
+  );
+
+  return {
+    periodo: {
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    },
+
+    total_egresos:
+      totalEgresos,
+
+    proveedores: proveedores.map((item) => ({
+      ...item,
+
+      porcentaje:
+        totalEgresos !== 0
+          ? (item.total_mxn / totalEgresos) * 100
+          : 0,
+    })),
+  };
+}
+
+// ============================================================
+// BORDERBRO - DETECCIÓN DE ANOMALÍAS EN EGRESOS
+// ============================================================
+
+async function borderBroDetectarAnomaliasEgresos({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const result = await pool.query(
+    `
+    SELECT
+      egreso_id,
+      fecha_financiera,
+      monto_mxn,
+      categoria,
+      proveedor,
+      concepto,
+      referencia,
+      cuenta,
+      usuario_nombre
+
+    FROM vw_analisis_egresos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera BETWEEN $2::date AND $3::date
+      AND incluir_calculo = TRUE
+
+    ORDER BY fecha_financiera, egreso_id
+    `,
+    [
+      Number(negocioId),
+      fechaInicio,
+      fechaFin,
+    ]
+  );
+
+  const movimientos = result.rows.map((fila) => ({
+    egreso_id: fila.egreso_id,
+
+    fecha_financiera:
+      fila.fecha_financiera,
+
+    monto_mxn:
+      Number(fila.monto_mxn) || 0,
+
+    categoria:
+      fila.categoria || "Sin categoría",
+
+    proveedor:
+      fila.proveedor || "Sin proveedor",
+
+    concepto:
+      fila.concepto || "",
+
+    referencia:
+      fila.referencia || "",
+
+    cuenta:
+      fila.cuenta || "",
+
+    usuario:
+      fila.usuario_nombre || "Sin usuario",
+  }));
+
+
+  // ----------------------------------------------------------
+  // ESTADÍSTICAS GENERALES
+  // ----------------------------------------------------------
+
+  const montos = movimientos
+    .map((item) => item.monto_mxn)
+    .filter((monto) => monto > 0);
+
+  const promedio =
+    montos.length > 0
+      ? montos.reduce(
+          (total, monto) => total + monto,
+          0
+        ) / montos.length
+      : 0;
+
+  const varianza =
+    montos.length > 0
+      ? montos.reduce(
+          (total, monto) =>
+            total + Math.pow(monto - promedio, 2),
+          0
+        ) / montos.length
+      : 0;
+
+  const desviacionEstandar =
+    Math.sqrt(varianza);
+
+  const umbralMontoInusual =
+    promedio + 2 * desviacionEstandar;
+
+
+  // ----------------------------------------------------------
+  // MONTOS INUSUALMENTE ALTOS
+  // ----------------------------------------------------------
+
+  const montosInusuales =
+    movimientos
+      .filter(
+        (item) =>
+          item.monto_mxn > umbralMontoInusual &&
+          item.monto_mxn > 0
+      )
+      .sort(
+        (a, b) =>
+          b.monto_mxn - a.monto_mxn
+      )
+      .slice(0, 25);
+
+
+  // ----------------------------------------------------------
+  // POSIBLES DUPLICADOS
+  //
+  // Misma fecha + mismo monto + mismo proveedor.
+  // Es una señal para revisión, NO prueba de duplicidad.
+  // ----------------------------------------------------------
+
+  const mapaDuplicados = new Map();
+
+  movimientos.forEach((item) => {
+    const fecha =
+      item.fecha_financiera instanceof Date
+        ? item.fecha_financiera
+            .toISOString()
+            .slice(0, 10)
+        : String(item.fecha_financiera)
+            .slice(0, 10);
+
+    const proveedorNormalizado =
+      String(item.proveedor || "")
+        .trim()
+        .toLowerCase();
+
+    const clave = [
+      fecha,
+      item.monto_mxn.toFixed(2),
+      proveedorNormalizado,
+    ].join("|");
+
+    if (!mapaDuplicados.has(clave)) {
+      mapaDuplicados.set(clave, []);
+    }
+
+    mapaDuplicados.get(clave).push(item);
+  });
+
+  const posiblesDuplicados =
+    Array.from(mapaDuplicados.values())
+      .filter((grupo) => grupo.length > 1)
+      .map((grupo) => ({
+        cantidad:
+          grupo.length,
+
+        monto_individual_mxn:
+          grupo[0].monto_mxn,
+
+        monto_grupo_mxn:
+          grupo.reduce(
+            (total, item) =>
+              total + item.monto_mxn,
+            0
+          ),
+
+        fecha_financiera:
+          grupo[0].fecha_financiera,
+
+        proveedor:
+          grupo[0].proveedor,
+
+        movimientos:
+          grupo.map((item) => ({
+            egreso_id:
+              item.egreso_id,
+
+            concepto:
+              item.concepto,
+
+            referencia:
+              item.referencia,
+
+            usuario:
+              item.usuario,
+          })),
+      }))
+      .sort(
+        (a, b) =>
+          b.monto_grupo_mxn -
+          a.monto_grupo_mxn
+      )
+      .slice(0, 25);
+
+
+  // ----------------------------------------------------------
+  // INFORMACIÓN INCOMPLETA
+  // ----------------------------------------------------------
+
+  const sinProveedor =
+    movimientos.filter(
+      (item) =>
+        !item.proveedor ||
+        item.proveedor === "Sin proveedor"
+    );
+
+  const sinConcepto =
+    movimientos.filter(
+      (item) =>
+        !String(item.concepto || "").trim()
+    );
+
+  const sinReferencia =
+    movimientos.filter(
+      (item) =>
+        !String(item.referencia || "").trim()
+    );
+
+
+  // ----------------------------------------------------------
+  // RESPUESTA
+  // ----------------------------------------------------------
+
+  return {
+    periodo: {
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    },
+
+    resumen: {
+      cantidad_movimientos:
+        movimientos.length,
+
+      promedio_movimiento_mxn:
+        promedio,
+
+      desviacion_estandar_mxn:
+        desviacionEstandar,
+
+      umbral_monto_inusual_mxn:
+        umbralMontoInusual,
+
+      cantidad_montos_inusuales:
+        montosInusuales.length,
+
+      cantidad_grupos_posibles_duplicados:
+        posiblesDuplicados.length,
+
+      cantidad_sin_proveedor:
+        sinProveedor.length,
+
+      cantidad_sin_concepto:
+        sinConcepto.length,
+
+      cantidad_sin_referencia:
+        sinReferencia.length,
+    },
+
+    montos_inusuales:
+      montosInusuales,
+
+    posibles_duplicados:
+      posiblesDuplicados,
+
+    advertencia:
+      "Estas señales son indicadores para revisión y no demuestran por sí mismas errores, duplicidad, fraude o conducta indebida.",
+  };
+}
+
+// ============================================================
+// BORDERBRO - CONCILIACIÓN DE NÓMINA
+// ============================================================
+
+async function borderBroConciliarNomina({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const negocioIdNumero = Number(negocioId);
+
+  if (
+    !Number.isInteger(negocioIdNumero) ||
+    negocioIdNumero <= 0
+  ) {
+    throw new Error(
+      "negocioId inválido para conciliación de nómina."
+    );
+  }
+
+  // ----------------------------------------------------------
+  // 1. PRENÓMINAS APROBADAS QUE TOCAN EL PERIODO
+  // ----------------------------------------------------------
+
+  const prenominasResult = await pool.query(
+    `
+    SELECT
+      id,
+      fecha_inicio,
+      fecha_fin,
+      total,
+      estatus,
+      fecha_creacion,
+      fecha_aprobacion,
+      usuario_aprueba_id
+
+    FROM prenomina
+
+    WHERE negocio_id = $1
+      AND estatus = 'APROBADA'
+      AND fecha_inicio <= $3::date
+      AND fecha_fin >= $2::date
+
+    ORDER BY fecha_inicio, id
+    `,
+    [
+      negocioIdNumero,
+      fechaInicio,
+      fechaFin,
+    ]
+  );
+
+  const prenominasAprobadas =
+    prenominasResult.rows.map((fila) => ({
+      id: Number(fila.id),
+
+      fecha_inicio:
+        fila.fecha_inicio,
+
+      fecha_fin:
+        fila.fecha_fin,
+
+      total:
+        Number(fila.total) || 0,
+
+      estatus:
+        fila.estatus,
+
+      fecha_creacion:
+        fila.fecha_creacion,
+
+      fecha_aprobacion:
+        fila.fecha_aprobacion,
+
+      usuario_aprueba_id:
+        fila.usuario_aprueba_id,
+    }));
+
+  const totalAprobado =
+    prenominasAprobadas.reduce(
+      (total, item) =>
+        total + item.total,
+      0
+    );
+
+
+  // ----------------------------------------------------------
+  // 2. NÓMINA REAL RECONOCIDA EN EGRESOS
+  // ----------------------------------------------------------
+
+  const nominaRealResult = await pool.query(
+    `
+    SELECT
+      egreso_id,
+      fecha_financiera,
+      tipo_egreso,
+      monto_mxn,
+      categoria,
+      proveedor,
+      concepto,
+      referencia,
+      usuario_nombre
+
+    FROM vw_analisis_egresos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera BETWEEN $2::date AND $3::date
+      AND incluir_calculo = TRUE
+      AND es_nomina = TRUE
+
+    ORDER BY fecha_financiera, egreso_id
+    `,
+    [
+      negocioIdNumero,
+      fechaInicio,
+      fechaFin,
+    ]
+  );
+
+  const egresosNominaReconocidos =
+    nominaRealResult.rows.map((fila) => ({
+      egreso_id:
+        fila.egreso_id,
+
+      fecha_financiera:
+        fila.fecha_financiera,
+
+      tipo_egreso:
+        fila.tipo_egreso,
+
+      monto_mxn:
+        Number(fila.monto_mxn) || 0,
+
+      categoria:
+        fila.categoria || "Sin categoría",
+
+      proveedor:
+        fila.proveedor || "Sin proveedor",
+
+      concepto:
+        fila.concepto || "",
+
+      referencia:
+        fila.referencia || "",
+
+      usuario:
+        fila.usuario_nombre || "Sin usuario",
+    }));
+
+  const totalRealReconocido =
+    egresosNominaReconocidos.reduce(
+      (total, item) =>
+        total + item.monto_mxn,
+      0
+    );
+
+
+  // ----------------------------------------------------------
+  // 3. DIFERENCIA
+  // ----------------------------------------------------------
+
+  const diferencia =
+    totalRealReconocido -
+    totalAprobado;
+
+  const diferenciaPorcentaje =
+    totalAprobado !== 0
+      ? (
+          diferencia /
+          Math.abs(totalAprobado)
+        ) * 100
+      : totalRealReconocido === 0
+      ? 0
+      : null;
+
+
+  // ----------------------------------------------------------
+  // 4. EGRESOS QUE PARECEN RELACIONADOS CON NÓMINA,
+  //    PERO NO ESTÁN RECONOCIDOS COMO NÓMINA APROBADA.
+  //
+  //    Son señales para conciliación, NO errores confirmados.
+  // ----------------------------------------------------------
+
+  const posiblesNoConciliadosResult =
+    await pool.query(
+      `
+      SELECT
+        egreso_id,
+        fecha_financiera,
+        tipo_egreso,
+        monto_mxn,
+        categoria,
+        proveedor,
+        concepto,
+        referencia,
+        usuario_nombre
+
+      FROM vw_analisis_egresos
+
+      WHERE negocio_id = $1
+        AND fecha_financiera BETWEEN $2::date AND $3::date
+        AND incluir_calculo = TRUE
+        AND es_nomina = FALSE
+        AND (
+          COALESCE(concepto, '') ILIKE '%nomina%'
+          OR COALESCE(concepto, '') ILIKE '%nómina%'
+          OR COALESCE(categoria, '') ILIKE '%nomina%'
+          OR COALESCE(categoria, '') ILIKE '%nómina%'
+          OR COALESCE(proveedor, '') ILIKE '%nomina%'
+          OR COALESCE(proveedor, '') ILIKE '%nómina%'
+        )
+
+      ORDER BY monto_mxn DESC, fecha_financiera
+      `,
+      [
+        negocioIdNumero,
+        fechaInicio,
+        fechaFin,
+      ]
+    );
+
+  const posiblesNoConciliados =
+    posiblesNoConciliadosResult.rows.map(
+      (fila) => ({
+        egreso_id:
+          fila.egreso_id,
+
+        fecha_financiera:
+          fila.fecha_financiera,
+
+        tipo_egreso:
+          fila.tipo_egreso,
+
+        monto_mxn:
+          Number(fila.monto_mxn) || 0,
+
+        categoria:
+          fila.categoria || "Sin categoría",
+
+        proveedor:
+          fila.proveedor || "Sin proveedor",
+
+        concepto:
+          fila.concepto || "",
+
+        referencia:
+          fila.referencia || "",
+
+        usuario:
+          fila.usuario_nombre || "Sin usuario",
+      })
+    );
+
+  const totalPosiblesNoConciliados =
+    posiblesNoConciliados.reduce(
+      (total, item) =>
+        total + item.monto_mxn,
+      0
+    );
+
+    // ----------------------------------------------------------
+// 5. MATCH INTELIGENTE ENTRE PRENÓMINAS APROBADAS
+//    Y EGRESOS CANDIDATOS
+//
+// Esto NO concilia automáticamente.
+// Solamente genera coincidencias sugeridas.
+// ----------------------------------------------------------
+
+function normalizarTextoNomina(texto) {
+  return String(texto || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function obtenerDiaMes(fecha) {
+  if (!fecha) {
+    return null;
+  }
+
+  const fechaObj = new Date(fecha);
+
+  if (Number.isNaN(fechaObj.getTime())) {
+    return null;
+  }
+
+  return {
+    dia: fechaObj.getUTCDate(),
+    mes: fechaObj.getUTCMonth() + 1,
+  };
+}
+
+function textoMencionaPeriodo(
+  texto,
+  fechaInicioPrenomina,
+  fechaFinPrenomina
+) {
+  const inicio =
+    obtenerDiaMes(fechaInicioPrenomina);
+
+  const fin =
+    obtenerDiaMes(fechaFinPrenomina);
+
+  if (!inicio || !fin) {
+    return false;
+  }
+
+  const textoNormalizado =
+    normalizarTextoNomina(texto);
+
+  const patrones = [
+    `${inicio.dia} ${fin.dia}`,
+    `${inicio.dia}.${fin.dia}`,
+    `${inicio.dia}-${fin.dia}`,
+    `${inicio.dia}/${fin.dia}`,
+    `${inicio.dia}${fin.dia}`,
+  ];
+
+  const textoCompacto =
+    String(texto || "")
+      .toLowerCase()
+      .replace(/\s+/g, "");
+
+  return patrones.some((patron) => {
+    const patronCompacto =
+      patron.replace(/\s+/g, "");
+
+    return (
+      textoNormalizado.includes(
+        normalizarTextoNomina(patron)
+      ) ||
+      textoCompacto.includes(
+        patronCompacto
+      )
+    );
+  });
+}
+
+const coincidenciasSugeridas =
+  prenominasAprobadas.map((prenomina) => {
+    const candidatos =
+      posiblesNoConciliados
+        .map((egreso) => {
+          let puntuacion = 0;
+          const razones = [];
+
+          const textoCompleto = [
+            egreso.concepto,
+            egreso.categoria,
+            egreso.proveedor,
+            egreso.referencia,
+          ].join(" ");
+
+          if (
+            textoMencionaPeriodo(
+              textoCompleto,
+              prenomina.fecha_inicio,
+              prenomina.fecha_fin
+            )
+          ) {
+            puntuacion += 70;
+
+            razones.push(
+              "El texto del egreso menciona el periodo de la prenómina."
+            );
+          }
+
+          const fechaEgreso =
+            obtenerDiaMes(
+              egreso.fecha_financiera
+            );
+
+          const fechaFinPrenomina =
+            obtenerDiaMes(
+              prenomina.fecha_fin
+            );
+
+          if (
+            fechaEgreso &&
+            fechaFinPrenomina
+          ) {
+            const fechaEgresoObj =
+              new Date(
+                egreso.fecha_financiera
+              );
+
+            const fechaFinObj =
+              new Date(
+                prenomina.fecha_fin
+              );
+
+            const diferenciaDias =
+              Math.abs(
+                (
+                  fechaEgresoObj -
+                  fechaFinObj
+                ) /
+                  (
+                    1000 *
+                    60 *
+                    60 *
+                    24
+                  )
+              );
+
+            if (diferenciaDias <= 3) {
+              puntuacion += 20;
+
+              razones.push(
+                "La fecha financiera está muy cerca del cierre de la prenómina."
+              );
+            } else if (
+              diferenciaDias <= 7
+            ) {
+              puntuacion += 10;
+
+              razones.push(
+                "La fecha financiera está cerca del periodo de la prenómina."
+              );
+            }
+          }
+
+          const textoNormalizado =
+            normalizarTextoNomina(
+              textoCompleto
+            );
+
+          if (
+            textoNormalizado.includes(
+              "nomina"
+            )
+          ) {
+            puntuacion += 10;
+
+            razones.push(
+              "El movimiento contiene una referencia textual a nómina."
+            );
+          }
+
+          let confianza = "baja";
+
+          if (puntuacion >= 70) {
+            confianza = "alta";
+          } else if (
+            puntuacion >= 40
+          ) {
+            confianza = "media";
+          }
+
+          return {
+            egreso_id:
+              egreso.egreso_id,
+
+            fecha_financiera:
+              egreso.fecha_financiera,
+
+            monto_mxn:
+              egreso.monto_mxn,
+
+            concepto:
+              egreso.concepto,
+
+            proveedor:
+              egreso.proveedor,
+
+            referencia:
+              egreso.referencia,
+
+            puntuacion,
+
+            confianza,
+
+            razones,
+          };
+        })
+        .filter(
+          (item) =>
+            item.puntuacion >= 40
+        )
+        .sort(
+          (a, b) =>
+            b.puntuacion -
+            a.puntuacion
+        );
+
+    const candidatosAltaConfianza =
+      candidatos.filter(
+        (item) =>
+          item.confianza === "alta"
+      );
+
+    const totalAltaConfianza =
+      candidatosAltaConfianza.reduce(
+        (total, item) =>
+          total + item.monto_mxn,
+        0
+      );
+
+    return {
+      prenomina_id:
+        prenomina.id,
+
+      fecha_inicio:
+        prenomina.fecha_inicio,
+
+      fecha_fin:
+        prenomina.fecha_fin,
+
+      total_aprobado:
+        prenomina.total,
+
+      candidatos,
+
+      cantidad_candidatos:
+        candidatos.length,
+
+      cantidad_alta_confianza:
+        candidatosAltaConfianza.length,
+
+      total_candidatos_alta_confianza:
+        totalAltaConfianza,
+
+      diferencia_si_se_confirmaran:
+        totalAltaConfianza -
+        prenomina.total,
+    };
+  });
+
+
+  // ----------------------------------------------------------
+  // 5. RESPUESTA
+  // ----------------------------------------------------------
+
+  return {
+    periodo: {
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    },
+
+    resumen: {
+      cantidad_prenominas_aprobadas:
+        prenominasAprobadas.length,
+
+      total_nomina_aprobada:
+        totalAprobado,
+
+      cantidad_egresos_nomina_reconocidos:
+        egresosNominaReconocidos.length,
+
+      total_nomina_real_reconocida:
+        totalRealReconocido,
+
+      diferencia,
+
+      diferencia_porcentaje:
+        diferenciaPorcentaje,
+
+      cantidad_posibles_no_conciliados:
+        posiblesNoConciliados.length,
+
+      total_posibles_no_conciliados:
+        totalPosiblesNoConciliados,
+    },
+
+    prenominas_aprobadas:
+      prenominasAprobadas,
+
+    egresos_nomina_reconocidos:
+      egresosNominaReconocidos,
+
+posibles_egresos_nomina_no_conciliados:
+  posiblesNoConciliados,
+
+coincidencias_sugeridas:
+  coincidenciasSugeridas,
+
+advertencia:
+  "Los posibles egresos no conciliados y las coincidencias sugeridas son candidatos para revisión. El matching se basa en fechas y texto, y NO concilia registros automáticamente ni demuestra que un egreso corresponda realmente a una prenómina.",
+  };
+}
+
+// ============================================================
+// BORDERBRO - ANÁLISIS DE INGRESOS
+// ============================================================
+
+async function borderBroAnalizarIngresos({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const negocioIdNumero = Number(negocioId);
+
+  if (
+    !Number.isInteger(negocioIdNumero) ||
+    negocioIdNumero <= 0
+  ) {
+    throw new Error(
+      "negocioId inválido para análisis de ingresos."
+    );
+  }
+
+  // ----------------------------------------------------------
+  // 1. RESUMEN GENERAL
+  // ----------------------------------------------------------
+
+  const resumenResult = await pool.query(
+    `
+    SELECT
+      COUNT(*) AS cantidad_cortes,
+
+      COALESCE(SUM(total_ingresos), 0)
+        AS total_ingresos,
+
+      COALESCE(SUM(venta_ticket), 0)
+        AS venta_ticket,
+
+      COALESCE(SUM(total_cover), 0)
+        AS total_cover,
+
+      COALESCE(SUM(total_tarjetas), 0)
+        AS total_tarjetas,
+
+      COALESCE(SUM(total_efectivo_mxn), 0)
+        AS total_efectivo_mxn,
+
+COALESCE(SUM(total_efectivo_usd), 0)
+  AS total_efectivo_usd,
+
+COALESCE(
+  SUM(
+    COALESCE(total_efectivo_usd, 0)
+    *
+    COALESCE(tipo_cambio, 0)
+  ),
+  0
+) AS total_efectivo_usd_mxn,
+
+COALESCE(
+  SUM(
+    COALESCE(total_efectivo_mxn, 0)
+    +
+    (
+      COALESCE(total_efectivo_usd, 0)
+      *
+      COALESCE(tipo_cambio, 0)
+    )
+  ),
+  0
+) AS total_efectivo_convertido_mxn,
+
+COALESCE(SUM(diferencia), 0)
+  AS diferencia_total,
+
+      COALESCE(AVG(total_ingresos), 0)
+        AS promedio_ingresos_por_corte,
+
+      COALESCE(MAX(total_ingresos), 0)
+        AS mayor_ingreso_corte,
+
+      COALESCE(MIN(total_ingresos), 0)
+        AS menor_ingreso_corte
+
+    FROM vw_analisis_ingresos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera
+        BETWEEN $2::date AND $3::date
+    `,
+    [
+      negocioIdNumero,
+      fechaInicio,
+      fechaFin,
+    ]
+  );
+
+  const resumenDb = resumenResult.rows[0];
+
+  const resumen = {
+    cantidad_cortes:
+      Number(resumenDb.cantidad_cortes) || 0,
+
+    total_ingresos:
+      Number(resumenDb.total_ingresos) || 0,
+
+    venta_ticket:
+      Number(resumenDb.venta_ticket) || 0,
+
+    total_cover:
+      Number(resumenDb.total_cover) || 0,
+
+    total_tarjetas:
+      Number(resumenDb.total_tarjetas) || 0,
+
+    total_efectivo_mxn:
+      Number(resumenDb.total_efectivo_mxn) || 0,
+
+    total_efectivo_usd:
+  Number(resumenDb.total_efectivo_usd) || 0,
+
+total_efectivo_usd_mxn:
+  Number(
+    resumenDb.total_efectivo_usd_mxn
+  ) || 0,
+
+total_efectivo_convertido_mxn:
+  Number(
+    resumenDb.total_efectivo_convertido_mxn
+  ) || 0,
+
+diferencia_total:
+  Number(resumenDb.diferencia_total) || 0,
+
+    promedio_ingresos_por_corte:
+      Number(
+        resumenDb.promedio_ingresos_por_corte
+      ) || 0,
+
+    mayor_ingreso_corte:
+      Number(resumenDb.mayor_ingreso_corte) || 0,
+
+    menor_ingreso_corte:
+      Number(resumenDb.menor_ingreso_corte) || 0,
+  };
+
+
+  // ----------------------------------------------------------
+  // 2. DETALLE DE CORTES / INGRESOS
+  // ----------------------------------------------------------
+
+  const detalleResult = await pool.query(
+    `
+    SELECT
+      corte_id,
+      fecha_registro,
+      fecha_financiera,
+      semana_inicio,
+      semana_fin,
+      folio,
+      total_general,
+      total_cover,
+      total_ingresos,
+      venta_ticket,
+      diferencia,
+      total_tarjetas,
+      total_efectivo_mxn,
+      total_efectivo_usd,
+      tipo_cambio,
+      usuario_nombre,
+      estatus
+
+    FROM vw_analisis_ingresos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera
+        BETWEEN $2::date AND $3::date
+
+    ORDER BY
+      fecha_financiera DESC,
+      corte_id DESC
+
+    LIMIT 200
+    `,
+    [
+      negocioIdNumero,
+      fechaInicio,
+      fechaFin,
+    ]
+  );
+
+  const detalle = detalleResult.rows.map(
+    (fila) => ({
+      corte_id:
+        Number(fila.corte_id),
+
+      fecha_registro:
+        fila.fecha_registro,
+
+      fecha_financiera:
+        fila.fecha_financiera,
+
+      semana_inicio:
+        fila.semana_inicio,
+
+      semana_fin:
+        fila.semana_fin,
+
+      folio:
+        fila.folio,
+
+      total_general:
+        Number(fila.total_general) || 0,
+
+      total_cover:
+        Number(fila.total_cover) || 0,
+
+      total_ingresos:
+        Number(fila.total_ingresos) || 0,
+
+      venta_ticket:
+        Number(fila.venta_ticket) || 0,
+
+      diferencia:
+        Number(fila.diferencia) || 0,
+
+      total_tarjetas:
+        Number(fila.total_tarjetas) || 0,
+
+      total_efectivo_mxn:
+        Number(fila.total_efectivo_mxn) || 0,
+
+      total_efectivo_usd:
+        Number(fila.total_efectivo_usd) || 0,
+
+      tipo_cambio:
+        Number(fila.tipo_cambio) || 0,
+
+      usuario:
+        fila.usuario_nombre || "Sin usuario",
+
+      estatus:
+        fila.estatus,
+    })
+  );
+
+
+  // ----------------------------------------------------------
+  // 3. AGRUPACIÓN POR SEMANA
+  // ----------------------------------------------------------
+
+  const semanasResult = await pool.query(
+    `
+    SELECT
+      semana_inicio,
+      semana_fin,
+
+      COUNT(*) AS cantidad_cortes,
+
+      COALESCE(
+        SUM(total_ingresos),
+        0
+      ) AS total_ingresos,
+
+      COALESCE(
+        SUM(venta_ticket),
+        0
+      ) AS venta_ticket,
+
+      COALESCE(
+        SUM(total_cover),
+        0
+      ) AS total_cover,
+
+      COALESCE(
+        SUM(diferencia),
+        0
+      ) AS diferencia
+
+    FROM vw_analisis_ingresos
+
+    WHERE negocio_id = $1
+      AND fecha_financiera
+        BETWEEN $2::date AND $3::date
+
+    GROUP BY
+      semana_inicio,
+      semana_fin
+
+    ORDER BY
+      semana_inicio
+    `,
+    [
+      negocioIdNumero,
+      fechaInicio,
+      fechaFin,
+    ]
+  );
+
+  const porSemana =
+    semanasResult.rows.map((fila) => ({
+      semana_inicio:
+        fila.semana_inicio,
+
+      semana_fin:
+        fila.semana_fin,
+
+      cantidad_cortes:
+        Number(fila.cantidad_cortes) || 0,
+
+      total_ingresos:
+        Number(fila.total_ingresos) || 0,
+
+      venta_ticket:
+        Number(fila.venta_ticket) || 0,
+
+      total_cover:
+        Number(fila.total_cover) || 0,
+
+      diferencia:
+        Number(fila.diferencia) || 0,
+    }));
+
+
+    return {
+    periodo: {
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    },
+
+    resumen,
+
+    por_semana: porSemana,
+
+    detalle,
+
+    nota:
+      "Los ingresos se obtienen de vw_analisis_ingresos, la misma fuente analítica utilizada por BOSSE.",
+  };
+}
+
+// ============================================================
+// BORDERBRO - ANÁLISIS DE CORTES
+// ============================================================
+
+async function borderBroAnalizarCortes({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const negocioIdNumero = Number(negocioId);
+
+  if (
+    !Number.isInteger(negocioIdNumero) ||
+    negocioIdNumero <= 0
+  ) {
+    throw new Error(
+      "negocioId inválido para análisis de cortes."
+    );
+  }
+
+  const result = await pool.query(
+    `
+    SELECT
+      cc.id AS corte_id,
+      cc.fecha,
+      cc.folio,
+      cc.tipo_cambio,
+
+      COALESCE(cc.total_tarjetas, 0)
+        AS total_tarjetas,
+
+      COALESCE(cc.total_efectivo_mxn, 0)
+        AS total_efectivo_mxn,
+
+      COALESCE(cc.total_efectivo_usd, 0)
+        AS total_efectivo_usd,
+
+      COALESCE(cc.total_general, 0)
+        AS total_general,
+
+      COALESCE(cc.cover_tpv, 0)
+        AS cover_tpv,
+
+      COALESCE(cc.cover_efectivo, 0)
+        AS cover_efectivo,
+
+      COALESCE(cc.cover_usd, 0)
+        AS cover_usd,
+
+      COALESCE(cc.total_cover, 0)
+        AS total_cover,
+
+      COALESCE(cc.venta_ticket, 0)
+        AS venta_ticket,
+
+      COALESCE(cc.diferencia, 0)
+        AS diferencia,
+
+      COALESCE(cc.total_vales, 0)
+        AS total_vales,
+
+      COALESCE(cc.gastos_corte, 0)
+        AS gastos_corte,
+
+      COALESCE(cc.reglamentos, 0)
+        AS reglamentos,
+
+      COALESCE(cc.total_cxc, 0)
+        AS total_cxc,
+
+      cc.responsable_iniciales,
+      cc.created_at,
+      cc.updated_at,
+
+      u.nombre AS usuario_nombre
+
+    FROM corte_caja cc
+
+    LEFT JOIN usuarios u
+      ON u.id = cc.usuario_id
+
+    WHERE cc.negocio_id = $1
+      AND cc.fecha::date
+        BETWEEN $2::date AND $3::date
+
+    ORDER BY cc.fecha DESC, cc.id DESC
+
+    LIMIT 200
+    `,
+    [
+      negocioIdNumero,
+      fechaInicio,
+      fechaFin,
+    ]
+  );
+
+  const cortes = result.rows.map((fila) => {
+    const tipoCambio =
+      Number(fila.tipo_cambio) || 0;
+
+    const efectivoUsd =
+      Number(fila.total_efectivo_usd) || 0;
+
+    const efectivoUsdMxn =
+      efectivoUsd * tipoCambio;
+
+    const efectivoTotalMxn =
+      (Number(fila.total_efectivo_mxn) || 0) +
+      efectivoUsdMxn;
+
+    return {
+      corte_id:
+        Number(fila.corte_id),
+
+      fecha:
+        fila.fecha,
+
+      folio:
+        fila.folio,
+
+      usuario:
+        fila.usuario_nombre || "Sin usuario",
+
+      responsable_iniciales:
+        fila.responsable_iniciales || null,
+
+      tipo_cambio:
+        tipoCambio,
+
+      total_tarjetas:
+        Number(fila.total_tarjetas) || 0,
+
+      total_efectivo_mxn:
+        Number(fila.total_efectivo_mxn) || 0,
+
+      total_efectivo_usd:
+        efectivoUsd,
+
+      efectivo_usd_convertido_mxn:
+        efectivoUsdMxn,
+
+      efectivo_total_convertido_mxn:
+        efectivoTotalMxn,
+
+      total_general:
+        Number(fila.total_general) || 0,
+
+      cover_tpv:
+        Number(fila.cover_tpv) || 0,
+
+      cover_efectivo:
+        Number(fila.cover_efectivo) || 0,
+
+      cover_usd:
+        Number(fila.cover_usd) || 0,
+
+      total_cover:
+        Number(fila.total_cover) || 0,
+
+      venta_ticket:
+        Number(fila.venta_ticket) || 0,
+
+      diferencia:
+        Number(fila.diferencia) || 0,
+
+      total_vales:
+        Number(fila.total_vales) || 0,
+
+      gastos_corte:
+        Number(fila.gastos_corte) || 0,
+
+      reglamentos:
+        Number(fila.reglamentos) || 0,
+
+      total_cxc:
+        Number(fila.total_cxc) || 0,
+
+      created_at:
+        fila.created_at,
+
+      updated_at:
+        fila.updated_at,
+    };
+  });
+
+
+  const resumen = cortes.reduce(
+    (acc, corte) => {
+      acc.cantidad_cortes += 1;
+
+      acc.total_general +=
+        corte.total_general;
+
+      acc.venta_ticket +=
+        corte.venta_ticket;
+
+      acc.total_cover +=
+        corte.total_cover;
+
+      acc.total_tarjetas +=
+        corte.total_tarjetas;
+
+      acc.total_efectivo_mxn +=
+        corte.total_efectivo_mxn;
+
+      acc.total_efectivo_usd +=
+        corte.total_efectivo_usd;
+
+      acc.efectivo_usd_convertido_mxn +=
+        corte.efectivo_usd_convertido_mxn;
+
+      acc.efectivo_total_convertido_mxn +=
+        corte.efectivo_total_convertido_mxn;
+
+      acc.diferencia_total +=
+        corte.diferencia;
+
+      acc.total_vales +=
+        corte.total_vales;
+
+      acc.gastos_corte +=
+        corte.gastos_corte;
+
+      acc.reglamentos +=
+        corte.reglamentos;
+
+      acc.total_cxc +=
+        corte.total_cxc;
+
+      return acc;
+    },
+    {
+      cantidad_cortes: 0,
+      total_general: 0,
+      venta_ticket: 0,
+      total_cover: 0,
+      total_tarjetas: 0,
+      total_efectivo_mxn: 0,
+      total_efectivo_usd: 0,
+      efectivo_usd_convertido_mxn: 0,
+      efectivo_total_convertido_mxn: 0,
+      diferencia_total: 0,
+      total_vales: 0,
+      gastos_corte: 0,
+      reglamentos: 0,
+      total_cxc: 0,
+    }
+  );
+
+
+  const cortesConDiferencia = cortes
+    .filter(
+      (corte) =>
+        Math.abs(corte.diferencia) > 0.01
+    )
+    .sort(
+      (a, b) =>
+        Math.abs(b.diferencia) -
+        Math.abs(a.diferencia)
+    );
+
+
+  const cortesPorUsuarioMap = new Map();
+
+  for (const corte of cortes) {
+    const usuario =
+      corte.usuario || "Sin usuario";
+
+    if (!cortesPorUsuarioMap.has(usuario)) {
+      cortesPorUsuarioMap.set(usuario, {
+        usuario,
+        cantidad_cortes: 0,
+        total_general: 0,
+        venta_ticket: 0,
+        diferencia_total: 0,
+      });
+    }
+
+    const item =
+      cortesPorUsuarioMap.get(usuario);
+
+    item.cantidad_cortes += 1;
+    item.total_general +=
+      corte.total_general;
+    item.venta_ticket +=
+      corte.venta_ticket;
+    item.diferencia_total +=
+      corte.diferencia;
+  }
+
+  const porUsuario =
+    Array.from(
+      cortesPorUsuarioMap.values()
+    ).sort(
+      (a, b) =>
+        b.cantidad_cortes -
+        a.cantidad_cortes
+    );
+
+
+  return {
+    periodo: {
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
+    },
+
+    resumen,
+
+    cortes_con_diferencia:
+      cortesConDiferencia,
+
+    por_usuario:
+      porUsuario,
+
+    detalle:
+      cortes,
+
+    advertencia:
+      "Una diferencia o una composición inusual en un corte es una señal para revisión, no demuestra por sí sola un error, faltante, manipulación o fraude.",
+  };
+}
+
+// ============================================================
+// BORDERBRO - DETECCIÓN DE ANOMALÍAS EN CORTES
+// ============================================================
+
+async function borderBroDetectarAnomaliasCortes({
+  negocioId,
+  fechaInicio,
+  fechaFin,
+}) {
+  const analisis = await borderBroAnalizarCortes({
+    negocioId,
+    fechaInicio,
+    fechaFin,
+  });
+
+  const cortes = analisis.detalle || [];
+
+  if (cortes.length === 0) {
+    return {
+      periodo: analisis.periodo,
+      cantidad_cortes: 0,
+      senales: [],
+      por_usuario: [],
+      mensaje:
+        "No hay cortes disponibles en el periodo para analizar anomalías.",
+    };
+  }
+
+  const promedio = (valores) => {
+    if (!valores.length) return 0;
+
+    return (
+      valores.reduce(
+        (suma, valor) => suma + valor,
+        0
+      ) / valores.length
+    );
+  };
+
+  const desviacion = (valores, media) => {
+    if (valores.length < 2) return 0;
+
+    const varianza =
+      valores.reduce(
+        (suma, valor) =>
+          suma + Math.pow(valor - media, 2),
+        0
+      ) / valores.length;
+
+    return Math.sqrt(varianza);
+  };
+
+  const diferenciasAbsolutas =
+    cortes.map((corte) =>
+      Math.abs(corte.diferencia)
+    );
+
+  const gastosCorte =
+    cortes.map((corte) =>
+      Number(corte.gastos_corte) || 0
+    );
+
+  const reglamentos =
+    cortes.map((corte) =>
+      Number(corte.reglamentos) || 0
+    );
+
+  const mediaDiferencia =
+    promedio(diferenciasAbsolutas);
+
+  const desvDiferencia =
+    desviacion(
+      diferenciasAbsolutas,
+      mediaDiferencia
+    );
+
+  const mediaGastos =
+    promedio(gastosCorte);
+
+  const desvGastos =
+    desviacion(
+      gastosCorte,
+      mediaGastos
+    );
+
+  const mediaReglamentos =
+    promedio(reglamentos);
+
+  const desvReglamentos =
+    desviacion(
+      reglamentos,
+      mediaReglamentos
+    );
+
+  const senales = [];
+
+  for (const corte of cortes) {
+    const totalGeneral =
+      Number(corte.total_general) || 0;
+
+    const diferencia =
+      Number(corte.diferencia) || 0;
+
+    const diferenciaAbsoluta =
+      Math.abs(diferencia);
+
+    const porcentajeDiferencia =
+      totalGeneral > 0
+        ? (diferenciaAbsoluta /
+            totalGeneral) *
+          100
+        : 0;
+
+    const gastos =
+      Number(corte.gastos_corte) || 0;
+
+    const reglamento =
+      Number(corte.reglamentos) || 0;
+
+    const tarjetas =
+      Number(corte.total_tarjetas) || 0;
+
+    const efectivo =
+      Number(
+        corte.efectivo_total_convertido_mxn
+      ) || 0;
+
+    const formasCobro =
+      tarjetas + efectivo;
+
+    const porcentajeTarjetas =
+      formasCobro > 0
+        ? (tarjetas / formasCobro) * 100
+        : 0;
+
+    const porcentajeEfectivo =
+      formasCobro > 0
+        ? (efectivo / formasCobro) * 100
+        : 0;
+
+    const motivos = [];
+    let puntuacion = 0;
+
+    if (
+      diferenciaAbsoluta > 0 &&
+      diferenciaAbsoluta >
+        mediaDiferencia + desvDiferencia
+    ) {
+      motivos.push(
+        "La diferencia absoluta es superior al promedio más una desviación estándar del periodo."
+      );
+
+      puntuacion += 30;
+    }
+
+    if (porcentajeDiferencia >= 0.1) {
+      motivos.push(
+        `La diferencia representa ${porcentajeDiferencia.toFixed(
+          3
+        )}% del total general del corte.`
+      );
+
+      puntuacion += 20;
+    }
+
+    if (
+      gastos > 0 &&
+      gastos >
+        mediaGastos + desvGastos
+    ) {
+      motivos.push(
+        "Los gastos de corte son superiores al promedio más una desviación estándar del periodo."
+      );
+
+      puntuacion += 20;
+    }
+
+    if (
+      reglamento > 0 &&
+      reglamento >
+        mediaReglamentos + desvReglamentos
+    ) {
+      motivos.push(
+        "Los reglamentos son superiores al promedio más una desviación estándar del periodo."
+      );
+
+      puntuacion += 20;
+    }
+
+    if (
+      formasCobro > 0 &&
+      porcentajeEfectivo >= 70
+    ) {
+      motivos.push(
+        `El efectivo representa ${porcentajeEfectivo.toFixed(
+          1
+        )}% de las formas de cobro registradas.`
+      );
+
+      puntuacion += 10;
+    }
+
+    if (
+      formasCobro > 0 &&
+      porcentajeTarjetas >= 90
+    ) {
+      motivos.push(
+        `Las tarjetas representan ${porcentajeTarjetas.toFixed(
+          1
+        )}% de las formas de cobro registradas.`
+      );
+
+      puntuacion += 10;
+    }
+
+    if (
+      !corte.responsable_iniciales
+    ) {
+      motivos.push(
+        "El corte no tiene responsable_iniciales registrado."
+      );
+
+      puntuacion += 5;
+    }
+
+    if (motivos.length > 0) {
+      senales.push({
+        corte_id: corte.corte_id,
+        fecha: corte.fecha,
+        folio: corte.folio,
+        usuario: corte.usuario,
+        responsable_iniciales:
+          corte.responsable_iniciales,
+
+        total_general: totalGeneral,
+
+        diferencia,
+        diferencia_absoluta:
+          diferenciaAbsoluta,
+
+        porcentaje_diferencia:
+          porcentajeDiferencia,
+
+        gastos_corte: gastos,
+        reglamentos: reglamento,
+
+        total_tarjetas: tarjetas,
+
+        efectivo_total_convertido_mxn:
+          efectivo,
+
+        porcentaje_tarjetas:
+          porcentajeTarjetas,
+
+        porcentaje_efectivo:
+          porcentajeEfectivo,
+
+        puntuacion_revision:
+          puntuacion,
+
+        motivos,
+      });
+    }
+  }
+
+  senales.sort(
+    (a, b) =>
+      b.puntuacion_revision -
+        a.puntuacion_revision ||
+      b.diferencia_absoluta -
+        a.diferencia_absoluta
+  );
+
+  const usuariosMap = new Map();
+
+  for (const corte of cortes) {
+    const usuario =
+      corte.usuario || "Sin usuario";
+
+    if (!usuariosMap.has(usuario)) {
+      usuariosMap.set(usuario, {
+        usuario,
+        cantidad_cortes: 0,
+        total_general: 0,
+        diferencia_neta: 0,
+        diferencia_absoluta_acumulada: 0,
+        cortes_con_diferencia: 0,
+      });
+    }
+
+    const item =
+      usuariosMap.get(usuario);
+
+    const diferencia =
+      Number(corte.diferencia) || 0;
+
+    item.cantidad_cortes += 1;
+
+    item.total_general +=
+      Number(corte.total_general) || 0;
+
+    item.diferencia_neta +=
+      diferencia;
+
+    item.diferencia_absoluta_acumulada +=
+      Math.abs(diferencia);
+
+    if (Math.abs(diferencia) > 0.01) {
+      item.cortes_con_diferencia += 1;
+    }
+  }
+
+  const porUsuario =
+    Array.from(
+      usuariosMap.values()
+    ).map((item) => ({
+      ...item,
+
+      porcentaje_cortes_con_diferencia:
+        item.cantidad_cortes > 0
+          ? (
+              (item.cortes_con_diferencia /
+                item.cantidad_cortes) *
+              100
+            )
+          : 0,
+
+      diferencia_absoluta_sobre_volumen:
+        item.total_general > 0
+          ? (
+              (item.diferencia_absoluta_acumulada /
+                item.total_general) *
+              100
+            )
+          : 0,
+    }));
+
+  return {
+    periodo: analisis.periodo,
+
+    cantidad_cortes:
+      cortes.length,
+
+    estadisticas_referencia: {
+      promedio_diferencia_absoluta:
+        mediaDiferencia,
+
+      desviacion_diferencia_absoluta:
+        desvDiferencia,
+
+      promedio_gastos_corte:
+        mediaGastos,
+
+      desviacion_gastos_corte:
+        desvGastos,
+
+      promedio_reglamentos:
+        mediaReglamentos,
+
+      desviacion_reglamentos:
+        desvReglamentos,
+    },
+
+    senales,
+
+    por_usuario:
+      porUsuario,
+
+    advertencia:
+      "Las señales son criterios estadísticos y operativos para priorizar revisiones. No demuestran error, faltante, manipulación, responsabilidad individual ni fraude.",
+  };
+}
+
+
+// ============================================================
+// BORDERBRO - AGENTE ANALÍTICO
+// ============================================================
+
+app.post("/api/borderbro/chat", async (req, res) => {
+  try {
+    const {
+      mensaje,
+      negocio_id,
+      fecha_inicio,
+      fecha_fin,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // VALIDACIONES
+    // --------------------------------------------------------
+
+    if (!mensaje || !String(mensaje).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Escribe una pregunta para BorderBro.",
+      });
+    }
+
+    const negocioId = Number(negocio_id);
+
+    if (
+      !Number.isInteger(negocioId) ||
+      negocioId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "El negocio_id es obligatorio.",
+      });
+    }
+
+    if (!fecha_inicio || !fecha_fin) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "fecha_inicio y fecha_fin son obligatorias.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // HERRAMIENTAS QUE BORDERBRO PUEDE SOLICITAR
+    // --------------------------------------------------------
+
+    const tools = [
+  {
+    type: "function",
+    name: "resumen_financiero",
+
+    description:
+      "Obtiene el resumen financiero general del periodo: ingresos, egresos, nómina, egresos operativos, resultado cambiario, GM y GPM.",
+
+    parameters: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+
+    strict: true,
+
+  },
+
+  {
+    type: "function",
+    name: "egresos_por_categoria",
+
+    description:
+      "Analiza cuánto se gastó en cada categoría, cuántos movimientos hubo y qué porcentaje del gasto representa cada categoría.",
+
+    parameters: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+
+    strict: true,
+  },
+
+  {
+    type: "function",
+    name: "egresos_por_usuario",
+
+    description:
+      "Analiza los egresos registrados por cada usuario. Úsala para preguntas sobre quién registra más gastos, cantidad de movimientos, gasto promedio o movimientos de mayor importe.",
+
+    parameters: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+
+    strict: true,
+  },
+
+  {
+    type: "function",
+    name: "egresos_sin_concepto",
+
+    description:
+      "Busca egresos cuyo concepto está vacío o no fue capturado. Devuelve cantidad, importe total, distribución por usuario y los movimientos sin concepto de mayor importe.",
+
+    parameters: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+
+    strict: true,
+  },
+
+  {
+    type: "function",
+    name: "comparar_periodos",
+
+    description:
+      "Compara el periodo seleccionado con su periodo anterior comparable. Analiza cambios en ingresos, egresos, nómina, GM, GPM y las categorías de egresos que más cambiaron. Úsala para preguntas sobre aumentos, caídas, tendencias o por qué los resultados cambiaron respecto al periodo anterior.",
+
+    parameters: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+
+    strict: true,
+  },
+
+  {
+  type: "function",
+  name: "detalle_egresos",
+
+  description:
+    "Obtiene movimientos individuales de egresos del periodo con fecha, monto, categoría, proveedor, concepto, referencia, cuenta y usuario. Úsala cuando necesites investigar movimientos específicos, importes altos, posibles duplicados, patrones, proveedores, usuarios o explicar qué hay detrás de un total agregado.",
+
+  parameters: {
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  },
+
+  strict: true,
+},
+
+{
+  type: "function",
+  name: "egresos_por_proveedor",
+
+  description:
+    "Analiza cuánto dinero se pagó a cada proveedor, cantidad de movimientos, promedio, movimiento máximo y participación sobre los egresos. Úsala para investigar concentración de gasto y proveedores.",
+
+  parameters: {
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  },
+
+  strict: true,
+},
+
+{
+  type: "function",
+  name: "anomalias_egresos",
+
+  description:
+    "Busca señales que merecen revisión en los egresos: importes estadísticamente inusuales, posibles movimientos duplicados y registros con información incompleta. Las señales no prueban fraude, error ni duplicidad.",
+
+  parameters: {
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  },
+
+  strict: true,
+},
+
+{
+  type: "function",
+  name: "conciliar_nomina",
+
+  description:
+    "Compara la nómina aprobada en el módulo de Prenómina contra la nómina real reconocida en Egresos. También identifica egresos que parecen relacionados con nómina pero que no están conciliados/reconocidos. Úsala para preguntas sobre nómina aprobada, nómina real, diferencias de nómina, conciliación o egresos de nómina no reconocidos.",
+
+  parameters: {
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  },
+
+  strict: true,
+},
+
+{
+  type: "function",
+  name: "analizar_ingresos",
+
+  description:
+    "Analiza los ingresos y ventas de BOSSE para un periodo. Devuelve totales, venta ticket, cover, tarjetas, efectivo, diferencias, cortes individuales y comportamiento semanal. Úsala para investigar ventas, ingresos, mejores o peores semanas, formas de cobro y diferencias en cortes.",
+
+  parameters: {
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  },
+
+  strict: true,
+},
+
+{
+  type: "function",
+  name: "analizar_cortes",
+
+  description:
+    "Analiza los cortes de caja de BOSSE para un periodo. Permite revisar venta ticket, total general, tarjetas, efectivo MXN y USD, cover, diferencias, vales, gastos de corte, reglamentos, cuentas por cobrar y usuarios responsables.",
+
+  parameters: {
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  },
+
+  strict: true,
+},
+
+{
+  type: "function",
+
+  name: "detectar_anomalias_cortes",
+
+  description:
+    "Busca señales que merecen revisión en los cortes de caja: diferencias fuera de lo habitual, diferencias relevantes respecto al volumen del corte, gastos de corte o reglamentos inusuales, composiciones extremas de efectivo o tarjetas y datos incompletos. También compara la actividad por usuario normalizando por cantidad de cortes y volumen. Las señales no prueban errores ni fraude.",
+
+  parameters: {
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  },
+
+  strict: true,
+},
+
+];
+
+    // --------------------------------------------------------
+    // INSTRUCCIONES DEL ANALISTA
+    // --------------------------------------------------------
+
+    const instructions = `
+Eres BorderBro, el analista financiero y operativo de BOSSE.
+
+Tu trabajo es ayudar a socios y administradores a entender
+qué está ocurriendo en su negocio utilizando únicamente
+información proporcionada por las herramientas de BOSSE.
+
+PERIODO ACTUAL DE ANÁLISIS:
+${fecha_inicio} a ${fecha_fin}.
+
+REGLAS OBLIGATORIAS:
+
+1. Nunca inventes cifras, movimientos, causas ni conclusiones.
+
+2. Cuando una pregunta requiera datos, utiliza las herramientas
+   disponibles antes de responder.
+
+3. Puedes utilizar MÁS DE UNA herramienta para resolver una
+   pregunta.
+
+4. Si el resultado de una herramienta indica que necesitas
+   investigar otra dimensión, solicita otra herramienta antes
+   de responder.
+
+5. No tienes acceso directo a PostgreSQL ni debes afirmar que
+   lo tienes. BOSSE ejecuta las consultas por ti.
+
+6. Todos los importes financieros proporcionados por estas
+   herramientas están expresados en MXN.
+
+7. GM significa Gross Margin o margen bruto en pesos.
+
+8. GPM significa Gross Profit Margin y se expresa como porcentaje.
+
+9. Diferencia claramente:
+   - hechos observados;
+   - interpretación;
+   - recomendaciones.
+
+10. Una correlación no demuestra una causa. Si los datos no
+    permiten explicar por qué ocurrió algo, dilo.
+
+11. Nunca acuses a una persona de fraude, robo, manipulación o
+    mala conducta solamente por una anomalía estadística.
+
+12. Si encuentras algo que merece revisión, descríbelo como
+    hallazgo, anomalía o punto para investigar.
+
+13. Si no tienes suficientes datos o herramientas para responder
+    correctamente, dilo claramente. No rellenes los huecos.
+
+14. Para preguntas complejas, primero identifica TODAS las
+    necesidades de información de la pregunta y después utiliza
+    todas las herramientas necesarias antes de responder.
+
+    REGLAS DE SELECCIÓN DE HERRAMIENTAS:
+
+    - Si el usuario pide comparar, habla de cambios, aumentos,
+      disminuciones, "mejor o peor", "mes pasado", "periodo
+      anterior", tendencias o pregunta por qué cambió un
+      resultado, DEBES utilizar "comparar_periodos".
+
+    - Si el usuario pregunta por egresos sin concepto, gastos
+      sin concepto, movimientos incompletos o documentación
+      faltante, DEBES utilizar "egresos_sin_concepto".
+
+    - Si pregunta quién registra egresos, qué usuario registra
+      más, qué cajero registra más gastos o quiere analizar
+      actividad por persona, DEBES utilizar
+      "egresos_por_usuario".
+
+    - Si pregunta en qué categorías se gasta más o cómo se
+      distribuyen los gastos, utiliza
+      "egresos_por_categoria".
+
+    - Si necesita conocer ingresos, egresos totales, nómina,
+      GM o GPM, utiliza "resumen_financiero".
+
+      - Si para responder necesitas investigar movimientos
+  individuales, importes altos, proveedores, conceptos,
+  referencias, usuarios, posibles duplicados o explicar qué
+  movimientos hay detrás de un total, utiliza
+  "detalle_egresos".
+
+- No califiques un movimiento como fraude, robo o irregularidad
+  confirmada únicamente por un patrón estadístico. Puedes señalar
+  movimientos inusuales, posibles duplicados o elementos que
+  conviene revisar y explicar exactamente qué evidencia encontraste.
+
+- Cuando una herramienta agregada revele algo relevante y exista
+  otra herramienta que permita investigarlo con mayor detalle,
+  puedes utilizar esa segunda herramienta antes de responder.
+
+  - Si el usuario pregunta si hay algo raro, extraño,
+  sospechoso, fuera de lo normal o que debería revisar en
+  los egresos, utiliza "anomalias_egresos".
+
+- Si una anomalía requiere entender qué movimientos la
+  componen, utiliza también "detalle_egresos".
+
+- Si necesitas analizar concentración de gasto por proveedor
+  o saber a quién se está pagando más, utiliza
+  "egresos_por_proveedor".
+
+- Una posible coincidencia o anomalía NO significa fraude,
+  robo, duplicidad confirmada ni conducta indebida. Describe
+  el patrón observado y recomienda qué comprobar.
+
+- No atribuyas intenciones a empleados, usuarios o
+  proveedores. Distingue siempre entre hechos observados,
+  señales para revisión e interpretación.
+
+  - Para convertir efectivo USD a MXN, utiliza
+  "total_efectivo_usd_mxn" o
+  "total_efectivo_convertido_mxn" devuelto por BOSSE.
+
+- NO conviertas el total de USD utilizando un tipo de cambio
+  elegido por ti ni asumas que todos los cortes tienen el mismo
+  tipo de cambio.
+
+- "total_efectivo_convertido_mxn" ya representa el efectivo MXN
+  más el efectivo USD convertido utilizando el tipo de cambio
+  correspondiente a cada corte.
+
+  - Si el usuario pregunta específicamente por cortes de caja,
+  cuadre de cortes, diferencias, vales, cuentas por cobrar,
+  gastos de corte, reglamentos, responsables de cortes o
+  composición de un corte, utiliza "analizar_cortes".
+
+- Si la pregunta mezcla ventas con la composición o cuadre de
+  los cortes, puedes utilizar conjuntamente "analizar_ingresos"
+  y "analizar_cortes".
+
+- Una "diferencia" registrada en un corte es un dato contable
+  que debe revisarse en contexto. No la describas
+  automáticamente como faltante, sobrante, robo, error o fraude.
+
+- Los importes en USD deben convertirse utilizando el
+  tipo_cambio del corte correspondiente. No utilices un tipo de
+  cambio global inventado.
+
+- No asumas que tarjetas + efectivo deben ser iguales por sí
+  solos a total_general o total_ingresos. Los cortes también
+  pueden contener otros componentes como cover, vales, cuentas
+  por cobrar, gastos de corte o reglamentos. Investiga la
+  composición antes de concluir que existe una inconsistencia.
+
+- Si detectas algo que merece revisión, identifica el corte por
+  fecha, folio y corte_id y explica exactamente qué dato llamó
+  la atención.
+
+  - Si el usuario pregunta si hay algo raro, inusual, extraño,
+  atípico o que merezca revisión específicamente en los cortes,
+  utiliza "detectar_anomalias_cortes".
+
+- Si necesita entender la composición exacta de los cortes
+  señalados, puedes combinar "detectar_anomalias_cortes" con
+  "analizar_cortes".
+
+- La puntuacion_revision sirve únicamente para ordenar señales.
+  NO es una puntuación de fraude, culpabilidad, desempeño ni
+  responsabilidad.
+
+- Al comparar usuarios, considera simultáneamente cantidad de
+  cortes, volumen total manejado, frecuencia de cortes con
+  diferencia y diferencia absoluta sobre volumen.
+
+- No concluyas que un usuario presenta más problemas simplemente
+  porque tenga una diferencia acumulada mayor. Puede haber
+  procesado más cortes o mayor volumen.
+
+- Una mezcla inusual de efectivo y tarjetas tampoco demuestra
+  irregularidad. Preséntala como un patrón que puede valer la
+  pena revisar en contexto.
+
+- Nunca atribuyas intención, robo, fraude o manipulación a una
+  persona basándote únicamente en estas señales.
+
+  REGLA ESPECIAL SOBRE NÓMINA:
+
+- En BOSSE, un egreso cuyo concepto, proveedor o categoría
+  contiene la palabra "nómina" NO necesariamente forma parte
+  de la nómina aprobada.
+
+- La nómina aprobada proviene del módulo de Prenómina/Nómina
+  y se utiliza como referencia para comparar contra los egresos
+  reales registrados en el módulo de Egresos.
+
+- No asumas que un egreso está mal clasificado únicamente
+  porque su concepto dice "NOMINA" y es_nomina es false.
+
+- Si existen egresos relacionados con nómina que no están
+  conciliados contra una nómina aprobada, descríbelos como
+  egresos de nómina no conciliados/no reconocidos contra una
+  nómina aprobada, no como errores.
+
+- Para evaluar nómina correctamente, compara el monto aprobado
+  contra los egresos reales asociados. No sumes automáticamente
+  como nómina cualquier egreso que contenga la palabra "nómina".
+
+- Si el usuario pregunta por nómina aprobada, nómina real,
+  diferencias de nómina, conciliación de nómina, egresos de
+  nómina no reconocidos o quiere saber si lo pagado coincide
+  con lo aprobado, DEBES utilizar "conciliar_nomina".
+
+- Para esta conciliación, únicamente las prenóminas con estatus
+  APROBADA forman parte del monto aprobado. Las prenóminas
+  PENDIENTES o RECHAZADAS no deben contarse.
+
+- Los movimientos encontrados por texto como posibles egresos
+  de nómina no conciliados son solamente candidatos para revisión.
+  No los sumes automáticamente a la nómina real ni afirmes que
+  debieron aprobarse.
+
+- "coincidencias_sugeridas" representa un matching heurístico
+  entre prenóminas aprobadas y egresos candidatos. No representa
+  una conciliación confirmada.
+
+- Si existe una coincidencia de confianza alta, explica qué
+  elementos produjeron esa coincidencia, por ejemplo periodo,
+  fecha o texto.
+
+- Nunca afirmes que un egreso corresponde definitivamente a una
+  prenómina únicamente porque el matching tenga confianza alta.
+
+- Distingue entre:
+  1. Nómina aprobada.
+  2. Nómina real ya reconocida/conciliada.
+  3. Egresos candidatos todavía no conciliados.
+  4. Coincidencias sugeridas entre una prenómina y esos candidatos.
+
+- Si un candidato menciona explícitamente un periodo diferente
+  al de la prenómina analizada, no lo presentes como una
+  coincidencia probable de esa prenómina.
+
+  - Si el usuario pregunta por ingresos, ventas, venta ticket,
+  cover, tarjetas, efectivo, mejores o peores semanas de venta,
+  diferencias de ingresos o comportamiento de los cortes en
+  términos de ventas, DEBES utilizar "analizar_ingresos".
+
+- Si pregunta por qué los ingresos subieron o bajaron, combina
+  "analizar_ingresos" con "comparar_periodos" cuando sea
+  necesario.
+
+- No confundas total_ingresos con venta_ticket. Trata cada
+  métrica según el significado que devuelve BOSSE.
+
+- Si existen diferencias en los cortes, repórtalas como
+  diferencias registradas. No asumas robo, faltante,
+  manipulación ni error humano sin evidencia adicional.
+
+    Una pregunta puede requerir VARIAS herramientas.
+    No respondas que la información no está disponible sin
+    comprobar primero si existe una herramienta que pueda
+    obtenerla.
+
+15. Responde en español claro y natural.
+
+16. Prioriza conclusiones útiles para un socio del negocio.
+    No te limites a repetir una tabla.
+
+17. Cuando recomiendes una acción, explica qué dato respalda
+    esa recomendación.
+
+18. Sé conciso cuando la pregunta sea sencilla y más detallado
+    cuando el análisis lo requiera.
+`;
+
+    // --------------------------------------------------------
+    // PRIMERA RESPUESTA DEL MODELO
+    // --------------------------------------------------------
+
+    let response = await openai.responses.create({
+      model: "gpt-6-luna",
+
+      instructions,
+
+      input: String(mensaje).trim(),
+
+      tools,
+      tool_choice: "auto",
+    });
+
+    // Guardaremos toda la evidencia utilizada.
+    const evidencia = [];
+
+    // Evita loops infinitos por cualquier error del modelo.
+    const MAX_ITERACIONES = 8;
+
+    let iteracion = 0;
+
+    // --------------------------------------------------------
+    // LOOP ANALÍTICO
+    // --------------------------------------------------------
+
+    while (iteracion < MAX_ITERACIONES) {
+      iteracion += 1;
+
+      const llamadas =
+        response.output.filter(
+          (item) => item.type === "function_call"
+        );
+
+      // Si ya no pide herramientas, terminó su análisis.
+      if (llamadas.length === 0) {
+        break;
+      }
+
+      const toolOutputs = [];
+
+      for (const llamada of llamadas) {
+        let resultado;
+
+        // ----------------------------------------------------
+        // RESUMEN FINANCIERO
+        // ----------------------------------------------------
+
+        if (llamada.name === "resumen_financiero") {
+          resultado =
+            await borderBroObtenerResumenFinanciero({
+              negocioId,
+              fechaInicio: fecha_inicio,
+              fechaFin: fecha_fin,
+            });
+        }
+
+        // ----------------------------------------------------
+        // EGRESOS POR CATEGORÍA
+        // ----------------------------------------------------
+
+        else if (
+          llamada.name === "egresos_por_categoria"
+        ) {
+          resultado =
+            await borderBroObtenerEgresosPorCategoria({
+              negocioId,
+              fechaInicio: fecha_inicio,
+              fechaFin: fecha_fin,
+            });
+        }
+
+        // ----------------------------------------------------
+// EGRESOS POR USUARIO
+// ----------------------------------------------------
+
+else if (
+  llamada.name === "egresos_por_usuario"
+) {
+  resultado =
+    await borderBroObtenerEgresosPorUsuario({
+      negocioId,
+      fechaInicio: fecha_inicio,
+      fechaFin: fecha_fin,
+    });
+}
+
+
+// ----------------------------------------------------
+// EGRESOS SIN CONCEPTO
+// ----------------------------------------------------
+
+else if (
+  llamada.name === "egresos_sin_concepto"
+) {
+  resultado =
+    await borderBroObtenerEgresosSinConcepto({
+      negocioId,
+      fechaInicio: fecha_inicio,
+      fechaFin: fecha_fin,
+    });
+}
+
+
+// ----------------------------------------------------
+// COMPARAR PERIODOS
+// ----------------------------------------------------
+
+else if (
+  llamada.name === "comparar_periodos"
+) {
+  resultado =
+    await borderBroCompararPeriodos({
+      negocioId,
+      fechaInicio: fecha_inicio,
+      fechaFin: fecha_fin,
+    });
+}
+
+// ----------------------------------------------------
+// DETALLE DE EGRESOS
+// ----------------------------------------------------
+
+else if (
+  llamada.name === "detalle_egresos"
+) {
+  resultado =
+    await borderBroObtenerDetalleEgresos({
+      negocioId,
+      fechaInicio: fecha_inicio,
+      fechaFin: fecha_fin,
+    });
+}
+
+// ----------------------------------------------------
+// EGRESOS POR PROVEEDOR
+// ----------------------------------------------------
+
+else if (
+  llamada.name === "egresos_por_proveedor"
+) {
+  resultado =
+    await borderBroObtenerEgresosPorProveedor({
+      negocioId,
+      fechaInicio: fecha_inicio,
+      fechaFin: fecha_fin,
+    });
+}
+
+
+// ----------------------------------------------------
+// ANOMALÍAS DE EGRESOS
+// ----------------------------------------------------
+
+else if (
+  llamada.name === "anomalias_egresos"
+) {
+  resultado =
+    await borderBroDetectarAnomaliasEgresos({
+      negocioId,
+      fechaInicio: fecha_inicio,
+      fechaFin: fecha_fin,
+    });
+}
+
+// ----------------------------------------------------
+// CONCILIACIÓN DE NÓMINA
+// ----------------------------------------------------
+
+else if (
+  llamada.name === "conciliar_nomina"
+) {
+  resultado =
+    await borderBroConciliarNomina({
+      negocioId,
+      fechaInicio: fecha_inicio,
+      fechaFin: fecha_fin,
+    });
+}
+
+// ----------------------------------------------------
+// ANÁLISIS DE INGRESOS
+// ----------------------------------------------------
+
+else if (
+  llamada.name === "analizar_ingresos"
+) {
+  resultado =
+    await borderBroAnalizarIngresos({
+      negocioId,
+      fechaInicio: fecha_inicio,
+      fechaFin: fecha_fin,
+    });
+}
+
+// ----------------------------------------------------
+// ANÁLISIS DE CORTES
+// ----------------------------------------------------
+
+else if (
+  llamada.name === "analizar_cortes"
+) {
+  resultado =
+    await borderBroAnalizarCortes({
+      negocioId,
+      fechaInicio: fecha_inicio,
+      fechaFin: fecha_fin,
+    });
+}
+
+// ----------------------------------------------------
+// ANOMALÍAS DE CORTES
+// ----------------------------------------------------
+
+else if (
+  llamada.name ===
+  "detectar_anomalias_cortes"
+) {
+  resultado =
+    await borderBroDetectarAnomaliasCortes({
+      negocioId,
+      fechaInicio: fecha_inicio,
+      fechaFin: fecha_fin,
+    });
+}
+
+        // ----------------------------------------------------
+        // HERRAMIENTA DESCONOCIDA
+        // ----------------------------------------------------
+
+        else {
+          resultado = {
+            error:
+              `Herramienta no permitida: ${llamada.name}`,
+          };
+        }
+
+        // ----------------------------------------------------
+        // GUARDAR EVIDENCIA
+        // ----------------------------------------------------
+
+        evidencia.push({
+          herramienta: llamada.name,
+
+          negocio_id: negocioId,
+
+          periodo: {
+            fecha_inicio,
+            fecha_fin,
+          },
+
+          datos: resultado,
+        });
+
+        // ----------------------------------------------------
+        // DEVOLVER RESULTADO A OPENAI
+        // ----------------------------------------------------
+
+        toolOutputs.push({
+          type: "function_call_output",
+          call_id: llamada.call_id,
+          output: JSON.stringify(resultado),
+        });
+      }
+
+      // ------------------------------------------------------
+      // CONTINUAR EL RAZONAMIENTO CON LOS RESULTADOS
+      // ------------------------------------------------------
+
+      response = await openai.responses.create({
+        model: "gpt-6-luna",
+
+        instructions,
+
+        previous_response_id: response.id,
+
+        input: toolOutputs,
+
+        tools,
+        tool_choice: "auto",
+      });
+    }
+
+    // --------------------------------------------------------
+    // PROTECCIÓN CONTRA LOOP EXCESIVO
+    // --------------------------------------------------------
+
+    const llamadasPendientes =
+      response.output.filter(
+        (item) => item.type === "function_call"
+      );
+
+    if (
+      iteracion >= MAX_ITERACIONES &&
+      llamadasPendientes.length > 0
+    ) {
+      return res.status(500).json({
+        success: false,
+
+        error:
+          "BorderBro necesitó demasiadas consultas para resolver la pregunta.",
+
+        evidencia,
+      });
+    }
+
+    // --------------------------------------------------------
+    // RESPUESTA FINAL
+    // --------------------------------------------------------
+
+    return res.json({
+      success: true,
+
+      respuesta:
+        response.output_text ||
+        "No pude generar una conclusión con los datos disponibles.",
+
+      evidencia,
+
+      meta: {
+        herramientas_utilizadas:
+          evidencia.map(
+            (item) => item.herramienta
+          ),
+
+        cantidad_consultas:
+          evidencia.length,
+      },
+    });
+
+  } catch (error) {
+    console.error(
+      "Error BorderBro:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      error:
+        error.message ||
+        "No fue posible consultar a BorderBro.",
     });
   }
 });
