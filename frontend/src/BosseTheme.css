@@ -1426,3 +1426,914 @@ button, input, textarea, select { font: inherit; }
   border-color: #1b5635 !important;
   transform: translateY(-2px);
 }
+
+/* =========================================================
+   BOSSE THEME SELECTOR
+   OPTION 01 — LUXURY
+   OPTION 02 — MINIMAL EDITORIAL
+   ========================================================= */
+
+.bb-theme-preview {
+  margin-top: 18px;
+  padding: 0 2px;
+}
+
+.bb-theme-preview-label {
+  display: block;
+  margin: 0 7px 8px;
+
+  color: rgba(222, 202, 167, 0.42);
+
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+
+  text-transform: uppercase;
+}
+
+.bb-theme-preview-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.bb-theme-preview-options button {
+  height: 36px;
+
+  border: 1px solid rgba(200, 166, 106, 0.13);
+  border-radius: 8px;
+
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(245, 237, 224, 0.48);
+
+  cursor: pointer;
+
+  font-size: 9px;
+  font-weight: 600;
+
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.bb-theme-preview-options button span {
+  margin-right: 5px;
+
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 10px;
+}
+
+.bb-theme-preview-options button:hover {
+  color: #f4eee4;
+  border-color: rgba(200, 166, 106, 0.32);
+}
+
+.bb-theme-preview-options button.is-active {
+  background: rgba(200, 166, 106, 0.12);
+  border-color: rgba(200, 166, 106, 0.42);
+  color: #f4eee4;
+}
+
+
+/* =========================================================
+   OPTION 02 — MINIMAL EDITORIAL
+   ========================================================= */
+
+.bb-platform-shell.bb-theme-minimal {
+  background: #f1eee7;
+}
+
+
+/* ---------- SIDEBAR ---------- */
+
+.bb-theme-minimal .bb-platform-sidebar {
+  background:
+    linear-gradient(
+      180deg,
+      #f8f6f0 0%,
+      #efebe2 100%
+    );
+
+  color: #171a18;
+
+  border-right: 1px solid rgba(23, 26, 24, 0.11);
+
+  box-shadow: 14px 0 45px rgba(39, 42, 38, 0.035);
+}
+
+
+/* ---------- BORDERBROS LOGO ---------- */
+
+.bb-theme-minimal .bb-brand-logo-minimal {
+  width: 174px;
+  height: auto;
+
+  display: block;
+
+  background: transparent;
+  border-radius: 0;
+
+  box-shadow: none;
+
+  object-fit: contain;
+}
+
+.bb-theme-minimal .bb-brand-caption {
+  color: #8b8c86;
+}
+
+
+/* ---------- BUSINESS SELECTOR ---------- */
+
+.bb-theme-minimal .bb-business-switcher {
+  border: 1px solid rgba(23, 26, 24, 0.1);
+
+  background: rgba(255, 255, 255, 0.55);
+
+  color: #171a18;
+
+  box-shadow:
+    0 10px 30px rgba(30, 35, 30, 0.035);
+}
+
+.bb-theme-minimal .bb-business-switcher:hover {
+  background: #ffffff;
+
+  border-color: rgba(23, 100, 59, 0.25);
+}
+
+.bb-theme-minimal .bb-business-switcher-copy small {
+  color: #99998f;
+}
+
+.bb-theme-minimal .bb-business-switcher-copy strong {
+  color: #1d211e;
+}
+
+.bb-theme-minimal .bb-business-chevron {
+  color: #8c8d87;
+}
+
+
+/* ---------- THEME SWITCH ---------- */
+
+.bb-theme-minimal .bb-theme-preview-label {
+  color: #a09f96;
+}
+
+.bb-theme-minimal .bb-theme-preview-options button {
+  background: transparent;
+
+  border-color: rgba(23, 26, 24, 0.1);
+
+  color: #92938d;
+}
+
+.bb-theme-minimal .bb-theme-preview-options button:hover {
+  background: rgba(255, 255, 255, 0.65);
+
+  color: #1e3325;
+
+  border-color: rgba(35, 100, 59, 0.22);
+}
+
+.bb-theme-minimal .bb-theme-preview-options button.is-active {
+  background: #173d27;
+
+  border-color: #173d27;
+
+  color: #ffffff;
+}
+
+
+/* ---------- NAVIGATION ---------- */
+
+.bb-theme-minimal .bb-nav-item,
+.bb-theme-minimal .bb-all-businesses {
+  color: #73766f;
+}
+
+.bb-theme-minimal .bb-nav-item:hover,
+.bb-theme-minimal .bb-all-businesses:hover {
+  background: rgba(23, 61, 39, 0.055);
+
+  color: #173d27;
+}
+
+.bb-theme-minimal .bb-nav-item.is-active {
+  color: #173d27;
+
+  background: rgba(23, 61, 39, 0.075);
+
+  box-shadow:
+    inset 2px 0 0 #173d27;
+}
+
+.bb-theme-minimal .bb-nav-item.is-active .bb-nav-icon {
+  color: #173d27;
+}
+
+.bb-theme-minimal .bb-nav-icon {
+  color: #9b9c95;
+}
+
+.bb-theme-minimal .bb-all-businesses {
+  border-top-color: rgba(23, 26, 24, 0.09);
+}
+
+
+/* ---------- USER ---------- */
+
+.bb-theme-minimal .bb-user-card {
+  border-top-color: rgba(23, 26, 24, 0.09);
+}
+
+.bb-theme-minimal .bb-user-avatar {
+  background: #173d27;
+
+  color: #ffffff;
+}
+
+.bb-theme-minimal .bb-user-copy strong {
+  color: #252824;
+}
+
+.bb-theme-minimal .bb-user-copy span {
+  color: #96978f;
+}
+
+.bb-theme-minimal .bb-logout-button {
+  color: #999b94;
+}
+
+.bb-theme-minimal .bb-logout-button:hover {
+  background: rgba(23, 61, 39, 0.07);
+
+  color: #173d27;
+}
+
+
+/* =========================================================
+   MINIMAL — ADMIN PAGE
+   ========================================================= */
+
+.bb-theme-minimal .bosse-admin-page.bosse-luxury {
+  background:
+    radial-gradient(
+      circle at 92% 0%,
+      rgba(57, 83, 63, 0.055),
+      transparent 25%
+    ),
+    #f3f0e9;
+
+  color: #1b1e1b;
+}
+
+
+/* ---------- STATUS BAR ---------- */
+
+.bb-theme-minimal .bosse-luxury-statusbar {
+  background: rgba(250, 248, 243, 0.96);
+
+  border-bottom: 1px solid rgba(23, 26, 24, 0.09);
+}
+
+.bb-theme-minimal .bosse-luxury-status-item {
+  border-right-color: rgba(23, 26, 24, 0.08);
+}
+
+.bb-theme-minimal .bosse-luxury-status-item > span {
+  color: #8d8d85;
+}
+
+.bb-theme-minimal .bosse-luxury-status-item > strong {
+  color: #20231f;
+}
+
+
+/* =========================================================
+   MINIMAL HERO
+   ========================================================= */
+
+.bb-theme-minimal .bosse-luxury-hero {
+  min-height: 275px;
+
+  padding: 48px 58px;
+
+  background-image: none !important;
+  background-color: #ebe7de;
+
+  border-bottom: 1px solid rgba(23, 26, 24, 0.1);
+}
+
+.bb-theme-minimal .bosse-luxury-hero::before {
+  background:
+    radial-gradient(
+      circle at 82% 32%,
+      rgba(23, 61, 39, 0.07),
+      transparent 24%
+    );
+}
+
+.bb-theme-minimal .bosse-luxury-hero::after {
+  background:
+    linear-gradient(
+      90deg,
+      #173d27 0 68px,
+      transparent 68px
+    );
+
+  left: 58px;
+  right: 58px;
+}
+
+.bb-theme-minimal .bosse-luxury-eyebrow {
+  color: #386047;
+}
+
+.bb-theme-minimal .bosse-luxury-hero h1 {
+  color: #191c19;
+
+  text-shadow: none;
+
+  font-size: clamp(50px, 5vw, 76px);
+}
+
+.bb-theme-minimal .bosse-luxury-hero-copy p {
+  color: #777a74;
+
+  font-size: 14px;
+}
+
+.bb-theme-minimal .bosse-luxury-hero-quote {
+  color: #73766f;
+}
+
+.bb-theme-minimal .bosse-luxury-hero-quote i {
+  background: #173d27;
+}
+
+
+/* =========================================================
+   MINIMAL MODULE AREA
+   ========================================================= */
+
+.bb-theme-minimal .bosse-luxury-modules {
+  padding: 24px;
+
+  background: #f3f0e9;
+}
+
+.bb-theme-minimal .bosse-luxury-grid {
+  gap: 14px;
+}
+
+
+/* =========================================================
+   MINIMAL CARDS
+   ========================================================= */
+
+.bb-theme-minimal .bosse-luxury-card {
+  min-height: 185px;
+
+  padding: 22px;
+
+  background-image: none !important;
+  background-color: rgba(255, 255, 255, 0.68);
+
+  border: 1px solid rgba(23, 26, 24, 0.1);
+
+  color: #1c201c;
+
+  box-shadow:
+    0 10px 35px rgba(38, 42, 37, 0.035);
+}
+
+.bb-theme-minimal .bosse-luxury-card::before {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(23, 61, 39, 0.025),
+      transparent 42%
+    );
+}
+
+.bb-theme-minimal .bosse-luxury-card:hover {
+  transform: translateY(-4px);
+
+  background-color: #ffffff;
+
+  border-color: rgba(23, 61, 39, 0.28);
+
+  box-shadow:
+    0 20px 50px rgba(38, 42, 37, 0.08);
+
+  filter: none;
+}
+
+.bb-theme-minimal .bosse-luxury-card-number {
+  color: #a5a69f;
+}
+
+.bb-theme-minimal .bosse-luxury-card-icon {
+  color: #285139;
+}
+
+.bb-theme-minimal .bosse-luxury-card h3 {
+  color: #1b1e1b;
+
+  text-shadow: none;
+}
+
+.bb-theme-minimal .bosse-luxury-card p {
+  color: #777a74;
+
+  text-shadow: none;
+}
+
+.bb-theme-minimal .bosse-luxury-card-arrow {
+  border-color: rgba(23, 61, 39, 0.32);
+
+  background: transparent;
+
+  color: #173d27;
+
+  backdrop-filter: none;
+}
+
+.bb-theme-minimal
+  .bosse-luxury-card:hover
+  .bosse-luxury-card-arrow {
+  background: #173d27;
+
+  border-color: #173d27;
+
+  color: #ffffff;
+}
+
+
+/* ---------- CAMBIO DE DIVISAS ---------- */
+
+.bb-theme-minimal .bosse-luxury-card-cambio_divisas {
+  background:
+    linear-gradient(
+      120deg,
+      rgba(23, 61, 39, 0.055),
+      rgba(255, 255, 255, 0.74)
+    ) !important;
+}
+
+
+/* =========================================================
+   MINIMAL RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 720px) {
+
+  .bb-theme-preview {
+    display: none;
+  }
+
+  .bb-theme-minimal .bosse-luxury-hero {
+    min-height: 280px;
+
+    padding: 38px 22px;
+  }
+
+  .bb-theme-minimal .bosse-luxury-hero::after {
+    left: 22px;
+    right: 22px;
+  }
+
+  .bb-theme-minimal .bosse-luxury-modules {
+    padding: 12px 10px 24px;
+  }
+
+  .bb-theme-minimal .bosse-luxury-card {
+    min-height: 180px;
+  }
+
+  .bb-theme-minimal .bosse-luxury .bosse-admin-mobile-logout {
+    background: #f3f0e9;
+  }
+
+  .bb-theme-minimal
+    .bosse-luxury
+    .bosse-admin-mobile-logout
+    button {
+    border-color: rgba(23, 61, 39, 0.18);
+
+    color: #173d27;
+  }
+}
+  /* =========================================================
+   BOSSE — OPTION 02 / LUXURY EDITORIAL V2
+   Safe visual override
+   ========================================================= */
+
+/* Fondo general */
+.bb-theme-minimal {
+  background: #eee9df !important;
+}
+
+/* SIDEBAR: vuelve a ser oscuro y premium */
+.bb-theme-minimal .bb-platform-sidebar {
+  background:
+    radial-gradient(
+      circle at 25% 0%,
+      rgba(200, 166, 106, 0.08),
+      transparent 28%
+    ),
+    linear-gradient(
+      180deg,
+      #171715 0%,
+      #111110 55%,
+      #0c0c0b 100%
+    ) !important;
+
+  color: #f4eee4 !important;
+
+  border-right: 1px solid rgba(200, 166, 106, 0.15) !important;
+}
+
+/* Logo y subtítulo */
+.bb-theme-minimal .bb-brand-caption {
+  color: rgba(224, 201, 159, 0.46) !important;
+}
+
+/* Selector de negocio */
+.bb-theme-minimal .bb-business-switcher {
+  background: rgba(255, 255, 255, 0.045) !important;
+
+  border-color: rgba(200, 166, 106, 0.2) !important;
+
+  color: #f4eee4 !important;
+}
+
+.bb-theme-minimal .bb-business-switcher-copy small {
+  color: rgba(224, 201, 159, 0.5) !important;
+}
+
+.bb-theme-minimal .bb-business-switcher-copy strong {
+  color: #f4eee4 !important;
+}
+
+/* Selector 01 / 02 */
+.bb-theme-minimal .bb-theme-preview-label {
+  color: rgba(224, 201, 159, 0.42) !important;
+}
+
+.bb-theme-minimal .bb-theme-preview-options button {
+  background: rgba(255, 255, 255, 0.025) !important;
+
+  border-color: rgba(200, 166, 106, 0.16) !important;
+
+  color: rgba(244, 238, 228, 0.5) !important;
+}
+
+.bb-theme-minimal .bb-theme-preview-options button.is-active {
+  background: #c8a66a !important;
+
+  border-color: #c8a66a !important;
+
+  color: #11110f !important;
+}
+
+/* Navegación */
+.bb-theme-minimal .bb-nav-item,
+.bb-theme-minimal .bb-all-businesses {
+  color: rgba(244, 238, 228, 0.6) !important;
+}
+
+.bb-theme-minimal .bb-nav-item:hover,
+.bb-theme-minimal .bb-all-businesses:hover {
+  background: rgba(200, 166, 106, 0.06) !important;
+
+  color: #f4eee4 !important;
+}
+
+.bb-theme-minimal .bb-nav-item.is-active {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(200, 166, 106, 0.15),
+      rgba(255, 255, 255, 0.04)
+    ) !important;
+
+  color: #f7f0e5 !important;
+
+  box-shadow: inset 2px 0 0 #c8a66a !important;
+}
+
+.bb-theme-minimal .bb-nav-item.is-active .bb-nav-icon {
+  color: #d7ad64 !important;
+}
+
+/* Usuario */
+.bb-theme-minimal .bb-user-card {
+  border-top-color: rgba(200, 166, 106, 0.12) !important;
+}
+
+.bb-theme-minimal .bb-user-avatar {
+  background: #eee5d7 !important;
+
+  color: #171510 !important;
+}
+
+.bb-theme-minimal .bb-user-copy strong {
+  color: #f4eee4 !important;
+}
+
+.bb-theme-minimal .bb-user-copy span {
+  color: rgba(224, 201, 159, 0.48) !important;
+}
+
+/* =========================================================
+   CUERPO EDITORIAL
+   ========================================================= */
+
+.bb-theme-minimal .bosse-admin-page.bosse-luxury {
+  background:
+    radial-gradient(
+      circle at 90% 10%,
+      rgba(151, 119, 71, 0.07),
+      transparent 26%
+    ),
+    #eee9df !important;
+
+  color: #211f1b !important;
+}
+
+/* Barra superior */
+.bb-theme-minimal .bosse-luxury-statusbar {
+  background: #f7f3eb !important;
+
+  border-bottom: 1px solid rgba(46, 40, 31, 0.1) !important;
+}
+
+.bb-theme-minimal .bosse-luxury-status-item {
+  border-right-color: rgba(46, 40, 31, 0.09) !important;
+}
+
+.bb-theme-minimal .bosse-luxury-status-item > span {
+  color: #a07d49 !important;
+}
+
+.bb-theme-minimal .bosse-luxury-status-item > strong {
+  color: #26231e !important;
+}
+
+/* =========================================================
+   HERO EDITORIAL
+   ========================================================= */
+
+.bb-theme-minimal .bosse-luxury-hero {
+  min-height: 290px !important;
+
+  padding: 52px 58px !important;
+
+  background-color: #e8e2d7 !important;
+
+  border-bottom: 1px solid rgba(46, 40, 31, 0.11) !important;
+}
+
+.bb-theme-minimal .bosse-luxury-hero::before {
+  background:
+    radial-gradient(
+      circle at 82% 45%,
+      rgba(114, 86, 48, 0.11),
+      transparent 25%
+    ),
+    linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0.28),
+      transparent 55%
+    ) !important;
+}
+
+.bb-theme-minimal .bosse-luxury-hero::after {
+  left: 58px !important;
+
+  right: auto !important;
+
+  width: 64px !important;
+
+  height: 2px !important;
+
+  background: #ad854b !important;
+}
+
+.bb-theme-minimal .bosse-luxury-eyebrow {
+  color: #99723d !important;
+}
+
+.bb-theme-minimal .bosse-luxury-hero h1 {
+  color: #1d1b17 !important;
+
+  font-size: clamp(52px, 5vw, 78px) !important;
+
+  text-shadow: none !important;
+}
+
+.bb-theme-minimal .bosse-luxury-hero-copy p {
+  color: #6d685f !important;
+
+  font-size: 14px !important;
+}
+
+.bb-theme-minimal .bosse-luxury-hero-quote {
+  color: #716a60 !important;
+}
+
+.bb-theme-minimal .bosse-luxury-hero-quote i {
+  background: #ad854b !important;
+}
+
+/* =========================================================
+   ÁREA DE MÓDULOS
+   ========================================================= */
+
+.bb-theme-minimal .bosse-luxury-modules {
+  padding: 24px 22px 36px !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      #eee9df 0%,
+      #f4f0e8 100%
+    ) !important;
+}
+
+.bb-theme-minimal .bosse-luxury-grid {
+  gap: 14px !important;
+}
+
+/* =========================================================
+   TARJETAS EDITORIALES
+   ========================================================= */
+
+.bb-theme-minimal .bosse-luxury-card {
+  min-height: 185px !important;
+
+  padding: 22px 24px !important;
+
+  background-color: rgba(251, 249, 244, 0.88) !important;
+
+  border: 1px solid rgba(55, 48, 38, 0.12) !important;
+
+  border-radius: 7px !important;
+
+  box-shadow:
+    0 10px 30px rgba(45, 38, 28, 0.04) !important;
+
+  color: #201e1a !important;
+
+  filter: none !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card::before {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(173, 133, 75, 0.055),
+      transparent 40%
+    ) !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card:hover {
+  transform: translateY(-4px) !important;
+
+  background-color: #ffffff !important;
+
+  border-color: rgba(157, 119, 64, 0.4) !important;
+
+  box-shadow:
+    0 20px 48px rgba(45, 38, 28, 0.09) !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card-number {
+  color: #a78b63 !important;
+
+  font-family: Georgia, "Times New Roman", serif !important;
+
+  font-size: 10px !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card-icon {
+  color: #9d7741 !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card h3 {
+  color: #24211c !important;
+
+  font-size: clamp(23px, 1.8vw, 29px) !important;
+
+  text-shadow: none !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card p {
+  color: #777168 !important;
+
+  text-shadow: none !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card-arrow {
+  border-color: rgba(157, 119, 64, 0.4) !important;
+
+  background: transparent !important;
+
+  color: #916b37 !important;
+
+  backdrop-filter: none !important;
+}
+
+.bb-theme-minimal
+  .bosse-luxury-card:hover
+  .bosse-luxury-card-arrow {
+  background: #26231e !important;
+
+  border-color: #26231e !important;
+
+  color: #f4ecdf !important;
+}
+
+/* =========================================================
+   CAMBIO DE DIVISAS — CONTRASTE EDITORIAL
+   ========================================================= */
+
+.bb-theme-minimal .bosse-luxury-card-cambio_divisas {
+  background:
+    linear-gradient(
+      115deg,
+      #25231f,
+      #353027
+    ) !important;
+
+  border-color: rgba(190, 153, 91, 0.45) !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card-cambio_divisas h3 {
+  color: #f5efe5 !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card-cambio_divisas p {
+  color: rgba(245, 239, 229, 0.66) !important;
+}
+
+.bb-theme-minimal
+  .bosse-luxury-card-cambio_divisas
+  .bosse-luxury-card-icon {
+  color: #d5ad69 !important;
+}
+
+.bb-theme-minimal
+  .bosse-luxury-card-cambio_divisas
+  .bosse-luxury-card-number {
+  color: #d9bb88 !important;
+}
+
+.bb-theme-minimal
+  .bosse-luxury-card-cambio_divisas
+  .bosse-luxury-card-arrow {
+  color: #edd8b1 !important;
+
+  border-color: rgba(218, 179, 108, 0.65) !important;
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 720px) {
+  .bb-theme-minimal .bosse-luxury-hero {
+    min-height: 275px !important;
+
+    padding: 40px 22px 30px !important;
+  }
+
+  .bb-theme-minimal .bosse-luxury-hero::after {
+    left: 22px !important;
+  }
+
+  .bb-theme-minimal .bosse-luxury-modules {
+    padding: 12px 10px 24px !important;
+  }
+
+  .bb-theme-minimal .bosse-luxury-card {
+    min-height: 185px !important;
+  }
+}
+/* =========================================================
+   BOSSE EDITORIAL — FINAL PROPORTIONS
+   ========================================================= */
+
+.bb-theme-minimal .bosse-luxury-hero {
+  min-height: 245px !important;
+  padding-top: 42px !important;
+  padding-bottom: 42px !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card-cambio_divisas {
+  grid-column: 1 / -1 !important;
+}

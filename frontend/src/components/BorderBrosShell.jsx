@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 function BorderBrosShell({
   children,
@@ -12,17 +12,24 @@ function BorderBrosShell({
   onMisNegocios,
   onLogout,
 }) {
-  const inicial = String(usuarioActivo || "U").trim().charAt(0).toUpperCase();
+const inicial = String(usuarioActivo || "U").trim().charAt(0).toUpperCase();
 
-  return (
-    <div className="bb-platform-shell">
+const [temaBosse, setTemaBosse] = useState("luxury");
+const esMinimal = temaBosse === "minimal";
+
+return (
+    <div
+  className={`bb-platform-shell ${
+    esMinimal ? "bb-theme-minimal" : "bb-theme-luxury"
+  }`}
+>
       <aside className="bb-platform-sidebar">
         <div className="bb-brand-block">
   <img
-    src="/logo-borderbros-champagne.png"
-    alt="Border Brothers"
-    className="bb-brand-logo bb-brand-logo-bosse"
-  />
+  src="/logo-borderbros-champagne.png"
+  alt="Border Brothers"
+  className="bb-brand-logo bb-brand-logo-bosse"
+/>
   <span className="bb-brand-caption">Business Operating Platform</span>
 </div>
 
@@ -36,6 +43,30 @@ function BorderBrosShell({
           </span>
           <span className="bb-business-chevron">⌄</span>
         </button>
+
+        <div className="bb-theme-preview">
+  <span className="bb-theme-preview-label">ESTILO BOSSE</span>
+
+  <div className="bb-theme-preview-options">
+    <button
+      type="button"
+      className={temaBosse === "luxury" ? "is-active" : ""}
+      onClick={() => setTemaBosse("luxury")}
+    >
+      <span>01</span>
+      Luxury
+    </button>
+
+    <button
+  type="button"
+  className={temaBosse === "minimal" ? "is-active" : ""}
+  onClick={() => setTemaBosse("minimal")}
+>
+  <span>02</span>
+  Editorial
+</button>
+  </div>
+</div>
 
         <nav className="bb-platform-nav" aria-label="Navegación principal">
           <button
