@@ -1406,3 +1406,23 @@ button, input, textarea, select { font: inherit; }
 .bb-brand-block {
   align-items: flex-start;
 }
+/* =========================================================
+   LOGIN — BOTÓN PRINCIPAL
+   ========================================================= */
+
+.bb-login-submit {
+  background: #123d25 !important;
+  color: #ffffff !important;
+  border: 1px solid #123d25 !important;
+  box-shadow: 0 14px 32px rgba(18, 61, 37, 0.22) !important;
+}
+
+.bb-login-submit span {
+  color: #ffffff !important;
+}
+
+.bb-login-submit:hover {
+  background: #1b5635 !important;
+  border-color: #1b5635 !important;
+  transform: translateY(-2px);
+}
