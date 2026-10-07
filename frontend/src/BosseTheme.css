@@ -1,0 +1,1408 @@
+cd C:\Users\PaolaRios\Downloads\Pao\proyecto-bar\frontend
+npm start:root {
+  --bb-green-950: #0b2115;
+  --bb-green-900: #10331f;
+  --bb-green-800: #174a2c;
+  --bb-green-700: #23643b;
+  --bb-green-600: #2f7b49;
+  --bb-green-100: #e7f1e9;
+  --bb-ivory: #f4f1e9;
+  --bb-paper: #fbfaf6;
+  --bb-ink: #171a18;
+  --bb-muted: #6f746f;
+  --bb-line: rgba(23, 26, 24, 0.11);
+  --bb-shadow: 0 24px 70px rgba(18, 31, 22, 0.1);
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; }
+
+button, input, textarea, select { font: inherit; }
+
+/* Splash */
+.bb-splash {
+  min-height: 100vh;
+  background: radial-gradient(circle at 50% 40%, #ffffff 0%, #f6f5ef 44%, #ece9df 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.bb-splash-glow {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: rgba(48, 116, 69, 0.09);
+  filter: blur(90px);
+}
+
+.bb-splash-logo {
+  width: min(520px, 82vw);
+  height: auto;
+  position: relative;
+  animation: bbReveal 0.8s ease both;
+}
+
+.bb-splash-line {
+  width: 54px;
+  height: 2px;
+  background: var(--bb-green-700);
+  margin-top: 28px;
+  position: relative;
+}
+
+.bb-splash p {
+  margin: 15px 0 0;
+  color: var(--bb-green-800);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  position: relative;
+}
+
+@keyframes bbReveal {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Login */
+.bb-login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(420px, 1.08fr) minmax(420px, 0.92fr);
+  background: var(--bb-paper);
+  color: var(--bb-ink);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.bb-login-brand-panel {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 22% 22%, rgba(68, 133, 85, 0.28), transparent 35%),
+    linear-gradient(145deg, #081b11 0%, #102f1d 58%, #173a24 100%);
+  color: white;
+  padding: clamp(42px, 6vw, 86px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+}
+
+.bb-login-brand-copy { max-width: 650px; }
+
+.bb-login-brand-logo {
+  width: min(380px, 80%);
+  display: block;
+  background: #fff;
+  border-radius: 18px;
+  padding: 4px 12px;
+  margin-bottom: clamp(70px, 10vh, 130px);
+  box-shadow: 0 22px 60px rgba(0,0,0,.18);
+}
+
+.bb-login-kicker,
+.bb-login-overline,
+.bb-home-eyebrow,
+.bosse-admin-eyebrow,
+.bosse-section-heading > div > span {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+
+.bb-login-kicker { color: #9ac5a5; margin-bottom: 20px; }
+
+.bb-login-brand-copy h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(46px, 5.4vw, 78px);
+  line-height: .98;
+  letter-spacing: -.045em;
+  font-weight: 500;
+  margin: 0;
+  max-width: 720px;
+}
+
+.bb-login-brand-copy p {
+  max-width: 530px;
+  margin: 28px 0 0;
+  color: rgba(255,255,255,.68);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.bb-login-brand-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255,255,255,.62);
+  font-size: 12px;
+  letter-spacing: .03em;
+}
+
+.bb-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #55b36d;
+  box-shadow: 0 0 0 5px rgba(85,179,109,.12);
+  flex: 0 0 auto;
+}
+
+.bb-login-form-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  position: relative;
+  z-index: 2;
+}
+
+.bb-login-card { width: min(420px, 100%); }
+.bb-login-mobile-brand { display: none; }
+.bb-login-overline { color: var(--bb-green-700); margin-bottom: 16px; }
+
+.bb-login-card h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 52px;
+  font-weight: 500;
+  letter-spacing: -.035em;
+}
+
+.bb-login-subtitle {
+  color: var(--bb-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 12px 0 38px;
+}
+
+.bb-field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #555b56;
+  margin: 0 0 8px;
+}
+
+.bb-login-input {
+  width: 100%;
+  height: 54px;
+  background: rgba(255,255,255,.75);
+  border: 1px solid var(--bb-line);
+  border-radius: 12px;
+  padding: 0 16px;
+  color: var(--bb-ink);
+  outline: none;
+  margin-bottom: 20px;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.bb-login-input:focus {
+  background: #fff;
+  border-color: rgba(35,100,59,.55);
+  box-shadow: 0 0 0 4px rgba(35,100,59,.08);
+}
+
+.bb-login-submit {
+  width: 100%;
+  height: 56px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bb-green-900);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 16px 35px rgba(16,51,31,.2);
+  transition: transform .18s ease, background .18s ease;
+}
+
+.bb-login-submit:hover { transform: translateY(-2px); background: var(--bb-green-800); }
+.bb-login-location { text-align: center; margin: 24px 0 0; color: #999d99; font-size: 10px; letter-spacing: .13em; text-transform: uppercase; }
+
+/* Business selector */
+.bb-business-home {
+  min-height: 100vh;
+  background: var(--bb-ivory);
+  color: var(--bb-ink);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.bb-business-home-header {
+  min-height: 96px;
+  padding: 18px clamp(24px, 5vw, 76px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--bb-line);
+  background: rgba(251,250,246,.72);
+  backdrop-filter: blur(18px);
+}
+
+.bb-home-brand {
+  width: 210px;
+  background: white;
+  border-radius: 10px;
+  display: block;
+}
+
+.bb-home-user { display: flex; align-items: center; gap: 20px; }
+.bb-home-user > div { display: flex; flex-direction: column; text-align: right; gap: 3px; }
+.bb-home-user strong { font-size: 13px; }
+.bb-home-user span { font-size: 10px; color: var(--bb-muted); text-transform: uppercase; letter-spacing: .1em; }
+.bb-home-user button { border: 1px solid var(--bb-line); background: transparent; border-radius: 999px; padding: 9px 14px; cursor: pointer; font-size: 11px; color: #4e534f; }
+
+.bb-business-home-main { max-width: 1320px; margin: 0 auto; padding: clamp(58px, 8vw, 110px) 28px 60px; }
+.bb-home-eyebrow { color: var(--bb-green-700); margin-bottom: 18px; }
+
+.bb-business-home-main > h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+  letter-spacing: -.045em;
+  font-size: clamp(42px, 5vw, 72px);
+  line-height: 1;
+  margin: 0;
+}
+
+.bb-home-intro { color: var(--bb-muted); margin: 20px 0 50px; font-size: 15px; }
+
+.bb-business-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr); gap: 20px; }
+
+.bb-business-card {
+  min-height: 330px;
+  text-align: left;
+  border: 1px solid rgba(16,51,31,.15);
+  background: linear-gradient(145deg, #fff 0%, #f8f7f2 100%);
+  border-radius: 24px;
+  padding: 28px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 18px 60px rgba(25,41,29,.07);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.bb-business-card:hover { transform: translateY(-5px); border-color: rgba(35,100,59,.35); box-shadow: 0 28px 80px rgba(25,41,29,.12); }
+.bb-business-card-topline { display: flex; align-items: center; gap: 10px; color: var(--bb-green-700); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.bb-business-card-logo { display: flex; align-items: center; min-height: 130px; }
+.bb-business-card-logo img { width: min(360px, 80%); height: auto; display: block; }
+.bb-business-card-footer { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; border-top: 1px solid var(--bb-line); padding-top: 22px; }
+.bb-business-card-footer > div { display: flex; flex-direction: column; gap: 5px; }
+.bb-business-card-footer strong { font-family: Georgia, "Times New Roman", serif; font-size: 27px; font-weight: 500; }
+.bb-business-card-footer span { color: var(--bb-muted); font-size: 12px; }
+.bb-business-arrow { width: 46px; height: 46px; border-radius: 50%; background: var(--bb-green-900); color: white !important; display: grid; place-items: center; font-size: 20px !important; }
+
+.bb-future-business-card {
+  min-height: 330px;
+  border: 1px dashed rgba(23,26,24,.2);
+  border-radius: 24px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: rgba(255,255,255,.26);
+  color: #7c817d;
+}
+.bb-future-plus { width: 48px; height: 48px; border: 1px solid rgba(23,26,24,.14); border-radius: 50%; display: grid; place-items: center; font-size: 25px; margin-bottom: auto; }
+.bb-future-business-card div { display: flex; flex-direction: column; gap: 8px; }
+.bb-future-business-card strong { color: #5d625e; font-size: 15px; }
+.bb-future-business-card span:last-child { font-size: 12px; line-height: 1.55; }
+.bb-home-footnote { display: flex; align-items: center; gap: 14px; margin-top: 54px; color: #8d918e; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
+.bb-home-footnote-line { width: 38px; height: 1px; background: #a6aaa7; }
+
+/* Platform shell */
+.bb-platform-shell {
+  min-height: 100vh;
+  background: var(--bb-ivory);
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.bb-platform-sidebar {
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  padding: 22px 16px 18px;
+  background:
+    radial-gradient(circle at 18% -8%, rgba(255,255,255,.075), transparent 30%),
+    linear-gradient(180deg, #09090a 0%, #111113 52%, #080809 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255,255,255,.05);
+  z-index: 500;
+}
+
+.bb-brand-block { padding: 2px 4px 20px; }
+.bb-brand-logo { width: 174px; max-width: 100%; display: block; background: white; border-radius: 8px; }
+.bb-brand-caption { display: block; margin: 10px 5px 0; color: rgba(255,255,255,.4); font-size: 8px; letter-spacing: .17em; text-transform: uppercase; }
+
+.bb-business-switcher {
+  width: 100%;
+  min-height: 68px;
+  border: 1px solid rgba(255,255,255,.11);
+  background: rgba(255,255,255,.055);
+  color: white;
+  border-radius: 13px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 42px minmax(0,1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease;
+}
+.bb-business-switcher:hover { background: rgba(255,255,255,.085); border-color: rgba(255,255,255,.18); }
+.bb-business-switcher {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 10px 28px rgba(0,0,0,.18);
+}
+
+.bb-business-logo-wrap { width: 42px; height: 42px; border-radius: 9px; background: #fff; display: grid; place-items: center; overflow: hidden; }
+.bb-business-logo-wrap img { width: 38px; height: auto; }
+.bb-business-switcher-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.bb-business-switcher-copy small { color: rgba(255,255,255,.42); font-size: 8px; letter-spacing: .1em; text-transform: uppercase; }
+.bb-business-switcher-copy strong { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bb-business-chevron { color: rgba(255,255,255,.55); font-size: 16px; }
+
+.bb-platform-nav { display: flex; flex-direction: column; gap: 6px; margin-top: 24px; }
+.bb-nav-item,
+.bb-all-businesses {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: rgba(255,255,255,.58);
+  border-radius: 10px;
+  min-height: 46px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 650;
+  transition: background .18s ease, color .18s ease;
+}
+.bb-nav-item:hover, .bb-all-businesses:hover { background: rgba(255,255,255,.055); color: white; }
+ .bb-nav-item.is-active { background: rgba(255,255,255,.09); color: #ffffff; box-shadow: inset 2px 0 0 rgba(255,255,255,.88); }
+ .bb-nav-icon { width: 20px; color: rgba(255,255,255,.52); font-size: 17px; }
+.bb-sidebar-spacer { flex: 1; }
+.bb-all-businesses { border-top: 1px solid rgba(255,255,255,.07); border-radius: 0; margin-top: 16px; padding-top: 14px; min-height: 54px; }
+
+.bb-user-card { display: grid; grid-template-columns: 36px minmax(0,1fr) 28px; gap: 9px; align-items: center; border-top: 1px solid rgba(255,255,255,.08); margin-top: 6px; padding: 16px 5px 0; }
+ .bb-user-avatar { width: 36px; height: 36px; border-radius: 50%; background: #ecebe7; color: #111113; display: grid; place-items: center; font-family: Georgia, serif; font-weight: 700; }
+.bb-user-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.bb-user-copy strong { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bb-user-copy span { color: rgba(255,255,255,.4); font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
+.bb-logout-button { width: 28px; height: 28px; border: 0; background: transparent; color: rgba(255,255,255,.45); cursor: pointer; border-radius: 50%; }
+.bb-logout-button:hover { background: rgba(255,255,255,.07); color: white; }
+.bb-platform-content { min-width: 0; min-height: 100vh; }
+.bb-platform-mobilebar { display: none; }
+
+/* BOSSE admin */
+.bosse-admin-page { min-height: 100vh; background: #f6f4ee; color: #171717; padding: clamp(30px, 5vw, 68px); }
+.bosse-admin-hero { max-width: 1260px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 44px; padding-bottom: 42px; border-bottom: 1px solid rgba(0,0,0,.11); }
+.bosse-admin-eyebrow { color: #777; margin-bottom: 16px; }
+.bosse-admin-hero h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 500; letter-spacing: -.045em; font-size: clamp(42px, 5vw, 68px); line-height: 1; margin: 0; }
+.bosse-admin-hero p { max-width: 590px; color: #737373; line-height: 1.65; font-size: 14px; margin: 20px 0 0; }
+.bosse-admin-identity { min-width: 190px; text-align: right; }
+.bosse-admin-identity img { width: 190px; max-width: 100%; display: block; margin-left: auto; }
+.bosse-admin-identity span { display: block; margin-top: 8px; color: #777; font-size: 8px; letter-spacing: .28em; }
+
+.bosse-admin-meta { max-width: 1260px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); border-bottom: 1px solid rgba(0,0,0,.11); }
+.bosse-admin-meta > div { padding: 20px 22px 20px 0; display: flex; flex-direction: column; gap: 6px; }
+.bosse-admin-meta > div + div { border-left: 1px solid rgba(0,0,0,.09); padding-left: 22px; }
+.bosse-admin-meta span { color: #8b8b8b; font-size: 9px; text-transform: uppercase; letter-spacing: .13em; }
+.bosse-admin-meta strong { font-size: 13px; text-transform: capitalize; }
+
+.bosse-module-section { max-width: 1260px; margin: 50px auto 0; }
+.bosse-section-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 20px; }
+.bosse-section-heading > div > span { color: #8a8a8a; }
+.bosse-section-heading h2 { font-family: Georgia, "Times New Roman", serif; font-size: 30px; font-weight: 500; letter-spacing: -.025em; margin: 7px 0 0; }
+.bosse-section-heading > p { color: #8b8b8b; font-size: 12px; margin: 0; }
+
+.bosse-module-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+.bosse-module-card { min-height: 230px; border: 1px solid rgba(0,0,0,.1); background: rgba(255,255,255,.72); border-radius: 16px; padding: 20px; text-align: left; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; color: #171717; transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
+.bosse-module-card:hover { transform: translateY(-4px); background: #fff; box-shadow: 0 18px 45px rgba(0,0,0,.07); }
+.bosse-module-card-head { display: flex; align-items: center; justify-content: space-between; }
+.bosse-module-index { font-size: 9px; color: #aaa; letter-spacing: .12em; }
+.bosse-module-icon { width: 37px; height: 37px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); display: grid; place-items: center; font-size: 17px; }
+.bosse-module-card-copy h3 { font-family: Georgia, "Times New Roman", serif; font-size: 23px; font-weight: 500; margin: 0 0 9px; letter-spacing: -.02em; }
+.bosse-module-card-copy p { color: #7a7a7a; font-size: 12px; line-height: 1.5; margin: 0; }
+.bosse-module-card-action { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(0,0,0,.08); padding-top: 13px; margin-top: 22px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.bosse-admin-mobile-logout { display: none; }
+
+@media (max-width: 1050px) {
+  .bb-login-page { grid-template-columns: 1fr 1fr; }
+  .bb-login-brand-panel { padding: 50px 38px; }
+  .bb-login-form-panel { padding: 38px; }
+  .bb-platform-shell { grid-template-columns: 220px minmax(0,1fr); }
+  .bosse-module-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
+@media (max-width: 760px) {
+  .bb-login-page { display: block; background: linear-gradient(180deg, #0b2115 0, #0b2115 25%, #f7f5ef 25%, #f7f5ef 100%); padding: 28px 18px; }
+  .bb-login-brand-panel { display: none; }
+  .bb-login-form-panel { min-height: calc(100vh - 56px); padding: 0; align-items: center; }
+  .bb-login-card { background: #fff; border-radius: 22px; padding: 30px 22px 26px; box-shadow: 0 24px 70px rgba(0,0,0,.16); }
+  .bb-login-mobile-brand { display: block; margin-bottom: 32px; }
+  .bb-login-mobile-brand img { width: 210px; max-width: 80%; display: block; margin: 0 auto; }
+  .bb-login-card h2 { font-size: 42px; }
+
+  .bb-business-home-header { min-height: 76px; padding: 12px 18px; }
+  .bb-home-brand { width: 150px; }
+  .bb-home-user > div { display: none; }
+  .bb-home-user button { font-size: 9px; }
+  .bb-business-home-main { padding: 48px 18px 36px; }
+  .bb-business-grid { grid-template-columns: 1fr; }
+  .bb-business-card, .bb-future-business-card { min-height: 280px; }
+  .bb-future-business-card { display: none; }
+
+  .bb-platform-shell { display: block; padding-top: 112px; }
+  .bb-platform-sidebar { display: none; }
+  .bb-platform-mobilebar { display: block; position: fixed; inset: 0 0 auto 0; min-height: 112px; background: rgba(10,30,18,.97); backdrop-filter: blur(18px); color: white; z-index: 1000; padding: 10px 14px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .bb-mobile-business { width: 100%; height: 45px; background: transparent; border: 0; color: white; display: grid; grid-template-columns: 28px 1fr 24px; align-items: center; text-align: left; gap: 8px; cursor: pointer; font-weight: 700; }
+  .bb-mobile-mark { width: 26px; height: 26px; border-radius: 7px; background: #f1f0ec; color: #111113; display: grid; place-items: center; font-family: Georgia, serif; }
+  .bb-mobile-nav { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px; }
+  .bb-mobile-nav button { height: 39px; border: 0; border-radius: 9px; background: rgba(255,255,255,.04); color: rgba(255,255,255,.58); font-size: 10px; font-weight: 700; cursor: pointer; }
+  .bb-mobile-nav button.is-active { background: rgba(255,255,255,.10); color: #ffffff; }
+
+  .bosse-admin-page { padding: 34px 18px 46px; }
+  .bosse-admin-hero { display: block; padding-bottom: 28px; }
+  .bosse-admin-hero h1 { font-size: 43px; }
+  .bosse-admin-identity { text-align: left; margin-top: 30px; }
+  .bosse-admin-identity img { width: 150px; margin: 0; }
+  .bosse-admin-meta { grid-template-columns: 1fr; padding: 10px 0; }
+  .bosse-admin-meta > div { padding: 11px 0; }
+  .bosse-admin-meta > div + div { border-left: 0; padding-left: 0; border-top: 1px solid rgba(0,0,0,.06); }
+  .bosse-module-section { margin-top: 34px; }
+  .bosse-section-heading { display: block; }
+  .bosse-section-heading > p { margin-top: 9px; }
+  .bosse-module-grid { grid-template-columns: 1fr; }
+  .bosse-module-card { min-height: 205px; }
+  .bosse-admin-mobile-logout { display: block; margin-top: 24px; }
+  .bosse-admin-mobile-logout button { width: 100%; height: 48px; border-radius: 12px; border: 1px solid rgba(0,0,0,.12); background: transparent; color: #555; }
+}
+/* =========================================================
+   BOSSE — LUXURY CINEMATIC THEME
+   Visual only. No business logic.
+   ========================================================= */
+
+.bosse-admin-page.bosse-luxury {
+  --bosse-black: #080807;
+  --bosse-black-soft: #11100e;
+  --bosse-charcoal: #181613;
+  --bosse-champagne: #c8a66a;
+  --bosse-champagne-soft: #e0c99f;
+  --bosse-ivory: #f3eee4;
+  --bosse-muted: #b7afa2;
+
+  min-height: 100vh;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  overflow-x: hidden;
+
+  background:
+    radial-gradient(
+      circle at 85% 18%,
+      rgba(175, 132, 67, 0.09),
+      transparent 28%
+    ),
+    #090908;
+
+  color: var(--bosse-ivory);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+
+/* =========================================================
+   HERO
+   ========================================================= */
+
+.bosse-luxury-hero {
+  position: relative;
+
+  min-height: 255px;
+  width: 100%;
+
+  padding: 42px 54px 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 50px;
+
+  background-color: #0b0a09;
+  background-size: cover;
+  background-position: center 55%;
+  background-repeat: no-repeat;
+
+  border-bottom: 1px solid rgba(200, 166, 106, 0.36);
+
+  overflow: hidden;
+  isolation: isolate;
+}
+
+
+/* luz ambiental */
+.bosse-luxury-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+
+  background:
+    radial-gradient(
+      circle at 65% 45%,
+      rgba(211, 163, 88, 0.13),
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.025),
+      rgba(0, 0, 0, 0.18)
+    );
+
+  pointer-events: none;
+}
+
+
+/* brillo inferior muy sutil */
+.bosse-luxury-hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  height: 1px;
+
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(224, 201, 159, 0.65),
+    transparent
+  );
+}
+
+
+.bosse-luxury-hero-copy {
+  position: relative;
+  z-index: 2;
+
+  max-width: 620px;
+}
+
+
+.bosse-luxury-eyebrow {
+  display: block;
+
+  margin-bottom: 14px;
+
+  color: var(--bosse-champagne);
+
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.31em;
+  line-height: 1;
+
+  text-transform: uppercase;
+}
+
+
+.bosse-luxury-hero h1 {
+  margin: 0;
+
+  color: #f7f2e9;
+
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(44px, 4.6vw, 69px);
+  font-weight: 400;
+  letter-spacing: -0.045em;
+  line-height: 0.96;
+
+  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.32);
+}
+
+
+.bosse-luxury-hero-copy p {
+  margin: 20px 0 0;
+
+  color: rgba(247, 242, 233, 0.79);
+
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+
+.bosse-luxury-hero-quote {
+  position: relative;
+  z-index: 2;
+
+  min-width: 275px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+
+  color: rgba(247, 242, 233, 0.84);
+
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.34em;
+  line-height: 1.5;
+
+  text-transform: uppercase;
+}
+
+
+.bosse-luxury-hero-quote i {
+  display: block;
+
+  width: 42px;
+  height: 1px;
+
+  margin-top: 15px;
+
+  background: var(--bosse-champagne);
+}
+
+
+/* =========================================================
+   MODULE AREA
+   ========================================================= */
+
+.bosse-luxury-modules {
+  position: relative;
+
+  padding: 12px 18px 28px;
+
+  background:
+    radial-gradient(
+      circle at 95% 85%,
+      rgba(176, 126, 60, 0.08),
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      #0a0908 0%,
+      #0d0c0a 100%
+    );
+}
+
+
+.bosse-luxury-grid {
+  width: 100%;
+
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+
+/* =========================================================
+   MODULE CARDS
+   ========================================================= */
+
+.bosse-luxury-card {
+  position: relative;
+
+  min-width: 0;
+  min-height: 166px;
+
+  padding: 19px 22px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  overflow: hidden;
+
+  border: 1px solid rgba(200, 166, 106, 0.42);
+  border-radius: 12px;
+
+  background-color: #11100e;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  color: #f5efe5;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 12px 32px rgba(0, 0, 0, 0.14);
+
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    filter 220ms ease;
+}
+
+
+/* pequeño brillo cinematográfico */
+.bosse-luxury-card::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  background:
+    linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.035),
+      transparent 28%,
+      transparent 70%,
+      rgba(200, 166, 106, 0.045)
+    );
+
+  pointer-events: none;
+}
+
+
+.bosse-luxury-card:hover {
+  transform: translateY(-3px);
+
+  border-color: rgba(224, 201, 159, 0.8);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 18px 48px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(200, 166, 106, 0.08);
+
+  filter: brightness(1.06);
+}
+
+
+/* número */
+.bosse-luxury-card-number {
+  position: relative;
+  z-index: 2;
+
+  color: rgba(239, 221, 190, 0.76);
+
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+}
+
+
+/* contenido */
+.bosse-luxury-card-content {
+  position: relative;
+  z-index: 2;
+
+  margin-top: auto;
+
+  max-width: calc(100% - 58px);
+}
+
+
+.bosse-luxury-card-icon {
+  width: 29px;
+  height: 29px;
+
+  margin-bottom: 8px;
+
+  display: grid;
+  place-items: center;
+
+  color: #d7ad64;
+
+  font-size: 22px;
+  line-height: 1;
+}
+
+
+.bosse-luxury-card h3 {
+  margin: 0;
+
+  color: #f6f0e6;
+
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(21px, 1.7vw, 27px);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+
+.bosse-luxury-card p {
+  margin: 7px 0 0;
+
+  color: rgba(244, 237, 225, 0.72);
+
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.65);
+}
+
+
+/* flecha */
+.bosse-luxury-card-arrow {
+  position: absolute;
+  z-index: 3;
+
+  right: 17px;
+  bottom: 17px;
+
+  width: 43px;
+  height: 43px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(213, 172, 100, 0.92);
+  border-radius: 50%;
+
+  color: #f3dfba;
+
+  font-family: Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 300;
+
+  background: rgba(8, 8, 7, 0.38);
+  backdrop-filter: blur(6px);
+
+  transition:
+    transform 200ms ease,
+    background 200ms ease,
+    color 200ms ease;
+}
+
+
+.bosse-luxury-card:hover .bosse-luxury-card-arrow {
+  transform: translateX(3px);
+
+  background: var(--bosse-champagne);
+  color: #090807;
+}
+
+
+/* =========================================================
+   SPECIAL CARD SIZING
+   ========================================================= */
+
+/* Cambio de divisas ocupa dos columnas como pieza editorial */
+.bosse-luxury-card-cambio_divisas {
+  grid-column: span 2;
+
+  min-height: 130px;
+}
+
+
+.bosse-luxury-card-cambio_divisas .bosse-luxury-card-content {
+  margin-top: 20px;
+
+  display: grid;
+  grid-template-columns: 48px auto;
+  column-gap: 8px;
+  align-items: center;
+}
+
+
+.bosse-luxury-card-cambio_divisas .bosse-luxury-card-icon {
+  grid-row: 1 / span 2;
+
+  margin: 0;
+}
+
+
+.bosse-luxury-card-cambio_divisas h3 {
+  font-size: 26px;
+}
+
+
+.bosse-luxury-card-cambio_divisas p {
+  grid-column: 2;
+}
+
+
+/* =========================================================
+   SIDEBAR — BOSSE LUXURY
+   ========================================================= */
+
+.bb-platform-shell {
+  background: #090908;
+}
+
+
+.bb-platform-sidebar {
+  background:
+    radial-gradient(
+      circle at 35% 4%,
+      rgba(184, 143, 76, 0.06),
+      transparent 23%
+    ),
+    linear-gradient(
+      180deg,
+      #080807 0%,
+      #0c0c0b 54%,
+      #070706 100%
+    );
+
+  border-right: 1px solid rgba(200, 166, 106, 0.13);
+
+  box-shadow: 18px 0 50px rgba(0, 0, 0, 0.12);
+}
+
+
+/* logo actual: lo hacemos integrarse mejor hasta preparar
+   la variante champagne definitiva */
+.bb-brand-logo {
+  border-radius: 6px;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.28);
+
+  opacity: 0.95;
+}
+
+
+.bb-brand-caption {
+  color: rgba(222, 202, 167, 0.48);
+}
+
+
+.bb-business-switcher {
+  border-color: rgba(200, 166, 106, 0.2);
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.055),
+      rgba(255, 255, 255, 0.025)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 14px 30px rgba(0, 0, 0, 0.2);
+}
+
+
+.bb-business-switcher:hover {
+  border-color: rgba(200, 166, 106, 0.42);
+
+  background: rgba(255, 255, 255, 0.075);
+}
+
+
+.bb-business-switcher-copy small {
+  color: rgba(216, 184, 129, 0.55);
+}
+
+
+.bb-nav-item,
+.bb-all-businesses {
+  color: rgba(242, 233, 217, 0.62);
+}
+
+
+.bb-nav-item:hover,
+.bb-all-businesses:hover {
+  color: #f6efe4;
+
+  background: rgba(200, 166, 106, 0.06);
+}
+
+
+.bb-nav-item.is-active {
+  color: #f8f1e7;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(200, 166, 106, 0.15),
+      rgba(255, 255, 255, 0.055)
+    );
+
+  box-shadow:
+    inset 2px 0 0 var(--bosse-champagne);
+}
+
+
+.bb-nav-item.is-active .bb-nav-icon {
+  color: #d7ad64;
+}
+
+
+.bb-all-businesses {
+  border-top-color: rgba(200, 166, 106, 0.12);
+}
+
+
+.bb-user-card {
+  border-top-color: rgba(200, 166, 106, 0.12);
+}
+
+
+.bb-user-avatar {
+  background: #eee5d7;
+
+  color: #15130f;
+}
+
+
+.bb-user-copy span {
+  color: rgba(211, 181, 130, 0.52);
+}
+
+
+/* =========================================================
+   REMOVE OLD ADMIN VISUAL INTERFERENCE
+   ========================================================= */
+
+.bosse-luxury .bosse-admin-hero,
+.bosse-luxury .bosse-admin-meta,
+.bosse-luxury .bosse-module-section,
+.bosse-luxury .bosse-module-grid,
+.bosse-luxury .bosse-module-card {
+  all: unset;
+}
+
+
+/* =========================================================
+   MOBILE LOGOUT
+   ========================================================= */
+
+.bosse-luxury .bosse-admin-mobile-logout {
+  display: none;
+}
+
+
+/* =========================================================
+   RESPONSIVE — TABLET
+   ========================================================= */
+
+@media (max-width: 1100px) {
+
+  .bosse-luxury-hero {
+    min-height: 240px;
+
+    padding: 38px 34px;
+  }
+
+
+  .bosse-luxury-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+
+  .bosse-luxury-card-cambio_divisas {
+    grid-column: span 2;
+  }
+
+
+  .bosse-luxury-card {
+    min-height: 170px;
+  }
+
+}
+
+
+/* =========================================================
+   RESPONSIVE — MOBILE
+   ========================================================= */
+
+@media (max-width: 720px) {
+
+  .bosse-admin-page.bosse-luxury {
+    padding-bottom: 76px;
+  }
+
+
+  .bosse-luxury-hero {
+    min-height: 330px;
+
+    padding: 42px 22px 30px;
+
+    align-items: flex-end;
+
+    background-position: 62% center;
+  }
+
+
+  .bosse-luxury-hero-copy {
+    align-self: flex-end;
+  }
+
+
+  .bosse-luxury-eyebrow {
+    font-size: 9px;
+  }
+
+
+  .bosse-luxury-hero h1 {
+    font-size: 46px;
+  }
+
+
+  .bosse-luxury-hero-copy p {
+    font-size: 13px;
+  }
+
+
+  .bosse-luxury-hero-copy p br {
+    display: none;
+  }
+
+
+  .bosse-luxury-hero-quote {
+    display: none;
+  }
+
+
+  .bosse-luxury-modules {
+    padding: 10px 10px 22px;
+  }
+
+
+  .bosse-luxury-grid {
+    grid-template-columns: 1fr;
+
+    gap: 10px;
+  }
+
+
+  .bosse-luxury-card,
+  .bosse-luxury-card-cambio_divisas {
+    grid-column: auto;
+
+    min-height: 205px;
+
+    border-radius: 11px;
+  }
+
+
+  .bosse-luxury-card {
+    padding: 18px;
+  }
+
+
+  .bosse-luxury-card h3 {
+    font-size: 28px;
+  }
+
+
+  .bosse-luxury-card p {
+    max-width: 82%;
+
+    font-size: 12px;
+  }
+
+
+  .bosse-luxury-card-cambio_divisas .bosse-luxury-card-content {
+    margin-top: auto;
+
+    display: block;
+  }
+
+
+  .bosse-luxury-card-cambio_divisas .bosse-luxury-card-icon {
+    margin-bottom: 8px;
+  }
+
+
+  .bosse-luxury-card-cambio_divisas p {
+    grid-column: auto;
+  }
+
+
+  .bosse-luxury .bosse-admin-mobile-logout {
+    display: block;
+
+    padding: 0 10px 22px;
+
+    background: #0d0c0a;
+  }
+
+
+  .bosse-luxury .bosse-admin-mobile-logout button {
+    width: 100%;
+    height: 48px;
+
+    border: 1px solid rgba(200, 166, 106, 0.28);
+    border-radius: 10px;
+
+    background: transparent;
+
+    color: rgba(245, 237, 224, 0.7);
+
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+
+    text-transform: uppercase;
+  }
+
+}
+/* =========================================================
+   BOSSE — LUXURY STATUS BAR
+   ========================================================= */
+
+.bosse-luxury-statusbar {
+  min-height: 72px;
+  padding: 0 54px;
+
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr 1.1fr;
+  align-items: stretch;
+
+  background: rgba(8, 8, 7, 0.98);
+  border-bottom: 1px solid rgba(200, 166, 106, 0.18);
+}
+
+.bosse-luxury-status-item {
+  min-width: 0;
+  padding: 16px 28px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+
+  border-right: 1px solid rgba(200, 166, 106, 0.16);
+}
+
+.bosse-luxury-status-item:first-child {
+  padding-left: 0;
+}
+
+.bosse-luxury-status-item:last-child {
+  border-right: 0;
+}
+
+.bosse-luxury-status-item > span {
+  color: #c8a66a;
+
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  line-height: 1;
+
+  text-transform: uppercase;
+}
+
+.bosse-luxury-status-item > strong {
+  color: #f4eee4;
+
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.1;
+
+  text-transform: capitalize;
+}
+
+.bosse-luxury-status-clock {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.bosse-luxury-status-clock > strong {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+}
+
+@media (max-width: 900px) {
+  .bosse-luxury-statusbar {
+    padding: 0 24px;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .bosse-luxury-status-clock {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .bosse-luxury-statusbar {
+    min-height: 58px;
+    padding: 0 16px;
+
+    grid-template-columns: 1fr auto;
+  }
+
+  .bosse-luxury-status-item {
+    padding: 12px 16px;
+  }
+
+  .bosse-luxury-status-item:first-child {
+    padding-left: 0;
+  }
+
+  .bosse-luxury-status-item:nth-child(2) {
+    border-right: 0;
+  }
+
+  .bosse-luxury-status-item:nth-child(3),
+  .bosse-luxury-status-clock {
+    display: none;
+  }
+
+  .bosse-luxury-status-item > strong {
+    font-size: 12px;
+  }
+}
+/* =========================================================
+   BORDERBROS LOGO — BOSSE CHAMPAGNE
+   ========================================================= */
+
+.bb-brand-logo-bosse {
+  width: 178px;
+  height: auto;
+  max-height: 82px;
+
+  object-fit: contain;
+  object-position: left center;
+
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+
+  box-shadow: none !important;
+
+  filter:
+    drop-shadow(0 8px 18px rgba(0, 0, 0, 0.35))
+    drop-shadow(0 0 12px rgba(200, 166, 106, 0.08));
+
+  opacity: 1;
+}
+
+.bb-brand-block {
+  align-items: flex-start;
+}

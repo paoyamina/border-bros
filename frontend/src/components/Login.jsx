@@ -53,132 +53,72 @@ function Login({ onLogin }) {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#000",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-      }}
-    >
-      <div
-        style={{
-          width: "420px",
-          background: "#fff",
-          borderRadius: "12px",
-          padding: "48px 42px 38px",
-          textAlign: "center",
-          boxShadow: "0 4px 15px rgba(0,0,0,0.12)",
-        }}
-      >
-        <img
-          src="/Logo_BOSSE.png"
-          alt="BOSSE"
-          style={{
-            width: "260px",
-            maxWidth: "100%",
-            margin: "0 auto 22px",
-            display: "block",
-          }}
-        />
+    <div className="bb-login-page">
+      <div className="bb-login-aurora bb-login-aurora-one" />
+      <div className="bb-login-aurora bb-login-aurora-two" />
 
-        <h2
-          style={{
-            fontSize: "25px",
-            letterSpacing: "4px",
-            fontWeight: "300",
-            margin: "0 0 22px",
-            textTransform: "uppercase",
-            color: "#111",
-          }}
-        >
-          Acceso Staff
-        </h2>
+      <div className="bb-login-brand-panel">
+        <div className="bb-login-brand-copy">
+          <img src="/logo-principal.png" alt="Border Brothers" className="bb-login-brand-logo" />
+          <div className="bb-login-kicker">BUSINESS OPERATING PLATFORM</div>
+          <h1>Todos tus negocios.<br />Una sola plataforma.</h1>
+          <p>Operación, finanzas e inteligencia para tomar mejores decisiones.</p>
+        </div>
 
-        <form onSubmit={manejarLogin}>
-          <input
-            type="text"
-            placeholder="ID DE USUARIO"
-            value={userCredentials.idCajero}
-            onChange={(e) =>
-              setUserCredentials({
-                ...userCredentials,
-                idCajero: e.target.value.toUpperCase(),
-              })
-            }
-            style={{
-              width: "100%",
-              height: "42px",
-              border: "1px solid #ddd",
-              borderRadius: "4px",
-              marginBottom: "15px",
-              textAlign: "center",
-              fontSize: "14px",
-              letterSpacing: "0.5px",
-              outline: "none",
-              boxSizing: "border-box",
-              color: "#333",
-            }}
-          />
+        <div className="bb-login-brand-footer">
+          <span className="bb-status-dot" />
+          Plataforma segura · Acceso autorizado
+        </div>
+      </div>
 
-          <input
-            type="password"
-            placeholder="CONTRASEÑA"
-            value={userCredentials.password}
-            onChange={(e) =>
-              setUserCredentials({
-                ...userCredentials,
-                password: e.target.value,
-              })
-            }
-            style={{
-              width: "100%",
-              height: "42px",
-              border: "1px solid #ddd",
-              borderRadius: "4px",
-              marginBottom: "22px",
-              textAlign: "center",
-              fontSize: "14px",
-              letterSpacing: "0.5px",
-              outline: "none",
-              boxSizing: "border-box",
-              color: "#333",
-            }}
-          />
+      <div className="bb-login-form-panel">
+        <div className="bb-login-card">
+          <div className="bb-login-mobile-brand">
+            <img src="/logo-principal.png" alt="Border Brothers" />
+          </div>
 
-          <button
-            type="submit"
-            style={{
-              width: "100%",
-              padding: "20px",
-              background: "#000",
-              color: "#fff",
-              border: "none",
-              borderRadius: "8px",
-              fontSize: "16px",
-              fontWeight: "600",
-              textTransform: "uppercase",
-              letterSpacing: "4px",
-              cursor: "pointer",
-            }}
-          >
-            Entrar
-          </button>
-        </form>
+          <div className="bb-login-overline">ACCESO A BORDERBROS</div>
+          <h2>Bienvenido</h2>
+          <p className="bb-login-subtitle">Ingresa con tus credenciales para continuar.</p>
 
-        <p
-          style={{
-            marginTop: "24px",
-            fontSize: "12px",
-            color: "#888",
-            textTransform: "uppercase",
-            letterSpacing: "2px",
-          }}
-        >
-          Tijuana, B.C.
-        </p>
+          <form onSubmit={manejarLogin}>
+            <label className="bb-field-label" htmlFor="bb-user-id">ID de usuario</label>
+            <input
+              id="bb-user-id"
+              className="bb-login-input"
+              type="text"
+              placeholder="Tu ID de usuario"
+              value={userCredentials.idCajero}
+              onChange={(e) =>
+                setUserCredentials({
+                  ...userCredentials,
+                  idCajero: e.target.value.toUpperCase(),
+                })
+              }
+            />
+
+            <label className="bb-field-label" htmlFor="bb-password">Contraseña</label>
+            <input
+              id="bb-password"
+              className="bb-login-input"
+              type="password"
+              placeholder="Tu contraseña"
+              value={userCredentials.password}
+              onChange={(e) =>
+                setUserCredentials({
+                  ...userCredentials,
+                  password: e.target.value,
+                })
+              }
+            />
+
+            <button type="submit" className="bb-login-submit">
+              Entrar a BorderBros <span>→</span>
+            </button>
+          </form>
+
+          <p className="bb-login-location">Tijuana, B.C. · México</p>
+        </div>
       </div>
     </div>
   );
