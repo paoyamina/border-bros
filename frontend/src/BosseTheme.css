@@ -2337,3 +2337,24 @@ button, input, textarea, select { font: inherit; }
 .bb-theme-minimal .bosse-luxury-card-cambio_divisas {
   grid-column: 1 / -1 !important;
 }
+/* =========================================================
+   BOSSE EDITORIAL — FIT VIEWPORT LIKE LUXURY
+   ========================================================= */
+
+.bb-theme-minimal .bosse-luxury-modules {
+  padding: 12px 18px 28px !important;
+}
+
+.bb-theme-minimal .bosse-luxury-grid {
+  gap: 12px !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card {
+  min-height: 166px !important;
+  padding: 19px 22px !important;
+}
+
+.bb-theme-minimal .bosse-luxury-card-cambio_divisas {
+  grid-column: 1 / -1 !important;
+  min-height: 130px !important;
+}
