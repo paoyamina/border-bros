@@ -44,8 +44,8 @@ function SelectorNegocio({ usuarioActivo, rol, onSeleccionarBosse, onLogout }) {
           <div className="bb-future-business-card" aria-hidden="true">
             <span className="bb-future-plus">+</span>
             <div>
-              <strong>BorderBros está listo para crecer</strong>
-              <span>Los próximos negocios aparecerán aquí según tus permisos.</span>
+              <strong>Negocio 2</strong>
+              <span>Loading...</span>
             </div>
           </div>
         </div>
