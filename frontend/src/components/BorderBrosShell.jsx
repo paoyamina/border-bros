@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 
 function BorderBrosShell({
   children,
@@ -14,14 +14,10 @@ function BorderBrosShell({
 }) {
 const inicial = String(usuarioActivo || "U").trim().charAt(0).toUpperCase();
 
-const [temaBosse, setTemaBosse] = useState("luxury");
-const esMinimal = temaBosse === "minimal";
 
 return (
     <div
-  className={`bb-platform-shell ${
-    esMinimal ? "bb-theme-minimal" : "bb-theme-luxury"
-  }`}
+  className="bb-platform-shell bb-theme-minimal"
 >
       <aside className="bb-platform-sidebar">
         <div className="bb-brand-block">
@@ -43,30 +39,6 @@ return (
           </span>
           <span className="bb-business-chevron">⌄</span>
         </button>
-
-        <div className="bb-theme-preview">
-  <span className="bb-theme-preview-label">ESTILO BOSSE</span>
-
-  <div className="bb-theme-preview-options">
-    <button
-      type="button"
-      className={temaBosse === "luxury" ? "is-active" : ""}
-      onClick={() => setTemaBosse("luxury")}
-    >
-      <span>01</span>
-      Luxury
-    </button>
-
-    <button
-  type="button"
-  className={temaBosse === "minimal" ? "is-active" : ""}
-  onClick={() => setTemaBosse("minimal")}
->
-  <span>02</span>
-  Editorial
-</button>
-  </div>
-</div>
 
         <nav className="bb-platform-nav" aria-label="Navegación principal">
           <button
