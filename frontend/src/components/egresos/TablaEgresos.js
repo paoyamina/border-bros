@@ -28,7 +28,7 @@ function TablaEgresos({
     const tipos = {
       efectivo: "Efectivo",
       bancos: "Bancos",
-      banca: "Banca",
+      banca: "Plataforma",
     };
 
     return tipos[tipo] || tipo || "Sin tipo";

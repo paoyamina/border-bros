@@ -227,7 +227,7 @@ const limpiarFormulario = () => {
     }
 
     const confirmar = window.confirm(`
-¿REGISTRAR ESTE EGRESO BANCARIO?
+¿REGISTRAR ESTE EGRESO DE PLATAFORMA?
 
 Banco: ${bancoOrigen}
 Proveedor: ${beneficiarioEgreso}
@@ -340,7 +340,7 @@ if (!resultadoBD.success) {
   throw new Error(resultadoBD.error || "Error al guardar en base de datos.");
 }
 
-alert("✅ Egreso banca registrado correctamente.");
+alert("✅ Egreso de plataforma registrado correctamente.");
 limpiarFormulario();
 
 window.dispatchEvent(new Event("egresoActualizado"));
@@ -349,7 +349,7 @@ window.dispatchEvent(new Event("egresoActualizado"));
 
   console.error("Error egreso bancos:", error);
 
-  alert("🚨 Error al registrar egreso banca: " + error.message);
+  alert("🚨 Error al registrar egreso de plataforma: " + error.message);
 }
   };
 
@@ -384,7 +384,7 @@ window.dispatchEvent(new Event("egresoActualizado"));
             }}
           />
 
-          <h1 style={estilos.h1}>Egresos Banca</h1>
+          <h1 style={estilos.h1}>Egresos Plataforma</h1>
 
           <p style={estilos.p}>
             Operador: {usuarioActivo}
@@ -536,7 +536,7 @@ window.dispatchEvent(new Event("egresoActualizado"));
           <div style={estilos.section}>
 
             <label style={estilos.panelLabel}>
-              REFERENCIA / FOLIO BANCARIO
+              REFERENCIA / FOLIO DE PLATAFORMA
             </label>
 
             <input
@@ -648,7 +648,7 @@ window.dispatchEvent(new Event("egresoActualizado"));
     : "#000",
             }}
           >
-            REGISTRAR EGRESO BANCARIO
+            REGISTRAR EGRESO DE PLATAFORMA
           </button>
 
         </div>

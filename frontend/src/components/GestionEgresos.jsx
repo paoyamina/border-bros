@@ -410,7 +410,7 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
                   marginBottom: "6px",
                 }}
               >
-                Banca
+                Plataforma
               </div>
 
               <div
@@ -420,7 +420,7 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
                   fontWeight: "400",
                 }}
               >
-                Operaciones registradas desde banca electrónica.
+                Operaciones registradas mediante plataforma.
               </div>
             </button>
           </div>

@@ -79,7 +79,7 @@ function FiltrosEgresos({
             <option value="">Todos</option>
             <option value="efectivo">Efectivo</option>
             <option value="bancos">Bancos</option>
-            <option value="banca">Banca</option>
+            <option value="banca">Plataforma</option>
           </select>
         </div>
 

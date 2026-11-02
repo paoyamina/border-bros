@@ -100,7 +100,7 @@ function MenuPrincipal({ usuarioActivo, rol, onSeleccionarFormulario, onLogout }
     {
       id: "egresos",
       titulo: "Gestión de egresos",
-      descripcion: "Efectivo, bancos y banca electrónica.",
+      descripcion: "Efectivo, bancos y plataforma.",
       icono: "▣",
       imagen: "/bosse/luxury/egresos.webp",
       visible: puedeVerEgresos(rol),
