@@ -24,6 +24,7 @@ import { BosseBorderBroProvider, BosseBorderBroGlobal, useBosseBorderBroActions 
 function AppContent() {
   const { syncApp, setPrivacy: setChatPrivacy } = useBosseBorderBroActions();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [avisoSesion, setAvisoSesion] = useState('');
   const [formularioActivo, setFormularioActivo] = useState(null);
   const [usuarioActivo, setUsuarioActivo] = useState(null);
   const [usuarioId, setUsuarioId] = useState(null);
@@ -35,6 +36,22 @@ function AppContent() {
   const [, setUsuario] = useState(null);
   const [mostrandoSplash, setMostrandoSplash] = useState(true);
   const [, setSeccionSeleccionada] = useState(null);
+  useEffect(() => {
+    const sesionExpirada = () => {
+      setAvisoSesion('Tu sesión terminó. Inicia sesión nuevamente para continuar.');
+      setIsLoggedIn(false);
+      setUsuarioActivo(null);
+      setUsuarioId(null);
+      setRol(null);
+      setNegocioId(null);
+      setNegocios([]);
+      setNegocioSeleccionado(false);
+      setFormularioActivo(null);
+      setSeccionFinanciera('resumen');
+    };
+    window.addEventListener('bosse:sesion-expirada', sesionExpirada);
+    return () => window.removeEventListener('bosse:sesion-expirada', sesionExpirada);
+  }, []);
   const [corteEditando, setCorteEditando] = useState(null);
   const [negocioSeleccionado, setNegocioSeleccionado] = useState(false);
   useEffect(() => {
@@ -69,6 +86,7 @@ function AppContent() {
 }, []);
 
 const manejarLoginExitoso = (usuario) => {
+  setAvisoSesion('');
   setIsLoggedIn(true);
   setUsuario(usuario);
   setUsuarioActivo(usuario.nombre);
@@ -179,7 +197,7 @@ const manejarLoginExitoso = (usuario) => {
   }
 
   if (!isLoggedIn) {
-    return <Login onLogin={manejarLoginExitoso} />;
+    return <Login onLogin={manejarLoginExitoso} avisoSesion={avisoSesion} />;
   }
 
   if (isLoggedIn && !negocioSeleccionado) {

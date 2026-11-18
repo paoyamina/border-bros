@@ -158,13 +158,25 @@ const signCatalogSession = user => {
 };
 async function catalogAuth(req,res,next){
   if(req.catalogUser)return next();
+  const authorization=String(req.headers.authorization||'');
+  const token=authorization.replace(/^Bearer\s+/i,'');
+  const parts=token.split('.');
+  if(parts.length!==2||!parts[0]||!parts[1]){
+    return res.status(401).json({success:false,error:'Inicia sesión nuevamente para continuar.',codigo:'SESSION_EXPIRED'});
+  }
+  const [body,sig]=parts;
+  const valid=crypto.createHmac('sha256',BOSSE_SESSION_SECRET).update(body).digest('base64url');
+  if(sig.length!==valid.length||!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(valid))){
+    return res.status(401).json({success:false,error:'Tu sesión terminó. Inicia sesión nuevamente.',codigo:'SESSION_EXPIRED'});
+  }
+  let user;
+  try{user=JSON.parse(Buffer.from(body,'base64url').toString('utf8'));}
+  catch(e){return res.status(401).json({success:false,error:'Tu sesión terminó. Inicia sesión nuevamente.',codigo:'SESSION_EXPIRED'});}
+  if(!Number.isSafeInteger(Number(user?.sub))||Number(user.sub)<=0||
+      !Number.isFinite(user?.exp)||user.exp<Date.now()){
+    return res.status(401).json({success:false,error:'Tu sesión terminó. Inicia sesión nuevamente.',codigo:'SESSION_EXPIRED'});
+  }
   try{
-    const token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
-    const [body,sig]=token.split('.');if(!body||!sig)return res.status(401).json({success:false,error:'Inicia sesión para gestionar el catálogo.'});
-    const valid=crypto.createHmac('sha256',BOSSE_SESSION_SECRET).update(body).digest('base64url');
-    if(sig.length!==valid.length||!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(valid)))return res.status(401).json({success:false,error:'La sesión ya no es válida.'});
-    const user=JSON.parse(Buffer.from(body,'base64url').toString('utf8'));
-    if(!Number.isFinite(user.exp)||user.exp<Date.now())return res.status(401).json({success:false,error:'Sesión vencida. Ingresa de nuevo.'});
     const real=await pool.query('SELECT u.id, u.negocio_id, u.activo, COALESCE(r.nombre,u.rol) AS rol FROM usuarios u LEFT JOIN roles r ON r.id=u.rol_id WHERE u.id=$1 LIMIT 1',[user.sub]);
     if(!real.rows.length||!real.rows[0].activo)return res.status(403).json({success:false,error:'Usuario sin acceso.'});
     const primary=real.rows[0];
@@ -178,8 +190,12 @@ async function catalogAuth(req,res,next){
     }
     req.catalogUser={id:Number(primary.id),negocio:selected,role};
     if(Number(req.body?.negocio_id||req.query?.negocio_id||req.catalogUser.negocio)!==req.catalogUser.negocio)return res.status(403).json({success:false,error:'Sin permiso para este negocio.'});
-    next();
-  }catch(e){console.error('Catalog auth:',e.message);return res.status(401).json({success:false,error:'Sesión no válida.'});}
+    return next();
+  }catch(e){
+    // Si Neon o el backend fallan, NO invalida el token ni confunde ese error con una sesión vencida.
+    console.error('Catalog auth (servidor):',e.code||'ERROR',e.message);
+    return res.status(503).json({success:false,error:'No fue posible verificar el acceso con el servidor. Intenta nuevamente.',codigo:'AUTH_SERVICE_UNAVAILABLE'});
+  }
 }
 const catalogManager=(req,res,next)=>canManageCatalog(req.catalogUser.role)?next():res.status(403).json({success:false,error:'Solo gobernador y contador pueden autorizar cambios de catálogo.'});
 const catalogId = x=>Number.isInteger(Number(x))&&Number(x)>0?Number(x):null;

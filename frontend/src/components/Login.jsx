@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { API_ENDPOINTS } from "../config/api";
 import { validarLogin } from "../utils/validaciones";
 
-function Login({ onLogin }) {
+function Login({ onLogin, avisoSesion }) {
   const [userCredentials, setUserCredentials] = useState({
     idCajero: "",
     password: "",
@@ -29,14 +29,9 @@ function Login({ onLogin }) {
         }),
       });
 
-      if (!respuesta.ok) {
-        throw new Error("El servidor respondió con un error.");
-      }
-
-      const datos = await respuesta.json();
-
-      if (!datos.success) {
-        alert(datos.error || "⚠️ Acceso denegado: credenciales incorrectas.");
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok || !datos?.success) {
+        alert(datos?.error || (respuesta.status===401 ? 'Usuario o contraseña incorrectos.' : 'No se pudo iniciar sesión. Intenta nuevamente.'));
         return;
       }
 
@@ -84,6 +79,7 @@ function Login({ onLogin }) {
           <div className="bb-login-overline">ACCESO A BORDERBROS</div>
           <h2>Bienvenido</h2>
           <p className="bb-login-subtitle">Ingresa con tus credenciales para continuar.</p>
+          {avisoSesion && <p role="status" style={{background:'#fbf3e8',color:'#775733',border:'1px solid #e5d1b5',padding:'12px',borderRadius:'8px',fontSize:'13px'}}>{avisoSesion}</p>}
 
           <form onSubmit={manejarLogin}>
             <label className="bb-field-label" htmlFor="bb-user-id">ID de usuario</label>
