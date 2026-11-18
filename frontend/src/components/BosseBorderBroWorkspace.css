@@ -1,0 +1,50 @@
+/* BorderBro: catálogos, contexto e historial. Estilos locales del diálogo. */
+.bbai-workspace-trigger{border:1px solid #dfd2c1!important;background:#fff!important;color:#725638!important;border-radius:9px!important;padding:7px 11px!important;font-weight:700!important;font-size:11px!important;cursor:pointer;white-space:nowrap;min-height:34px}
+.bbai-workspace-trigger:hover{background:#f6efe6!important}
+.bbai-workspace-backdrop{position:fixed;inset:0;z-index:100020;background:#17171783;display:flex;align-items:center;justify-content:center;padding:20px}
+.bbai-workspace-dialog{width:min(900px,100%);height:min(780px,92dvh);display:flex;flex-direction:column;overflow:hidden;background:#fff;border:1px solid #d6c4ad;box-shadow:0 25px 90px #0004;border-radius:19px;color:#171717;font:13px/1.5 Arial,sans-serif}
+.bbai-workspace-heading{display:flex;align-items:start;justify-content:space-between;gap:14px;border-bottom:1px solid #e4d7c6;padding:19px 23px 15px}
+.bbai-workspace-heading small{color:#987349;font-size:10px;font-weight:800;letter-spacing:.1em}
+.bbai-workspace-heading h2{font:700 29px/1.2 Georgia,serif!important;margin:3px 0 4px!important}
+.bbai-workspace-heading p{margin:0!important;color:#746b60;font-size:12px}
+.bbai-workspace-heading>button{width:34px;height:34px;flex:none;border:1px solid #dbc9b3;border-radius:8px;background:white;color:#171717;cursor:pointer;font:23px Arial,sans-serif}
+.bbai-workspace-tabs{display:flex;gap:7px;padding:12px 22px;border-bottom:1px solid #e9e0d4;overflow-x:auto;flex:none}
+.bbai-workspace-tabs button{border:0;border-radius:9px;padding:10px 15px;background:transparent;color:#42392d;cursor:pointer;font:700 12px Arial,sans-serif;white-space:nowrap}
+.bbai-workspace-tabs button.active{background:#171717;color:white}
+.bbai-workspace-content{padding:18px 23px 24px;overflow-y:auto;flex:1;min-height:0}
+.bbai-workspace-content input:not([type=checkbox]),.bbai-workspace-content textarea{width:100%;min-width:0;background:#fff;border:1px solid #cdbba7;border-radius:9px;padding:11px 13px;font:13px/1.55 Arial,sans-serif;color:#171717}
+.bbai-workspace-content textarea{resize:vertical}
+.bbai-workspace-content label{display:block;margin:13px 0 7px;font-weight:800}
+.bbai-workspace-lead{margin:0 0 15px!important;color:#6f655c}
+.bbai-workspace-categories,.bbai-workspace-context-tips{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 18px}
+.bbai-workspace-categories button,.bbai-workspace-context-tips button{border:1px solid #e1d0bb;border-radius:20px;background:#faf7f2;padding:7px 11px;font-size:11px;color:#5d4933;cursor:pointer}
+.bbai-workspace-categories button.active{color:#fff;background:#171717}
+.bbai-workspace-prompt-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.bbai-workspace-prompt-list h3{font:700 21px Georgia,serif!important;margin:0 0 10px!important}
+.bbai-workspace-prompt-list section{min-width:0}
+.bbai-workspace-prompt-list section>button{display:flex;align-items:center;width:100%;gap:15px;text-align:left;padding:12px;border:1px solid #e4d6c6;border-radius:11px;background:#fff;margin:0 0 8px;cursor:pointer;color:#171717;min-width:0}
+.bbai-workspace-prompt-list section>button:hover{background:#f8f2ea;border-color:#af916a}
+.bbai-workspace-prompt-list section>button strong{font-size:12px;flex:0 0 120px}
+.bbai-workspace-prompt-list section>button span{flex:1;min-width:0;color:#645c52;font-size:11px}
+.bbai-workspace-prompt-list section>button b{color:#9d7951}
+.bbai-workspace-context-footer{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-top:12px;color:#766b5b;font-size:11px}
+.bbai-workspace-context-footer button,.bbai-workspace-history-list button,.bbai-workspace-history-actions button,.bbai-workspace-import{background:#171717;color:#fff;border:1px solid #171717;border-radius:9px;padding:9px 13px;cursor:pointer;font-size:12px;font-weight:700}
+.bbai-workspace-hint{margin:16px 0 0!important;font-size:11px;color:#766b5b}
+.bbai-workspace-warning{background:#fff0db;border:1px solid #c5a77e;padding:8px 13px;margin:10px 20px 0!important;border-radius:9px;color:#5d402a}
+.bbai-workspace-history-actions{display:flex;gap:8px;align-items:center}
+.bbai-workspace-history-actions input{flex:1}
+.bbai-workspace-import{display:block;margin:13px 0;background:#a18258;border-color:#a18258}
+.bbai-workspace-history-list{margin-top:16px;display:grid;gap:9px}
+.bbai-workspace-history-list article{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:13px 15px;border:1px solid #e4d6c6;border-radius:10px;background:#fff}
+.bbai-workspace-history-list article.selected{background:#f7efe5;border-color:#b18e61}
+.bbai-workspace-history-list article>div:first-child{min-width:170px;max-width:420px;overflow-wrap:anywhere}
+.bbai-workspace-history-list article strong{display:block;font-size:13px}
+.bbai-workspace-history-list article small{display:block;font-size:11px;color:#6e6458;margin-top:3px}
+.bbai-workspace-history-buttons{display:flex;flex-wrap:wrap;gap:5px}
+.bbai-workspace-history-buttons button{background:#fff;color:#6e5435;border:1px solid #d8c4ab;font-size:10px;padding:6px 8px}
+.bbai-workspace-history-buttons button.danger{color:#a1261d;border-color:#d58c86}
+.bbai-workspace-history-list form{display:flex;gap:8px;width:100%}
+.bbai-workspace-history-list form input{flex:1}
+.bbai-workspace-notice{margin-top:15px!important;border:1px solid #d3bd9e;background:#f8f2e8;padding:10px;border-radius:8px;color:#6f4c2c}
+.bbai-workspace-content button:focus-visible,.bbai-workspace-heading button:focus-visible,.bbai-workspace-tabs button:focus-visible{outline:3px solid #b3905d;outline-offset:2px}
+@media(max-width:760px){.bbai-workspace-backdrop{padding:0}.bbai-workspace-dialog{height:100dvh;width:100%;border-radius:0}.bbai-workspace-heading{padding:14px}.bbai-workspace-tabs{padding:7px}.bbai-workspace-content{padding:13px}.bbai-workspace-prompt-list{grid-template-columns:1fr}.bbai-workspace-prompt-list section>button strong{flex-basis:90px}.bbai-workspace-history-actions{flex-wrap:wrap}.bbai-workspace-context-footer{flex-wrap:wrap}}

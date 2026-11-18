@@ -1,0 +1,12 @@
+/* Safe mobile UX layer for legacy data-capture forms. No calculations changed. */
+@media(max-width:650px){
+ #root{max-width:100vw;overflow-x:clip}
+ #root input:not([type=checkbox]):not([type=radio]),#root select,#root textarea{max-width:100%;font-size:16px!important;box-sizing:border-box}
+ #root textarea{min-height:84px}
+ #root button{touch-action:manipulation}
+ #root div[style*="grid-template-columns: 1fr 1fr"]{grid-template-columns:minmax(0,1fr)!important}
+ #root div:has(> table){overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+ #root table{font-size:12px}
+ #root table input{min-width:65px}
+}
+@media(min-width:651px) and (max-width:1050px){#root div:has(> table){overflow-x:auto;max-width:100%}}

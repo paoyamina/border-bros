@@ -1,0 +1,215 @@
+/* BOSSE — Explorar movimientos, Etapa 2B
+   Dos modos de visualización; no cambia filtros, cálculos, permisos ni exports.
+   Vista dividida: importe y acción visibles sin desplazamiento horizontal en escritorio.
+   Tabla completa: todas las columnas personalizables, con ficha superpuesta a demanda.
+*/
+.be-page .be-x-screen.be-x-stage2 .be-x-view-switch {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  background: var(--be-warm);
+  border: 1px solid var(--be-border);
+  border-radius: 9px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-view-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--be-ink);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-view-switch button.active {
+  background: #171717;
+  color: #fff;
+  box-shadow: 0 1px 4px #0002;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-view-switch button.active .bosse-icon { color: #d7b98b; }
+.be-page .be-x-screen.be-x-stage2 .be-x-view-switch button:hover:not(.active) {
+  background: var(--be-card);
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-view-switch button:focus-visible {
+  outline: 2px solid var(--be-bronze);
+  outline-offset: 2px;
+}
+/* La tabla comparte el ancho con el inspector solo en vista dividida. */
+.be-page .be-x-screen.be-x-stage2 .be-x-workspace.be-x-has-detail.be-x-mode-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(340px, .92fr);
+  align-items: start;
+  gap: 14px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-workspace.be-x-has-detail.be-x-mode-full {
+  display: block;
+  grid-template-columns: minmax(0, 1fr);
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-table-scroll-help { display: none; }
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-table-wrap { overflow-x: hidden; }
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-stage2-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100%;
+  table-layout: fixed;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-stage2-table td,
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-stage2-table th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 7px;
+  padding-right: 7px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-cell-folio strong {
+  display: block;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-cell-concept strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-stage2-table td.be-x-amount {
+  padding-left: 2px;
+  padding-right: 6px;
+  font-size: 11px;
+  letter-spacing: -.025em;
+  white-space: nowrap;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-stage2-table .be-x-open {
+  width: 100%;
+  padding: 6px 2px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-full .be-x-results {
+  width: 100%;
+  max-width: 100%;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-full .be-x-table-wrap {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-mode-full .be-x-stage2-table {
+  width: 100%;
+  table-layout: fixed;
+}
+/* Ficha superpuesta solo cuando se solicita Ver en Tabla completa. */
+.be-page .be-x-screen.be-x-stage2 .be-x-inspector-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 7001;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-inspector-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #1119;
+  cursor: pointer;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-full-inspector {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(600px, 100vw);
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--be-card);
+  color: var(--be-ink);
+  border-left: 1px solid var(--be-border);
+  box-shadow: -15px 0 55px #1113;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-full-inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 19px;
+  border-bottom: 1px solid var(--be-border);
+  background: var(--be-card);
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-full-inspector-header div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.be-page .be-x-screen.be-x-stage2 .be-x-full-inspector-header span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--be-bronze);
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-full-inspector-header strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-full-inspector-header button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-radius: 7px;
+  background: #171717;
+  border: 1px solid #171717;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-full-inspector-header button:focus-visible {
+  outline: 3px solid var(--be-bronze);
+  outline-offset: 2px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-full-inspector-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-full-inspector-body .be-drawer.be-drawer-inline {
+  position: relative;
+  width: 100%;
+  max-height: none;
+  height: auto;
+  padding: 17px 20px;
+  overflow: visible;
+  box-shadow: none;
+}
+@media (max-width: 1200px) {
+  .be-page .be-x-screen.be-x-stage2 .be-x-workspace.be-x-has-detail.be-x-mode-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-detail-panel {
+    position: relative;
+    top: auto;
+    max-height: 540px;
+    overflow-y: auto;
+  }
+  .be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-stage2-table { min-width: 0 !important; }
+}
+@media (max-width: 760px) {
+  .be-page .be-x-screen.be-x-stage2 .be-x-view-switch { width: 100%; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-view-switch button { flex: 1 1 50%; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-table-wrap { overflow-x: auto; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-mode-split .be-x-stage2-table { min-width: 660px !important; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-full-inspector { width: 100vw; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-full-inspector-header { padding: 12px; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-full-inspector-body .be-drawer.be-drawer-inline { padding: 12px; }
+}
+@media print {
+  .be-page .be-x-screen.be-x-stage2 .be-x-inspector-modal { display: none !important; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-view-switch { display: none !important; }
+}

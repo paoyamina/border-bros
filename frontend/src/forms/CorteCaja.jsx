@@ -1,5 +1,8 @@
+import {financialDate} from '../utils/financialDate';
+import { apiFetch } from '../config/api';
 import React, { useEffect, useState } from "react";
 import estilos from "../styles/estilos";
+import ProveedorAyuda from "../components/ProveedorAyuda";
 import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 import { generarFolio } from "../utils/folios";
 import { exportarExcelCorte } from "../utils/exportExcel";
@@ -30,7 +33,7 @@ function CorteCaja({
   const [cantidades, setCantidades] = useState({});
   const [tc, setTc] = useState(17.5);
   const [fechaReporte, setFechaReporte] = useState(
-    new Date().toISOString().split("T")[0]
+    financialDate()
   );
   const [nombreReporte, setNombreReporte] = useState(generarFolio("CORTE"));
   const [iniciales, setIniciales] = useState("");
@@ -44,6 +47,7 @@ function CorteCaja({
     { id: Date.now(), nombre: "", monto: "" },
   ]);
 
+  const [tpvDesglose,setTpvDesglose]=useState({bbva:'',plataforma:''});
   const [proveedoresExistentes, setProveedoresExistentes] = useState([]);
 const [categoriasExistentes, setCategoriasExistentes] = useState([]);
 const [conceptosExistentes, setConceptosExistentes] = useState([]);
@@ -51,8 +55,9 @@ const [conceptosExistentes, setConceptosExistentes] = useState([]);
 const [gastosCorteRows, setGastosCorteRows] = useState([
   {
     id: Date.now(),
-    categoria: "",
+    categoria: "Gastos Corte",
     proveedor: "",
+    solicitud_proveedor_id: null,
     concepto: "",
     divisa: "MXN",
     tipo_cambio: tc,
@@ -63,8 +68,9 @@ const [gastosCorteRows, setGastosCorteRows] = useState([
 const [reglamentosRows, setReglamentosRows] = useState([
   {
     id: Date.now() + 1,
-    categoria: "Reglamentos",
+    categoria: "Servicios",
     proveedor: "Interventor",
+    solicitud_proveedor_id: null,
     concepto: "Reglamentos / Interventor",
     divisa: "MXN",
     tipo_cambio: tc,
@@ -85,13 +91,13 @@ useEffect(() => {
         respuestaCategorias,
         respuestaConceptos,
       ] = await Promise.all([
-        fetch(
+        apiFetch(
           `${API_ENDPOINTS.proveedores}?negocio_id=${negocioId}`
         ),
-        fetch(
+        apiFetch(
           `${API_ENDPOINTS.categorias}?negocio_id=${negocioId}`
         ),
-        fetch(
+        apiFetch(
           `${API_BASE_URL}/api/egresos/conceptos?negocio_id=${negocioId}`
         ),
       ]);
@@ -158,7 +164,7 @@ useEffect(() => {
     try {
       setCargandoCorte(true);
 
-      const respuesta = await fetch(
+      const respuesta = await apiFetch(
         `${API_BASE_URL}/api/cortes/${corteEditando.id}`
       );
 
@@ -178,13 +184,14 @@ useEffect(() => {
       setFechaReporte(
         corte.fecha
           ? String(corte.fecha).split("T")[0]
-          : new Date().toISOString().split("T")[0]
+          : financialDate()
       );
 
       setNombreReporte(corte.folio || "");
       setIniciales(corte.responsable_iniciales || "");
       setTc(Number(corte.tipo_cambio) || 17.5);
 
+      setTpvDesglose(corte.tpv_desglose||{bbva:'',plataforma:''});
       cantidadesCargadas.tarjetas =
         corte.total_tarjetas ?? "";
 
@@ -280,6 +287,7 @@ useEffect(() => {
                 item.proveedor_nombre ||
                 item.proveedor ||
                 "",
+              solicitud_proveedor_id: item.solicitud_proveedor_id || null,
               concepto: item.concepto || "",
               divisa: item.divisa || "MXN",
               tipo_cambio:
@@ -292,8 +300,9 @@ useEffect(() => {
           : [
               {
                 id: Date.now(),
-                categoria: "",
+                categoria: "Gastos Corte",
                 proveedor: "",
+                solicitud_proveedor_id: null,
                 concepto: "",
                 divisa: "MXN",
                 tipo_cambio: 1,
@@ -320,6 +329,7 @@ useEffect(() => {
                 item.proveedor_nombre ||
                 item.proveedor ||
                 "Interventor",
+              solicitud_proveedor_id: item.solicitud_proveedor_id || null,
               concepto:
                 item.concepto ||
                 "Reglamentos / Interventor",
@@ -334,8 +344,9 @@ useEffect(() => {
           : [
               {
                 id: Date.now() + 1,
-                categoria: "Reglamentos",
+                categoria: "Servicios",
                 proveedor: "Interventor",
+                solicitud_proveedor_id: null,
                 concepto: "Reglamentos / Interventor",
                 divisa: "MXN",
                 tipo_cambio: 1,
@@ -599,7 +610,7 @@ const totalReglamentos = reglamentosRows.reduce(
   0
 );
 
-const prepararMovimientosCorte = (rows) => {
+const prepararMovimientosCorte = (rows,tipoMovimiento) => {
   return rows
     .map((row, index) => {
       const montoOriginal = parseFloat(row.monto) || 0;
@@ -608,8 +619,9 @@ const prepararMovimientosCorte = (rows) => {
 
       return {
         numero: index + 1,
-        categoria: String(row.categoria || "").trim(),
+        categoria: tipoMovimiento === 'reglamentos' ? 'Servicios' : 'Gastos Corte',
         proveedor: String(row.proveedor || "").trim(),
+        solicitud_proveedor_id: row.solicitud_proveedor_id || null,
         concepto: String(row.concepto || "").trim(),
         divisa: row.divisa || "MXN",
         tipo_cambio: tipoCambio,
@@ -627,7 +639,6 @@ const validarMovimientosCorte = (rows, nombreModulo) => {
     if (monto <= 0) return false;
 
     return (
-      !String(row.categoria || "").trim() ||
       !String(row.proveedor || "").trim() ||
       !String(row.concepto || "").trim()
     );
@@ -640,6 +651,7 @@ const validarMovimientosCorte = (rows, nombreModulo) => {
   return null;
 };
 
+const tpvPayload = tpvDesglose;
 const totalTarjetas = parseFloat(cantidades.tarjetas) || 0;
 const coverTPV = parseFloat(cantidades.cover_tpv) || 0;
 const montoVentaMeta = parseFloat(cantidades.monto_meta) || 0;
@@ -701,8 +713,9 @@ const diferencia =
   const agregarMovimientoCorte = (tipo) => {
   const nuevoMovimiento = {
     id: Date.now(),
-    categoria: tipo === "reglamentos" ? "Reglamentos" : "",
+    categoria: tipo === "reglamentos" ? "Servicios" : "Gastos Corte",
     proveedor: tipo === "reglamentos" ? "Interventor" : "",
+    solicitud_proveedor_id: null,
     concepto:
       tipo === "reglamentos" ? "Reglamentos / Interventor" : "",
     divisa: "MXN",
@@ -725,6 +738,7 @@ const actualizarMovimientoCorte = (tipo, id, campo, valor) => {
       const rowActualizado = {
         ...row,
         [campo]: valor,
+        ...(campo==='proveedor'?{solicitud_proveedor_id:null}:{}),
       };
 
       if (campo === "divisa" && valor === "MXN") {
@@ -824,50 +838,32 @@ const renderMovimientoCorte = ({
           >
             <div>
               <label style={estilos.panelLabel}>CATEGORÍA</label>
-              <select
-                value={row.categoria}
-                onChange={(e) =>
-                  actualizarMovimientoCorte(
-                    tipo,
-                    row.id,
-                    "categoria",
-                    e.target.value
-                  )
-                }
-                style={{ ...estilos.input, width: "100%" }}
-              >
-                <option value="">-- Selecciona --</option>
-
-                {categoriasExistentes.map((cat) => (
-                  <option key={cat.id} value={cat.nombre}>
-                    {cat.nombre}
-                  </option>
-                ))}
-              </select>
+              <input type="text" readOnly
+                value={tipo==='reglamentos'?'Servicios':'Gastos Corte'}
+                title="Categoría definida por la política de gastos del corte"
+                style={{ ...estilos.input, width:'100%', background:'#f4f2ed' }}/>
+              <small style={{display:'block',marginTop:4,fontSize:10,color:'#8b7d66'}}>Categoría automática</small>
             </div>
 
             <div>
               <label style={estilos.panelLabel}>PROVEEDOR</label>
-              <select
+              <input
+                type="text"
+                list={`bosse-proveedores-corte-${row.id}`}
+                placeholder="Busca proveedor del catálogo…"
                 value={row.proveedor}
-                onChange={(e) =>
-                  actualizarMovimientoCorte(
-                    tipo,
-                    row.id,
-                    "proveedor",
-                    e.target.value
-                  )
-                }
-                style={{ ...estilos.input, width: "100%" }}
-              >
-                <option value="">-- Selecciona proveedor --</option>
+                onChange={e => actualizarMovimientoCorte(tipo,row.id,'proveedor',e.target.value)}
+                style={{...estilos.input,width:'100%'}}
+              />
+              <datalist id={`bosse-proveedores-corte-${row.id}`}>
+                {proveedoresExistentes.map(p=><option key={p.id} value={p.nombre}/>)}
+              </datalist>
+              <ProveedorAyuda nombre={row.proveedor} negocioId={negocioId} proveedores={proveedoresExistentes}
+                solicitudId={row.solicitud_proveedor_id||null}
+                onSolicitar={id=>actualizarMovimientoCorte(tipo,row.id,'solicitud_proveedor_id',id)}
+                onElegir={nombre=>actualizarMovimientoCorte(tipo,row.id,'proveedor',nombre)}
+                onSugerir={item=>{if(!row.concepto)actualizarMovimientoCorte(tipo,row.id,'concepto',item.concepto);}}/>
 
-                {proveedoresExistentes.map((proveedor) => (
-                  <option key={proveedor.id} value={proveedor.nombre}>
-                    {proveedor.nombre}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div>
@@ -1028,6 +1024,7 @@ const renderMovimientoCorte = ({
   totalCover,
 
   totalTarjetas,
+ tpv_desglose: tpvPayload,
   totalVales,
   totalGastosCorte,
   totalReglamentos,
@@ -1075,10 +1072,10 @@ if (errorReglamentos) {
 }
 
 const gastosCorteParaGuardar =
-  prepararMovimientosCorte(gastosCorteRows);
+  prepararMovimientosCorte(gastosCorteRows,'gastos_corte');
 
 const reglamentosParaGuardar =
-  prepararMovimientosCorte(reglamentosRows);
+  prepararMovimientosCorte(reglamentosRows,'reglamentos');
 
     if (fotosTicket.length === 0) {
       const continuarSinTicket = window.confirm(
@@ -1122,6 +1119,8 @@ Al aceptar, se descargará el Excel local y se enviarán las fotos a Drive.
 
     try {
 
+      if(tpvDesglose.bbva===''||tpvDesglose.plataforma===''||Number(tpvDesglose.bbva)<0||Number(tpvDesglose.plataforma)<0||Math.round((Number(tpvDesglose.bbva)+Number(tpvDesglose.plataforma))*100)!==Math.round(totalTarjetas*100)){alert('BBVA + Plataforma debe coincidir con el total de ventas tarjeta. Completa ambos importes.');return;}
+
       const formData = new FormData();
 
       formData.append("nombreCarpeta", `Corte_${fechaReporte}_${nombreReporte}`);
@@ -1147,6 +1146,7 @@ coverTPV,
 totalCover,
 
 totalTarjetas,
+ tpv_desglose: tpvPayload,
           totalVales: 0,
           gastosCorte: totalGastosCorte,
           reglamentos: totalReglamentos,
@@ -1170,7 +1170,7 @@ totalTarjetas,
       });
 
       if (modoEdicion && corteEditando?.id) {
-  const respuestaEdicion = await fetch(
+  const respuestaEdicion = await apiFetch(
     `${API_BASE_URL}/api/cortes/${corteEditando.id}`,
     {
       method: "PUT",
@@ -1184,6 +1184,7 @@ totalTarjetas,
         usuario_edita_id: usuarioId,
         tipoCambio: tc,
         totalTarjetas,
+ tpv_desglose: tpvPayload,
         efectivoMXN: calcularMXN(),
         efectivoUSD: calcularUSD(),
         totalGlobalMXN,
@@ -1222,7 +1223,7 @@ totalTarjetas,
   return;
 }
 
-      const respuesta = await fetch(API_ENDPOINTS.guardarReporte, {
+      const respuesta = await apiFetch(API_ENDPOINTS.guardarReporte, {
         method: "POST",
         body: formData,
       });
@@ -2106,7 +2107,7 @@ onVolver();
               border: "1px solid #eee",
             }}
           >
-            <label style={estilos.panelLabel}>TOTAL VENTAS TARJETA (TPV)</label>
+            <label style={estilos.panelLabel}>TOTAL VENTAS TARJETA (TPV)</label><fieldset style={{border:'1px solid #ddd5c7',padding:12,margin:'10px 0',borderRadius:8}}><legend>Desglose TPV</legend><p style={{fontSize:12}}>BBVA y Plataforma componen el total de ventas tarjeta. No se suman de nuevo al corte. Los históricos sin desglose se muestran como “Sin dato”.</p>{['bbva','plataforma'].map(k=><label key={k} style={{display:'block',marginBottom:8}}>{k==='bbva'?'BBVA':'Plataforma'}<input type="number" min="0" step="0.01" inputMode="decimal" value={tpvDesglose[k]} onChange={e=>setTpvDesglose({...tpvDesglose,[k]:e.target.value})} style={{...estilos.input,width:'100%',boxSizing:'border-box'}}/></label>)}</fieldset>
             <input
   type="number"
   placeholder="$ 0.00"

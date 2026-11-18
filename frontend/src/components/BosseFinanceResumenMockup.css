@@ -1,0 +1,49 @@
+/* BOSSE · Resumen: desglose compacto aprobado, sin afectar Explorar. */
+.be-page .be-summary-main .be-expense-split {
+  display: grid;
+  grid-template-columns: minmax(205px, .74fr) minmax(0, 1.45fr);
+  align-items: start;
+  gap: 15px;
+}
+.be-page .be-summary-main .be-category-composition {
+  padding-right: 14px;
+  border-right: 1px solid var(--be-border);
+}
+.be-page .be-summary-main .be-category-options { gap: 3px; max-height:250px; overflow-y:auto; }
+.be-page .be-summary-main .be-category-options button { padding: 7px 8px; }
+.be-page .be-summary-main .be-cat-track > span { background: #1a1a1a; }
+.be-page .be-summary-main .be-category-options button.selected,
+.be-page .be-summary-main .be-concepts button.selected { background: #f2e9dc; border-color: #d8c4aa; }
+.be-page .be-summary-main .be-selection-hint { background:#f3ece2;color:#765b38; }
+.be-page .be-summary-main .be-concepts-disclosure {
+  margin: 11px 0 6px;
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:9px 10px;
+  font-size:12px;
+  font-weight:750;
+  color:var(--be-ink);
+  border:1px solid var(--be-border);
+  border-radius:7px;
+  background:var(--be-card);
+  cursor:pointer;
+}
+.be-page .be-summary-main .be-concepts-disclosure:hover { background:var(--be-warm); }
+.be-page .be-summary-main .be-concepts-disclosure:focus-visible { outline:3px solid #a88458;outline-offset:2px; }
+.be-page .be-summary-main .be-category-heading h3 { font-size:14px; }
+.be-page .be-summary-main .be-expense-movements .be-table th,
+.be-page .be-summary-main .be-expense-movements .be-table td { padding:8px 7px; }
+.be-page .be-summary-main .be-expense-movements .be-table-wrap { max-width:100%; }
+.be-page .be-summary-main .be-summary-total-strip { margin-bottom:3px; }
+@media (max-width: 1080px) {
+  .be-page .be-summary-main .be-expense-split { grid-template-columns:1fr; }
+  .be-page .be-summary-main .be-category-composition { border-right:0; border-bottom:1px solid var(--be-border);padding-right:0;padding-bottom:13px; }
+}
+@media (max-width: 760px) {
+  .be-page .be-summary-main .be-expense-split { display:block; }
+  .be-page .be-summary-main .be-category-composition { margin-bottom:15px; }
+}
+.be-page[data-theme=dark] .be-summary-main .be-concepts-disclosure { background:var(--be-card); }

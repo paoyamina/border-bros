@@ -70,10 +70,8 @@ function normalizarRol(rol) {
 function puedeVer(rol, formulario) {
   const rolNormalizado = normalizarRol(rol);
 
-  // Temporal: si todavía no viene rol desde backend, mostramos todo para pruebas
-  if (!rolNormalizado || rolNormalizado === "sin rol") {
-    return true;
-  }
+  // No mostrar módulos privilegiados sin rol verificable.
+  if (!rolNormalizado || rolNormalizado === "sin rol") return false;
 
   return permisosPorRol[rolNormalizado]?.includes(formulario);
 }
@@ -141,6 +139,13 @@ function MenuPrincipal({ usuarioActivo, rol, onSeleccionarFormulario, onLogout }
       imagen: "/bosse/luxury/adelantos.webp",
       visible: puedeVer(rol, "inversiones_socios"),
       onClick: () => onSeleccionarFormulario("inversiones_socios"),
+    },
+    {
+      id: 'catalogo', titulo: 'Catálogos y autorizaciones',
+      descripcion: 'Proveedores, solicitudes y categorías de gasto.',
+      icono: '◇', imagen: '/logo-administracion.png',
+      visible: ['gobernador','contador'].includes(normalizarRol(rol)),
+      onClick: () => onSeleccionarFormulario('catalogo'),
     },
     {
       id: "cambio_divisas",

@@ -1,0 +1,62 @@
+
+/* BOSSE · Etapa 3 / ficha de auditoría. Estilos aislados: no cambia filtros,
+   tarjetas, tabla, navegación, backend ni formularios de Administración. */
+.be-page .be-finance-audit{color:var(--be-ink);background:var(--be-card);min-width:0;}
+.be-page .be-finance-audit .be-audit-heading{border-bottom:1px solid var(--be-border);padding-bottom:16px;margin-bottom:16px;}
+.be-page .be-finance-audit .be-audit-heading-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.be-page .be-finance-audit .be-audit-overline{display:flex;align-items:center;gap:7px;color:var(--be-bronze);font-size:10px;font-weight:800;letter-spacing:.08em;margin:0 0 7px;}
+.be-page .be-finance-audit .be-audit-heading h2{font:700 clamp(17px,1.4vw,23px)/1.2 Georgia,'Times New Roman',serif!important;overflow-wrap:anywhere;}
+.be-page .be-finance-audit .be-audit-close{flex:none;width:34px;height:34px;border:1px solid var(--be-border);border-radius:8px;background:var(--be-card);font-size:24px;line-height:1;display:grid;place-items:center;}
+.be-page .be-finance-audit .be-audit-breadcrumb{display:flex;align-items:center;gap:7px;color:var(--be-ink);font-size:11px;font-weight:600;background:var(--be-warm);border:1px solid var(--be-border);border-radius:6px;padding:8px 10px;margin-top:10px;line-height:1.35;}
+.be-page .be-finance-audit .be-audit-breadcrumb .bosse-icon{color:var(--be-bronze);flex:none;}
+.be-page .be-finance-audit .be-audit-main-amount{display:flex;align-items:end;justify-content:space-between;gap:8px;margin:14px 0 13px;}
+.be-page .be-finance-audit .be-audit-main-amount>div{display:flex;flex-direction:column;gap:6px;min-width:0;}
+.be-page .be-finance-audit .be-audit-main-amount small{color:var(--be-muted);font-size:11px;line-height:1.45;overflow-wrap:anywhere;}
+.be-page .be-finance-audit .be-audit-main-amount strong{font:750 clamp(21px,1.65vw,29px)/1.1 Arial,sans-serif;letter-spacing:-.035em;overflow-wrap:anywhere;}
+.be-page .be-finance-audit .be-audit-type{border:1px solid var(--be-border);border-radius:20px;background:var(--be-warm);padding:5px 9px;color:var(--be-ink);font-size:11px;font-weight:700;white-space:nowrap;}
+.be-page .be-finance-audit .be-audit-quick-actions{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 9px;}
+.be-page .be-finance-audit .be-audit-quick-actions button,.be-page .be-finance-audit .be-audit-quick-actions a,.be-page .be-finance-audit .be-audit-unavailable{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:7px;border:1px solid var(--be-border);background:var(--be-card);color:var(--be-ink);padding:9px 10px;min-height:35px;text-decoration:none;font-size:11px;font-weight:750;line-height:1.1;}
+.be-page .be-finance-audit .be-audit-quick-actions .be-audit-quick-primary{background:#171717;border-color:#171717;color:#fff;}
+.be-page .be-finance-audit .be-audit-unavailable{background:var(--be-warm);font-weight:500;color:var(--be-muted);}
+.be-page .be-finance-audit .be-audit-quick-actions button:hover,.be-page .be-finance-audit .be-audit-quick-actions a:hover{border-color:var(--be-bronze);}
+.be-page .be-finance-audit .be-audit-export-one{display:flex;gap:7px;align-items:center;flex-wrap:wrap;border:1px solid var(--be-border);border-radius:7px;padding:8px 10px;}
+.be-page .be-finance-audit .be-audit-export-one span{font-size:11px;font-weight:600;color:var(--be-muted);flex:1 1 auto;}
+.be-page .be-finance-audit .be-audit-export-one button{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--be-border);border-radius:6px;background:var(--be-card);padding:6px 8px;font-size:11px;font-weight:700;min-height:30px;}
+.be-page .be-finance-audit .be-audit-export-one button:hover:not(:disabled){background:var(--be-warm);}
+.be-page .be-finance-audit .be-audit-content{display:flex;flex-direction:column;gap:9px;}
+.be-page .be-finance-audit .be-audit-section{margin:0;padding:0 13px!important;border:1px solid var(--be-border);border-radius:9px;background:var(--be-card);scroll-margin-top:14px;}
+.be-page .be-finance-audit .be-audit-section>summary{display:flex;align-items:center;gap:8px;list-style:none;cursor:pointer;font:700 14px/1.3 Georgia,'Times New Roman',serif;padding:13px 0;color:var(--be-ink);}
+.be-page .be-finance-audit .be-audit-section>summary::-webkit-details-marker{display:none;}
+.be-page .be-finance-audit .be-audit-section>summary:before{content:'▸';font:15px Arial,sans-serif;color:var(--be-bronze);}
+.be-page .be-finance-audit .be-audit-section[open]>summary:before{content:'▾';}
+.be-page .be-finance-audit .be-audit-section>summary .bosse-icon{color:var(--be-bronze);}
+.be-page .be-finance-audit .be-audit-essential{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px 13px;border-top:1px solid var(--be-border);padding:12px 0 14px;}
+.be-page .be-finance-audit .be-audit-essential>div{min-width:0;display:flex;flex-direction:column;gap:4px;}
+.be-page .be-finance-audit .be-audit-essential small{font-size:11px;color:var(--be-muted);}
+.be-page .be-finance-audit .be-audit-essential strong{font-size:12px;overflow-wrap:anywhere;}
+.be-page .be-finance-audit .be-audit-subdetail{border-top:1px solid var(--be-border);padding:0 0 4px;}
+.be-page .be-finance-audit .be-audit-subdetail>summary{padding:11px 0;font-size:12px;font-weight:700;color:var(--be-ink);cursor:pointer;}
+.be-page .be-finance-audit .be-audit-subdetail .be-detail-grid{padding:4px 0 14px;}
+.be-page .be-finance-audit .be-audit-contribution{background:var(--be-warm)!important;border:1px solid var(--be-border)!important;color:var(--be-ink)!important;margin:0 0 12px!important;padding:13px!important;gap:5px;}
+.be-page .be-finance-audit .be-audit-contribution>span{font-size:11px;color:var(--be-muted);}
+.be-page .be-finance-audit .be-audit-contribution>strong{font-size:13px;}
+.be-page .be-finance-audit .be-audit-contribution>b{font-size:24px;letter-spacing:-.035em;color:var(--be-ink);}
+.be-page .be-finance-audit .be-audit-contribution>small{font-size:11px;color:var(--be-muted);}
+.be-page .be-finance-audit .be-audit-warning{font-size:11px;line-height:1.5;color:var(--be-muted);margin:0 0 13px;}
+.be-page .be-finance-audit .be-audit-section .be-note{font-size:11px;line-height:1.5;margin:0 0 13px;}
+.be-page .be-finance-audit .be-audit-link-line{display:flex;align-items:center;gap:10px;padding:11px 0;margin:0;font-size:11px;}
+.be-page .be-finance-audit .be-audit-link-line>span{flex:1;}
+.be-page .be-finance-audit .be-audit-link-line a{color:var(--be-ink);font-weight:750;white-space:nowrap;}
+.be-page .be-finance-audit .be-audit-relations{margin:0;padding:0 0 10px;}
+.be-page .be-finance-audit .be-audit-relations>div{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--be-border);}
+.be-page .be-finance-audit .be-audit-relations dt{font-size:11px;color:var(--be-muted);}
+.be-page .be-finance-audit .be-audit-relations dd{margin:0;text-align:right;font-size:12px;font-weight:700;overflow-wrap:anywhere;}
+.be-page .be-finance-audit .be-audit-disclaimer{display:flex;gap:7px;align-items:flex-start;font-size:10px;line-height:1.55;color:var(--be-muted);margin:5px 0 0;}
+.be-page .be-finance-audit .be-audit-disclaimer .bosse-icon{flex:none;color:var(--be-bronze);}
+.be-page[data-theme=dark] .be-finance-audit .be-audit-quick-actions .be-audit-quick-primary{background:#111;border-color:#444;color:#fff;}
+@media(max-width:700px){
+  .be-page .be-finance-audit .be-audit-main-amount{align-items:flex-start;flex-direction:column;}
+  .be-page .be-finance-audit .be-audit-quick-actions>*{flex:1 1 45%;}
+  .be-page .be-finance-audit .be-audit-export-one span{flex:1 1 100%;}
+}
+@media(prefers-reduced-motion:reduce){.be-page .be-finance-audit *{scroll-behavior:auto!important;}}

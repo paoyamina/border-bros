@@ -1,0 +1,58 @@
+/* BOSSE · Resumen / Insights aprobado — ámbito exclusivo de Análisis Financiero. */
+.be-page .be-summary-main .be-expense-split {
+  grid-template-columns: minmax(175px, .58fr) minmax(0, 1.72fr);
+}
+.be-page .be-summary-main .be-category-composition { padding-right: 10px; }
+.be-page .be-summary-main .be-summary-table-wrap { max-width:100%; overflow-x:auto; }
+.be-page .be-summary-main .be-summary-table { min-width: 620px; border-collapse:collapse; }
+.be-page .be-summary-main .be-summary-table th { white-space:nowrap; }
+.be-page .be-summary-main .be-summary-table td.be-summary-date,
+.be-page .be-summary-main .be-summary-table td.be-summary-amount,
+.be-page .be-summary-main .be-summary-table td.be-summary-amount span { white-space:nowrap; word-break:normal; overflow-wrap:normal; }
+.be-page .be-summary-main .be-summary-table td.be-summary-date { min-width: 92px; font-variant-numeric:tabular-nums; }
+.be-page .be-summary-main .be-summary-table td.be-summary-amount { min-width: 102px; text-align:right; font-variant-numeric:tabular-nums; }
+.be-page .be-summary-main .be-summary-table td.be-summary-amount span { display:inline-block; }
+.be-page .be-summary-main .be-summary-table td:last-child { white-space:nowrap; }
+/* Card de insights: jerarquía compacta fiel a la propuesta visual. */
+.be-page .be-insights-approved { position:sticky;top:10px; align-self:start; padding:18px 17px; }
+.be-page .be-insights-approved .be-summary-insights-head { padding-bottom:12px; gap:9px; }
+.be-page .be-insights-approved .be-summary-insights-head h2 { font-size:clamp(20px,1.65vw,25px)!important; letter-spacing:-.018em; }
+.be-page .be-insights-approved .be-summary-insights-head p {font-size:12px;line-height:1.35;}
+.be-page .be-insights-period {padding:12px 11px;margin-top:14px;border:1px solid #e0d4c6;background:#f8f3eb;border-radius:9px;}
+.be-page .be-insights-period.is-provisional {background:#fff8e8;border-color:#eedbb4;}
+.be-page .be-insights-period-header {display:flex;align-items:center;gap:9px;min-width:0;}
+.be-page .be-insights-period-header > svg {color:#a17e54;flex:none;}
+.be-page .be-insights-period-dates {display:flex;flex:1;min-width:0;flex-direction:column;gap:3px;}
+.be-page .be-insights-period-dates strong {font-size:12px;}
+.be-page .be-insights-period-dates span {font-size:11.5px;font-weight:700;white-space:normal;font-variant-numeric:tabular-nums;}
+.be-page .be-insights-status {font-size:10px;font-weight:800;color:#6a502f;background:#e9dfcd;border-radius:99px;padding:5px 7px;white-space:nowrap;}
+.be-page .be-insights-period.is-provisional .be-insights-status {background:#f7e1a8;color:#785d20;}
+.be-page .be-insights-period p {font-size:11px;color:var(--be-muted);margin:9px 0 0;line-height:1.45;}
+.be-page .be-insights-approved h3 {font-size:19px;margin:16px 0 9px;}
+.be-page .be-insights-list {display:flex;flex-direction:column;gap:7px;}
+.be-page .be-insights-finding {display:flex;gap:9px;align-items:flex-start;text-align:left;border:1px solid var(--be-border);background:var(--be-card);border-radius:9px;padding:10px 9px;width:100%;cursor:pointer;color:var(--be-ink);}
+.be-page .be-insights-finding:hover {background:var(--be-warm);border-color:#b5946d;}
+.be-page .be-insights-finding:focus-visible,.be-page .be-insights-detail-action:focus-visible {outline:3px solid #b38a54;outline-offset:2px;}
+.be-page .be-insights-finding-icon {display:grid;place-items:center;flex:none;width:31px;height:31px;border-radius:50%;background:#ebe2d5;color:#806545;}
+.be-page .be-insights-finding-icon.is-favorable {background:#e4eee5;color:#28563f;}
+.be-page .be-insights-finding-icon.is-caution {background:#f7e6dc;color:#8e4f30;}
+.be-page .be-insights-finding-body {display:flex;flex:1;flex-direction:column;gap:3px;min-width:0;}
+.be-page .be-insights-finding-body > strong {font-size:12px;line-height:1.2;}
+.be-page .be-insights-metric {font-size:11.5px;line-height:1.4;font-weight:750;font-variant-numeric:tabular-nums;}
+.be-page .be-insights-delta {font-size:11px;font-weight:750;color:#735735;margin-left:4px;}
+.be-page .be-insights-delta.is-favorable {color:#28563f;}
+.be-page .be-insights-delta.is-caution {color:#9c5030;}
+.be-page .be-insights-finding-body > small {font-size:11px;color:var(--be-muted);font-weight:400;line-height:1.32;}
+.be-page .be-insights-finding > svg:last-child {margin-top:11px;color:#a3845d;flex:none;}
+.be-page .be-insights-comparison {font-size:10.5px;color:var(--be-muted);line-height:1.45;margin:12px 0;}
+.be-page .be-insights-detail-action {width:100%;min-height:39px;padding:9px 13px;display:flex;align-items:center;justify-content:center;gap:12px;background:#9d7e56;color:#fff;border:0;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;}
+.be-page .be-insights-detail-action:hover {background:#866743;}
+.be-page[data-theme=dark] .be-insights-period {background:var(--be-warm);border-color:var(--be-border);}
+.be-page[data-theme=dark] .be-insights-status {background:#564631;color:#f5e5c9;}
+.be-page[data-theme=dark] .be-insights-finding {background:var(--be-card);}
+.be-page[data-theme=dark] .be-insights-finding:hover {background:var(--be-warm);}
+@media(max-width:1080px){
+ .be-page .be-summary-main .be-expense-split {grid-template-columns:1fr;}
+ .be-page .be-summary-main .be-category-composition {padding-right:0;}
+ .be-page .be-insights-approved {position:static;}
+}

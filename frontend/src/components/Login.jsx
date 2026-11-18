@@ -1,3 +1,4 @@
+import { apiFetch } from '../config/api';
 import React, { useState } from "react";
 import { API_ENDPOINTS } from "../config/api";
 import { validarLogin } from "../utils/validaciones";
@@ -19,7 +20,7 @@ function Login({ onLogin }) {
     }
 
     try {
-      const respuesta = await fetch(API_ENDPOINTS.login, {
+      const respuesta = await apiFetch(API_ENDPOINTS.login, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -39,11 +40,14 @@ function Login({ onLogin }) {
         return;
       }
 
+      sessionStorage.removeItem('bosse_negocio');
+      if (datos.catalog_token) sessionStorage.setItem('bosse_catalog_token', datos.catalog_token);
       onLogin({
   id: datos.id,
   nombre: datos.nombre,
   rol: datos.rol,
   negocio_id: datos.negocio_id,
+  negocios: datos.negocios,
   idCajero: userCredentials.idCajero,
 });
     } catch (error) {

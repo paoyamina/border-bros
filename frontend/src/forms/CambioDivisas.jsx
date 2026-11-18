@@ -1,3 +1,4 @@
+import { apiFetch } from '../config/api';
 import React, {
   useCallback,
   useEffect,
@@ -64,11 +65,11 @@ const [finesAbiertos, setFinesAbiertos] = useState({});
         respuestaCortes,
         respuestaHistorial,
       ] = await Promise.all([
-        fetch(
+        apiFetch(
           `${API_BASE_URL}/api/cambios-divisa/cortes-disponibles?negocio_id=${negocioId}`
         ),
 
-        fetch(
+        apiFetch(
           `${API_BASE_URL}/api/cambios-divisa?negocio_id=${negocioId}`
         ),
       ]);
@@ -447,7 +448,7 @@ const toggleFinSemana = (id) => {
     try {
       setGuardando(true);
 
-      const respuesta = await fetch(
+      const respuesta = await apiFetch(
         `${API_BASE_URL}/api/cambios-divisa`,
         {
           method: "POST",
@@ -539,7 +540,7 @@ const toggleFinSemana = (id) => {
 
     try {
       const respuesta =
-        await fetch(
+        await apiFetch(
           `${API_BASE_URL}/api/cambios-divisa/${cambio.id}/cancelar`,
           {
             method: "PUT",

@@ -1,0 +1,85 @@
+/* BOSSE - aprobación incremental: cabecera, pestañas y seis KPI. 13 Nov 2026.
+   Alcance limitado al análisis financiero; no toca cálculos ni otras pantallas. */
+.be-page .be-unified-header{
+  display:grid; grid-template-columns:minmax(280px,1fr) auto; align-items:start;
+  gap:18px; margin-bottom:13px;
+}
+.be-page .be-unified-header h1{
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(31px,2.6vw,44px)!important; font-weight:750;
+  letter-spacing:-.035em; line-height:1.08;
+}
+.be-page .be-unified-subtitle{font-size:13px; font-weight:550; color:var(--be-muted)}
+.be-page .be-unified-controls{display:flex;flex-direction:column;align-items:flex-end;gap:7px;min-width:0}
+.be-page .be-header-primary-actions{display:flex;gap:9px;align-items:start;justify-content:flex-end;min-width:0}
+.be-page .be-header-primary-actions>button{
+  display:inline-flex;align-items:center;gap:7px;
+  min-height:43px;padding:9px 16px;
+  border:1px solid var(--be-border); border-radius:9px;
+  background:var(--be-card);color:var(--be-ink);font-weight:750;
+}
+.be-page .be-header-primary-actions>button:hover:not(:disabled){border-color:var(--be-bronze);background:var(--be-warm)}
+.be-page .be-period-picker{position:relative;z-index:7;color:var(--be-ink)}
+.be-page .be-period-picker summary{
+  display:flex;gap:12px;align-items:center;cursor:pointer;list-style:none;
+  background:var(--be-card);border:1px solid var(--be-border);
+  border-radius:10px;padding:7px 12px;min-height:43px;min-width:244px;
+}
+.be-page .be-period-picker summary::-webkit-details-marker{display:none}
+.be-page .be-period-picker summary>span{display:flex;flex-direction:column;gap:1px;line-height:1.2}
+.be-page .be-period-picker summary small{color:var(--be-muted);font-size:11px;font-weight:650}
+.be-page .be-period-picker summary strong{font-size:13px;font-weight:800;white-space:nowrap}
+.be-page .be-period-picker summary>.bosse-icon:last-child{transform:rotate(90deg);margin-left:auto}
+.be-page .be-period-picker[open] summary{outline:2px solid #a07d5150;outline-offset:2px}
+.be-page .be-period-popup{
+  position:absolute;top:calc(100% + 7px);right:0; width:min(340px,calc(100vw - 40px));
+  border:1px solid var(--be-border);background:var(--be-card);color:var(--be-ink);
+  border-radius:11px;padding:14px;box-shadow:0 12px 36px #17171727;
+  display:grid;grid-template-columns:1fr 1fr;gap:9px;
+}
+.be-page .be-period-popup label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--be-muted)}
+.be-page .be-period-popup input{width:100%;min-width:0;height:37px;border:1px solid var(--be-border);background:var(--be-card);color:var(--be-ink);border-radius:7px;padding:5px;font-size:12px}
+.be-page .be-unified-header .be-period-popup button.be-unified-update{grid-column:1/-1;width:100%;font-size:12px;min-height:38px}
+.be-page .be-unified-actions{display:flex;align-items:center;gap:6px}
+.be-page .be-unified-actions>button{min-height:26px;padding:4px 8px;font-size:11px;opacity:.86}
+.be-page .be-finance-primary-tabs{
+  display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;
+  padding:0 0 10px;margin:0 0 15px;
+  border-bottom:1px solid var(--be-border);
+}
+.be-page .be-finance-primary-tabs button{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  min-height:38px;padding:8px 15px; cursor:pointer;
+  color:var(--be-ink);background:transparent;border:1px solid transparent;
+  border-radius:7px;font-size:13px;font-weight:700;
+}
+.be-page .be-finance-primary-tabs button:hover{background:var(--be-warm)}
+.be-page .be-finance-primary-tabs button.active{color:#fff;background:#a1835d;border-color:#a1835d}
+.be-page .be-finance-primary-tabs button:focus-visible,
+.be-page .be-period-picker summary:focus-visible,
+.be-page .be-overview-kpi:focus-visible{outline:3px solid #8d6e47;outline-offset:2px}
+.be-page .be-overview-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.be-page .be-overview-kpi{padding:14px 12px;min-height:129px;display:flex;flex-direction:column;align-items:flex-start;border-radius:11px}
+.be-page .be-overview-kpi-label{font-size:12px;font-weight:750;line-height:1.24;min-height:21px}
+.be-page .be-overview-kpi>strong{font-size:clamp(17px,1.4vw,24px);font-weight:850;line-height:1.1;font-variant-numeric:tabular-nums}
+.be-page .be-overview-kpi .be-trend{font-size:12px;font-weight:750}
+.be-page .be-overview-kpi .be-kpi-comparison{font-size:10px;line-height:1.15;color:var(--be-muted)}
+.be-page .be-overview-kpi.highlight .be-kpi-comparison{color:#dbd6d0}
+.be-page .be-overview-kpi .be-kpi-instruction{margin-top:auto;padding-top:7px;font-size:10px}
+@media (max-width:1600px){
+  .be-page .be-overview-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .be-page .be-unified-header{grid-template-columns:1fr;gap:10px}
+  .be-page .be-unified-controls{align-items:flex-start}
+  .be-page .be-header-primary-actions,.be-page .be-unified-actions{justify-content:flex-start}
+}
+@media (max-width:780px){
+  .be-page .be-unified-header{display:flex;flex-direction:column;align-items:stretch}
+  .be-page .be-header-primary-actions{flex-wrap:wrap;width:100%}
+  .be-page .be-period-picker{flex:1 1 100%}
+  .be-page .be-period-picker summary{min-width:0}
+  .be-page .be-finance-primary-tabs{flex-wrap:nowrap;overflow:auto;scrollbar-width:thin}
+  .be-page .be-finance-primary-tabs button{white-space:nowrap;min-height:42px;padding:8px 12px;font-size:12px}
+  .be-page .be-overview-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:430px){.be-page .be-overview-kpis{grid-template-columns:1fr 1fr}}
+@media print{.be-page .be-finance-primary-tabs,.be-page .be-unified-controls{display:none!important}}

@@ -1,3 +1,4 @@
+import { apiFetch } from '../config/api';
 import React, { useEffect, useState } from "react";
 import estilos from "../styles/estilos";
 import API_BASE_URL from "../config/api";
@@ -27,7 +28,7 @@ function HistorialNomina({ usuarioActivo, onVolver }) {
   };
 
   const cargarHistorial = async () => {
-    const respuesta = await fetch(`${API_BASE_URL}/api/prenomina`);
+    const respuesta = await apiFetch(`${API_BASE_URL}/api/prenomina`);
     const resultado = await respuesta.json();
 
     if (resultado.success) {
@@ -50,7 +51,7 @@ function HistorialNomina({ usuarioActivo, onVolver }) {
     try {
       setCargandoDetalle(true);
 
-      const respuesta = await fetch(
+      const respuesta = await apiFetch(
         `${API_BASE_URL}/api/prenomina/${prenominaId}/detalle`
       );
 

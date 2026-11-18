@@ -16,21 +16,45 @@ import AnalisisFinanciero from "./components/AnalisisFinanciero";
 import GestionCortes from "./components/cortes/GestionCortes";
 import CambioDivisas from "./forms/CambioDivisas";
 import BorderBrosShell from "./components/BorderBrosShell";
+import ProveedorCatalogo from "./components/ProveedorCatalogo";
 import SelectorNegocio from "./components/SelectorNegocio";
 import "./BosseTheme.css";
+import { BosseBorderBroProvider, BosseBorderBroGlobal, useBosseBorderBroActions } from './components/BosseBorderBroChat';
 
-function App() {
+function AppContent() {
+  const { syncApp, setPrivacy: setChatPrivacy } = useBosseBorderBroActions();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [formularioActivo, setFormularioActivo] = useState(null);
   const [usuarioActivo, setUsuarioActivo] = useState(null);
   const [usuarioId, setUsuarioId] = useState(null);
   const [rol, setRol] = useState(null);
   const [negocioId, setNegocioId] = useState(null);
+  const [negocios,setNegocios]=useState([]);
+  const [negocioNombre,setNegocioNombre]=useState("BOSSE");
+  const [seccionFinanciera, setSeccionFinanciera] = useState("resumen");
   const [, setUsuario] = useState(null);
   const [mostrandoSplash, setMostrandoSplash] = useState(true);
   const [, setSeccionSeleccionada] = useState(null);
   const [corteEditando, setCorteEditando] = useState(null);
   const [negocioSeleccionado, setNegocioSeleccionado] = useState(false);
+  useEffect(() => {
+    syncApp({
+      loggedIn: isLoggedIn,
+      businessSelected: negocioSeleccionado,
+      userId: usuarioId,
+      businessId: negocioId,
+      businessName: negocioNombre,
+      role: rol,
+      inBorderBro: formularioActivo === 'analisis_financiero' && seccionFinanciera === 'borderbro',
+      view: formularioActivo === 'analisis_financiero'
+        ? `Análisis Financiero / ${seccionFinanciera}`
+        : formularioActivo ? `Administración / ${formularioActivo.replaceAll('_', ' ')}` : 'Administración / Inicio'
+    });
+  }, [syncApp, isLoggedIn, negocioSeleccionado, usuarioId, negocioId, negocioNombre, rol, formularioActivo, seccionFinanciera]);
+  useEffect(() => {
+    // Privacidad en Análisis Financiero no debe bloquear accidentalmente el chat de Administración.
+    if (formularioActivo !== 'analisis_financiero') setChatPrivacy(false);
+  }, [formularioActivo, setChatPrivacy]);
   const puedeEntrarAnalisis = (rolUsuario) => {
   return ["socio", "contador", "gobernador", "administrador"].includes(
     String(rolUsuario || "").trim().toLowerCase()
@@ -51,12 +75,12 @@ const manejarLoginExitoso = (usuario) => {
   setUsuarioId(usuario.id);
   setRol(usuario.rol);
   setNegocioId(usuario.negocio_id);
+  setNegocios(usuario.negocios||[{negocio_id:usuario.negocio_id,nombre:"BOSSE",rol:usuario.rol}]);
   setFormularioActivo(null);
   setSeccionSeleccionada(null);
   setNegocioSeleccionado(false);
 
-  console.log("LOGIN:", usuario);
-  console.log("negocio_id:", usuario.negocio_id);
+
 };
 
   const cerrarSesion = () => {
@@ -64,6 +88,8 @@ const manejarLoginExitoso = (usuario) => {
 
   if (!confirmar) return;
 
+  sessionStorage.removeItem('bosse_catalog_token');
+  sessionStorage.removeItem('bosse_negocio');
   setIsLoggedIn(false);
   setFormularioActivo(null);
   setUsuarioActivo(null);
@@ -73,6 +99,7 @@ const manejarLoginExitoso = (usuario) => {
   setNegocioId(null);
   setSeccionSeleccionada(null);
   setNegocioSeleccionado(false);
+  setSeccionFinanciera('resumen');
 };
 
   const volverAlMenu = () => {
@@ -89,6 +116,56 @@ const manejarLoginExitoso = (usuario) => {
   setFormularioActivo(tipo);
   setCorteEditando(corte);
 };
+
+
+  // Un único shell visual para TODOS los formularios de Administración.
+  // La lógica de los formularios, sesiones y permisos de API no se modifica.
+  const confirmarCambioDesdeCaptura = () => {
+    const capturaAbierta = [
+      'caja_nuevo', 'caja_editar', 'egresos_caja', 'egresos_bancos',
+      'egresos_banca', 'nomina', 'empleados', 'inversiones_socios',
+      'cambio_divisas'
+    ].includes(formularioActivo);
+    return !capturaAbierta || window.confirm(
+      '¿Cambiar de módulo? Los datos que no hayas guardado en el formulario podrían perderse.'
+    );
+  };
+  const cambiarSeccionAdmin = (destino) => {
+    const ruta = destino === 'inicio' ? null : destino;
+    if (ruta === formularioActivo) return;
+    if (!confirmarCambioDesdeCaptura()) return;
+    setCorteEditando(null);
+    setSeccionSeleccionada('administracion');
+    setFormularioActivo(ruta);
+  };
+  const abrirAnalisisDesdeAdmin = () => {
+    if (!confirmarCambioDesdeCaptura()) return;
+    setSeccionSeleccionada('analisis');
+    setFormularioActivo('analisis_financiero');
+  };
+  const cambiarNegocioDesdeAdmin = () => {
+    if (!confirmarCambioDesdeCaptura()) return;
+    setFormularioActivo(null);
+    setSeccionSeleccionada(null);
+    setNegocioSeleccionado(false);
+  };
+  const renderAdminEnShell = (contenido) => (
+    <BorderBrosShell
+      usuarioActivo={usuarioActivo}
+      rol={rol}
+      negocioNombre={negocioNombre}
+      seccionActiva="administracion"
+      adminSection={formularioActivo || 'inicio'}
+      onAdminSectionChange={cambiarSeccionAdmin}
+      puedeVerAnalisis={puedeEntrarAnalisis(rol)}
+      onAdministracion={() => cambiarSeccionAdmin('inicio')}
+      onAnalisis={abrirAnalisisDesdeAdmin}
+      onMisNegocios={cambiarNegocioDesdeAdmin}
+      onLogout={cerrarSesion}
+    >
+      {contenido}
+    </BorderBrosShell>
+  );
 
   if (mostrandoSplash) {
     return (
@@ -111,9 +188,16 @@ const manejarLoginExitoso = (usuario) => {
         usuarioActivo={usuarioActivo}
         rol={rol}
         onLogout={cerrarSesion}
-        onSeleccionarBosse={() => {
+        negocios={negocios}
+        onSeleccionarBosse={(business) => {
+          setNegocioId(business.negocio_id);
+          setNegocioNombre(business.nombre);
+          setRol(business.rol);
+          sessionStorage.setItem("bosse_negocio",String(business.negocio_id));
           setNegocioSeleccionado(true);
+          setSeccionFinanciera('resumen');
           setSeccionSeleccionada("administracion");
+          setSeccionFinanciera("resumen");
           setFormularioActivo(null);
         }}
       />
@@ -125,8 +209,10 @@ const manejarLoginExitoso = (usuario) => {
       <BorderBrosShell
         usuarioActivo={usuarioActivo}
         rol={rol}
-        negocioNombre="BOSSE"
+        negocioNombre={negocioNombre}
         seccionActiva="administracion"
+        adminSection={formularioActivo || "inicio"}
+        onAdminSectionChange={cambiarSeccionAdmin}
         puedeVerAnalisis={puedeEntrarAnalisis(rol)}
         onAdministracion={() => {
           setSeccionSeleccionada("administracion");
@@ -153,8 +239,19 @@ const manejarLoginExitoso = (usuario) => {
     );
   }
 
+  if (formularioActivo === "catalogo") {
+    return <BorderBrosShell usuarioActivo={usuarioActivo} rol={rol} negocioNombre={negocioNombre}
+      seccionActiva="administracion"
+        adminSection={formularioActivo || "inicio"}
+        onAdminSectionChange={cambiarSeccionAdmin} puedeVerAnalisis={puedeEntrarAnalisis(rol)}
+      onAdministracion={volverAlMenu} onAnalisis={()=>setFormularioActivo('analisis_financiero')}
+      onMisNegocios={()=>{setFormularioActivo(null);setNegocioSeleccionado(false);}} onLogout={cerrarSesion}>
+      <ProveedorCatalogo negocioId={negocioId} onVolver={volverAlMenu}/>
+    </BorderBrosShell>;
+  }
+
   if (formularioActivo === "caja") {
-  return (
+  return renderAdminEnShell(
    <GestionCortes
   usuarioActivo={usuarioActivo}
   usuarioId={usuarioId}
@@ -170,7 +267,7 @@ const manejarLoginExitoso = (usuario) => {
 }
 
 if (formularioActivo === "caja_nuevo") {
-  return (
+  return renderAdminEnShell(
     <CorteCaja
       usuarioActivo={usuarioActivo}
       usuarioId={usuarioId}
@@ -181,7 +278,7 @@ if (formularioActivo === "caja_nuevo") {
 }
 
 if (formularioActivo === "caja_editar") {
-  return (
+  return renderAdminEnShell(
     <CorteCaja
       usuarioActivo={usuarioActivo}
       usuarioId={usuarioId}
@@ -197,7 +294,7 @@ if (formularioActivo === "caja_editar") {
 }
 
   if (formularioActivo === "egresos") {
-  return (
+  return renderAdminEnShell(
     <GestionEgresos
       usuarioActivo={usuarioActivo}
       usuarioId={usuarioId}
@@ -210,7 +307,7 @@ if (formularioActivo === "caja_editar") {
 }
 
   if (formularioActivo === "egresos_caja") {
-    return (
+    return renderAdminEnShell(
       <EgresosEfectivo
   usuarioActivo={usuarioActivo}
   usuarioId={usuarioId}
@@ -222,7 +319,7 @@ if (formularioActivo === "caja_editar") {
   }
 
   if (formularioActivo === "egresos_bancos") {
-    return (
+    return renderAdminEnShell(
       <EgresosBancos
   usuarioActivo={usuarioActivo}
   usuarioId={usuarioId}
@@ -234,7 +331,7 @@ if (formularioActivo === "caja_editar") {
   }
 
   if (formularioActivo === "egresos_banca") {
-    return (
+    return renderAdminEnShell(
      <EgresosBanca
   usuarioActivo={usuarioActivo}
   usuarioId={usuarioId}
@@ -246,7 +343,7 @@ if (formularioActivo === "caja_editar") {
   }
 
   if (formularioActivo === "nomina") {
-    return (
+    return renderAdminEnShell(
       <Nomina
   usuarioActivo={usuarioActivo}
   usuarioId={usuarioId}
@@ -257,7 +354,7 @@ if (formularioActivo === "caja_editar") {
   }
 
   if (formularioActivo === "aprobaciones_nomina") {
-  return (
+  return renderAdminEnShell(
     <AprobacionesNomina
       usuarioActivo={usuarioActivo}
       usuarioId={usuarioId}
@@ -267,7 +364,7 @@ if (formularioActivo === "caja_editar") {
 }
 
   if (formularioActivo === "empleados") {
-  return (
+  return renderAdminEnShell(
     <Empleados
       usuarioActivo={usuarioActivo}
       usuarioId={usuarioId}
@@ -278,7 +375,7 @@ if (formularioActivo === "caja_editar") {
 }
 
 if (formularioActivo === "puestos") {
-  return (
+  return renderAdminEnShell(
     <Puestos
       usuarioActivo={usuarioActivo}
       onVolver={() => setFormularioActivo(null)}
@@ -287,7 +384,7 @@ if (formularioActivo === "puestos") {
 }
 
 if (formularioActivo === "historial_nomina") {
-  return (
+  return renderAdminEnShell(
     <HistorialNomina
       usuarioActivo={usuarioActivo}
       onVolver={volverAlMenu}
@@ -296,7 +393,7 @@ if (formularioActivo === "historial_nomina") {
 }
 
 if (formularioActivo === "inversiones_socios") {
-  return (
+  return renderAdminEnShell(
     <InversionesSocios
       usuarioActivo={usuarioActivo}
       usuarioId={usuarioId}
@@ -306,7 +403,7 @@ if (formularioActivo === "inversiones_socios") {
 }
 
 if (formularioActivo === "cambio_divisas") {
-  return (
+  return renderAdminEnShell(
     <CambioDivisas
       usuarioActivo={usuarioActivo}
       usuarioId={usuarioId}
@@ -370,8 +467,10 @@ if (formularioActivo === "analisis_financiero") {
     <BorderBrosShell
       usuarioActivo={usuarioActivo}
       rol={rol}
-      negocioNombre="BOSSE"
+      negocioNombre={negocioNombre}
       seccionActiva="analisis"
+      financeSection={seccionFinanciera}
+      onFinanceSectionChange={setSeccionFinanciera}
       puedeVerAnalisis={puedeEntrarAnalisis(rol)}
       onAdministracion={() => {
         setSeccionSeleccionada("administracion");
@@ -392,6 +491,9 @@ if (formularioActivo === "analisis_financiero") {
         usuarioActivo={usuarioActivo}
         usuarioId={usuarioId}
         negocioId={negocioId}
+        negocioNombre={negocioNombre}
+        financeSection={seccionFinanciera}
+        onFinanceSectionChange={setSeccionFinanciera}
         rol={rol}
         onVolver={() => {
           setSeccionSeleccionada("administracion");
@@ -403,6 +505,13 @@ if (formularioActivo === "analisis_financiero") {
 }
 
   return null;
+}
+
+function App() {
+  return <BosseBorderBroProvider>
+    <AppContent/>
+    <BosseBorderBroGlobal/>
+  </BosseBorderBroProvider>;
 }
 
 export default App;

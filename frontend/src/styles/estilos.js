@@ -1,6 +1,7 @@
+const mobile = typeof window !== 'undefined' && window.innerWidth < 650;
 const estilos = {
   container: {
-    padding: "40px 20px",
+    padding: mobile ? "14px 10px" : "40px 20px",
     fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
     backgroundColor: "#f4f4f4",
     minHeight: "100vh",
@@ -10,7 +11,7 @@ const estilos = {
     maxWidth: "680px",
     margin: "0 auto",
     backgroundColor: "white",
-    padding: "40px",
+    padding: mobile ? "17px 13px" : "40px",
     borderRadius: "12px",
     boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
   },
@@ -39,7 +40,7 @@ const estilos = {
   },
   panelGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: mobile ? "1fr" : "1fr 1fr",
     gap: "12px",
     marginBottom: "20px",
   },
@@ -81,7 +82,7 @@ const estilos = {
     padding: "10px",
     borderRadius: "4px",
     border: "1px solid #ddd",
-    fontSize: "14px",
+    fontSize: mobile ? "16px" : "14px",
     width: "90%",
     outline: "none",
   },

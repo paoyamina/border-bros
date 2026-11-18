@@ -1,3 +1,4 @@
+import { apiFetch } from '../config/api';
 import React, { useEffect, useState } from "react";
 import estilos from "../styles/estilos";
 import API_BASE_URL from "../config/api";
@@ -9,7 +10,7 @@ const [detallesPrenomina, setDetallesPrenomina] = useState({});
 
   const cargarPendientes = async () => {
     try {
-      const respuesta = await fetch(`${API_BASE_URL}/api/prenomina/pendientes`);
+      const respuesta = await apiFetch(`${API_BASE_URL}/api/prenomina/pendientes`);
       const resultado = await respuesta.json();
 
       if (resultado.success) {
@@ -27,7 +28,7 @@ const [detallesPrenomina, setDetallesPrenomina] = useState({});
   }
 
   try {
-    const respuesta = await fetch(
+    const respuesta = await apiFetch(
       `${API_BASE_URL}/api/prenomina/${prenominaId}/detalle`
     );
 
@@ -58,7 +59,7 @@ const [detallesPrenomina, setDetallesPrenomina] = useState({});
 
   try {
 
-    const respuesta = await fetch(
+    const respuesta = await apiFetch(
       `${API_BASE_URL}/api/prenomina/${prenomina.id}/aprobar`,
       {
         method: "PUT",
@@ -98,7 +99,7 @@ const rechazarPrenomina = async (prenomina) => {
 
   try {
 
-    const respuesta = await fetch(
+    const respuesta = await apiFetch(
       `${API_BASE_URL}/api/prenomina/${prenomina.id}/rechazar`,
       {
         method: "PUT",

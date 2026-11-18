@@ -1,3 +1,4 @@
+import { apiFetch } from '../config/api';
 import React, { useEffect, useState } from "react";
 import API_BASE_URL from "../config/api";
 import FiltrosEgresos from "./egresos/FiltrosEgresos";
@@ -91,7 +92,7 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
 
   // Cargar categorías
   try {
-    const respuestaCategorias = await fetch(
+    const respuestaCategorias = await apiFetch(
       `${API_BASE_URL}/api/categorias?negocio_id=${negocioId}`
     );
 
@@ -119,7 +120,7 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
 
   // Cargar proveedores
   try {
-    const respuestaProveedores = await fetch(
+    const respuestaProveedores = await apiFetch(
       `${API_BASE_URL}/api/proveedores?negocio_id=${negocioId}`
     );
 
@@ -147,7 +148,7 @@ const [edicionAbierta, setEdicionAbierta] = useState(false);
 
     // Cargar usuarios
   try {
-    const respuestaUsuarios = await fetch(
+    const respuestaUsuarios = await apiFetch(
       `${API_BASE_URL}/api/usuarios?negocio_id=${negocioId}`
     );
 

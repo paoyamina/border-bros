@@ -1,0 +1,76 @@
+/* Navegación administrativa dentro del shell compartido de BOSSE.
+   Los formularios existentes conservan sus estilos y comportamiento. */
+.bb-theme-minimal .bb-admin-subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 2px 0 13px 22px;
+  padding: 0 0 0 12px;
+  border-left: 1px solid rgba(198, 175, 138, .40);
+  min-height: 0;
+  overflow-y: auto;
+  max-height: min(42vh, 395px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(194, 169, 129, .45) transparent;
+}
+.bb-theme-minimal .bb-admin-subnav button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #d2cec5;
+  text-align: left;
+  cursor: pointer;
+  font: 500 12px/1.3 'Helvetica Neue', Arial, sans-serif;
+  flex-shrink: 0;
+}
+.bb-theme-minimal .bb-admin-subnav button .bb-admin-subnav-icon {
+  color: #bda17d;
+  font-size: 16px;
+  width: 19px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.bb-theme-minimal .bb-admin-subnav button:hover,
+.bb-theme-minimal .bb-admin-subnav button:focus-visible {
+  background: rgba(255,255,255,.10);
+  color: white;
+}
+.bb-theme-minimal .bb-admin-subnav button.active {
+  color: #fff;
+  background: linear-gradient(90deg,#896e50,#5b5943);
+}
+.bb-theme-minimal .bb-admin-subnav button:focus-visible {
+  outline: 2px solid #c0a27b;
+  outline-offset: 1px;
+}
+/* Mantener el menú comprimido en tabletas, como el de Análisis. */
+@media (min-width:781px) and (max-width:1150px) {
+  .bb-theme-minimal .bb-admin-subnav {margin-left:0;padding-left:0;border:0;max-height:45vh}
+  .bb-theme-minimal .bb-admin-subnav button {justify-content:center;padding:6px 2px;font-size:0}
+  .bb-theme-minimal .bb-admin-subnav button .bb-admin-subnav-icon {font-size:18px}
+}
+@media (max-width:780px) {
+  .bb-theme-minimal .bb-admin-subnav {display:none}
+}
+
+/* Exactamente las mismas dimensiones y estados del menú de Análisis Financiero. */
+.bb-finance-premium .bb-admin-subnav{margin:5px 0 16px 14px;padding-left:13px;border-left-color:#5a4b3b;gap:6px;max-height:min(44vh,420px)}
+.bb-finance-premium .bb-admin-subnav button{font-size:13px!important;min-height:42px;gap:12px;padding:10px 12px;color:#e5e0d6;border-radius:8px!important}
+.bb-finance-premium .bb-admin-subnav button.active{background:#977b59!important;color:white!important}
+.bb-finance-premium .bb-admin-subnav button.active .bb-admin-subnav-icon{color:#fff}
+@media(min-width:781px) and (max-width:1150px){
+  .bb-finance-premium .bb-admin-subnav{margin-left:0;padding-left:0;border:0}
+  .bb-finance-premium .bb-admin-subnav button{font-size:0!important;justify-content:center;padding:6px 2px}
+}
+
+/* La cabecera Administración ahora pliega o despliega sus opciones. */
+.bb-platform-nav .bb-nav-item .bb-admin-collapse-caret{
+  margin-left:auto;font-size:11px;opacity:.85;line-height:1;flex:0 0 auto;
+  color:#c4a57d;
+}
+.bb-platform-nav .bb-nav-item[aria-expanded="false"] .bb-admin-collapse-caret{opacity:.65;}

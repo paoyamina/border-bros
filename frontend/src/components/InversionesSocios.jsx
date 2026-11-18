@@ -1,3 +1,4 @@
+import { apiFetch } from '../config/api';
 import React, { useEffect, useState } from "react";
 import estilos from "../styles/estilos";
 import API_BASE_URL from "../config/api";
@@ -29,7 +30,7 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
 
   const cargarSocios = async () => {
     try {
-      const respuesta = await fetch(`${API_BASE_URL}/api/socios`);
+      const respuesta = await apiFetch(`${API_BASE_URL}/api/socios`);
       const resultado = await respuesta.json();
 
       if (resultado.success) {
@@ -42,7 +43,7 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
 
   const cargarInversiones = async () => {
     try {
-      const respuesta = await fetch(`${API_BASE_URL}/api/inversiones-socios`);
+      const respuesta = await apiFetch(`${API_BASE_URL}/api/inversiones-socios`);
       const resultado = await respuesta.json();
 
       if (resultado.success) {
@@ -100,7 +101,7 @@ function InversionesSocios({ usuarioActivo, usuarioId, onVolver }) {
         formData.append("comprobante", comprobante);
       }
 
-      const respuesta = await fetch(`${API_BASE_URL}/api/inversiones-socios`, {
+      const respuesta = await apiFetch(`${API_BASE_URL}/api/inversiones-socios`, {
         method: "POST",
         body: formData,
       });

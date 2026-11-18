@@ -1,0 +1,136 @@
+/* BOSSE · Análisis Financiero → Explorar movimientos
+   Revisión aprobada de la etapa 1: periodo único en el encabezado,
+   etiquetas accesibles y dos filas de filtros equilibradas.
+   Solo afecta la tarjeta de filtros de Explorar; no la tabla ni el panel lateral.
+*/
+.be-page .be-x-filter-card.be-x-filters-approved {
+  padding: 12px 14px;
+  background: var(--be-card);
+  border: 1px solid var(--be-border);
+  border-radius: 12px;
+}
+.be-page .be-x-filters-approved .be-x-filters-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  column-gap: 11px;
+  row-gap: 9px;
+  align-items: end;
+}
+.be-page .be-x-filters-approved .be-x-filters-grid > * {
+  min-width: 0;
+  grid-column: auto;
+}
+.be-page .be-x-filters-approved .be-x-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.be-page .be-x-filters-approved .be-x-filter .be-x-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 20px;
+  color: var(--be-ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.be-page .be-x-filters-approved .be-x-filter-label .bosse-icon {
+  color: var(--be-bronze);
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+.be-page .be-x-filters-approved .be-x-filter input,
+.be-page .be-x-filters-approved .be-x-filter select {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  height: 40px;
+  padding: 8px 10px;
+  background: var(--be-card);
+  color: var(--be-ink);
+  border: 1px solid var(--be-border);
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+.be-page .be-x-filters-approved .be-x-filter input:focus-visible,
+.be-page .be-x-filters-approved .be-x-filter select:focus-visible {
+  outline: 2px solid var(--be-bronze);
+  outline-offset: 2px;
+}
+.be-page .be-x-filters-approved .be-x-approved-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 7px;
+  margin-top: 8px;
+  border-top: 1px solid var(--be-border);
+}
+.be-page .be-x-filters-approved .be-x-auto-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  color: var(--be-muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+.be-page .be-x-filters-approved .be-x-auto-note .bosse-icon {
+  color: var(--be-bronze);
+}
+.be-page .be-x-filters-approved .be-x-approved-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 31px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.be-page .be-x-filters-approved .be-x-subperiod {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  padding-top: 10px;
+  margin-top: 9px;
+  border-top: 1px solid var(--be-border);
+}
+.be-page .be-x-filters-approved .be-x-subperiod p {
+  flex: 1 1 300px;
+  margin: 0;
+  color: var(--be-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.be-page .be-x-filters-approved .be-x-subperiod label { flex: 0 1 180px; }
+.be-page .be-x-filters-approved .be-x-active-filters button {
+  background: var(--be-warm);
+  border-color: var(--be-border);
+  color: var(--be-ink);
+}
+@media (max-width: 1450px) {
+  .be-page .be-x-filters-approved .be-x-filters-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 850px) {
+  .be-page .be-x-filters-approved .be-x-filters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .be-page .be-x-filters-approved .be-x-f-cell-search { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .be-page .be-x-filters-approved .be-x-filters-grid { grid-template-columns: 1fr; }
+  .be-page .be-x-filters-approved .be-x-filters-grid > * { grid-column: 1 / -1; }
+  .be-page .be-x-filters-approved .be-x-auto-note { flex: 1 1 100%; }
+  .be-page .be-x-filters-approved .be-x-approved-actions button { flex: 1 1 auto; }
+}

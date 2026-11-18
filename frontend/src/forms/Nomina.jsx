@@ -1,3 +1,4 @@
+import { apiFetch } from '../config/api';
 import React, { useEffect, useState } from "react";
 import estilos from "../styles/estilos";
 import API_BASE_URL from "../config/api";
@@ -105,7 +106,7 @@ const [cargandoEdicion, setCargandoEdicion] = useState(false);
   useEffect(() => {
   const cargarEmpleados = async () => {
     try {
-      const respuesta = await fetch(
+      const respuesta = await apiFetch(
   `${API_BASE_URL}/api/empleados?negocio_id=${negocioId}&activos=true`
 );
 
@@ -213,7 +214,7 @@ useEffect(() => {
     if (!negocioId) return;
 
     try {
-      const respuesta = await fetch(
+      const respuesta = await apiFetch(
         `${API_BASE_URL}/api/puestos?negocio_id=${negocioId}&activos=true`
       );
 
@@ -248,7 +249,7 @@ useEffect(() => {
 useEffect(() => {
   const cargarPendientes = async () => {
     try {
-      const respuesta = await fetch(
+      const respuesta = await apiFetch(
         `${API_BASE_URL}/api/prenomina/pendientes`
       );
 
@@ -270,7 +271,7 @@ useEffect(() => {
     try {
       setCargandoHistorial(true);
 
-      const respuesta = await fetch(
+      const respuesta = await apiFetch(
         `${API_BASE_URL}/api/prenomina`
       );
 
@@ -297,7 +298,7 @@ const cargarPrenominaParaEditar = async (prenominaId) => {
   try {
     setCargandoEdicion(true);
 
-    const respuesta = await fetch(
+    const respuesta = await apiFetch(
       `${API_BASE_URL}/api/prenomina/${prenominaId}/detalle`
     );
 
@@ -580,7 +581,7 @@ const crearNuevoEmpleado = async () => {
   try {
     setGuardandoNuevoEmpleado(true);
 
-    const respuesta = await fetch(
+    const respuesta = await apiFetch(
       `${API_BASE_URL}/api/empleados`,
       {
         method: "POST",
@@ -1028,7 +1029,7 @@ const detallePrenomina = filas
         : [],
   }));
 
-const respuestaPrenomina = await fetch(`${API_BASE_URL}/api/prenomina`, {
+const respuestaPrenomina = await apiFetch(`${API_BASE_URL}/api/prenomina`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -1121,7 +1122,7 @@ onVolver();
             : [],
       }));
 
-    const respuesta = await fetch(
+    const respuesta = await apiFetch(
       `${API_BASE_URL}/api/prenomina/${prenominaEditandoId}`,
       {
         method: "PUT",
@@ -2630,7 +2631,7 @@ return (
 
                         if (!detallePendientes[p.id]) {
                           try {
-                            const respuesta = await fetch(
+                            const respuesta = await apiFetch(
                               `${API_BASE_URL}/api/prenomina/${p.id}/detalle`
                             );
 
@@ -2732,7 +2733,7 @@ return (
                         if (!confirmar) return;
 
                         try {
-                          const respuesta = await fetch(
+                          const respuesta = await apiFetch(
                             `${API_BASE_URL}/api/prenomina/${p.id}/aprobar`,
                             {
                               method: "PUT",
@@ -2800,7 +2801,7 @@ return (
                         if (comentario === null) return;
 
                         try {
-                          const respuesta = await fetch(
+                          const respuesta = await apiFetch(
                             `${API_BASE_URL}/api/prenomina/${p.id}/rechazar`,
                             {
                               method: "PUT",
@@ -3151,7 +3152,7 @@ return (
 
                         if (!detallesHistorial[p.id]) {
                           try {
-                            const respuesta = await fetch(
+                            const respuesta = await apiFetch(
                               `${API_BASE_URL}/api/prenomina/${p.id}/detalle`
                             );
 
@@ -3250,11 +3251,8 @@ return (
                       "APROBADA" && (
                       <button
                         type="button"
-                        onClick={() => {
-                          window.open(
-                            `${API_BASE_URL}/api/prenomina/${p.id}/excel`,
-                            "_blank"
-                          );
+                        onClick={async () => {
+                          try{const response=await apiFetch(`${API_BASE_URL}/api/prenomina/${p.id}/excel`);if(!response.ok)throw new Error('No fue posible descargar la nómina.');const url=URL.createObjectURL(await response.blob());const a=document.createElement('a');a.href=url;a.download=`Nomina-${p.id}.xlsx`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){alert(error.message);}
                         }}
                         style={{
                           padding: "7px 10px",

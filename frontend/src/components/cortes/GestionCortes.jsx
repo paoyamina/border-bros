@@ -1,3 +1,4 @@
+import { apiFetch } from '../../config/api';
 import React, { useCallback, useEffect, useState } from "react";
 import API_BASE_URL from "../../config/api";
 import TablaCortes from "./TablaCortes";
@@ -69,7 +70,7 @@ const cancelarCorte = async (corte) => {
   if (!confirmar) return;
 
   try {
-    const respuesta = await fetch(
+    const respuesta = await apiFetch(
       `${API_BASE_URL}/api/cortes/${corte.id}/cancelar`,
       {
         method: "PUT",
@@ -98,7 +99,7 @@ const reactivarCorte = async (corte) => {
   if (!confirmar) return;
 
   try {
-    const respuesta = await fetch(
+    const respuesta = await apiFetch(
       `${API_BASE_URL}/api/cortes/${corte.id}/reactivar`,
       {
         method: "PUT",
@@ -151,7 +152,7 @@ const cargarCortes = useCallback(async () => {
       );
     }
 
-    const respuesta = await fetch(
+    const respuesta = await apiFetch(
       `${API_BASE_URL}/api/cortes?${parametros.toString()}`
     );
 

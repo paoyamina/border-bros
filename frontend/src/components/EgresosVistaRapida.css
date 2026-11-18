@@ -1,0 +1,54 @@
+/* BOSSE Efectivo: misma identidad, distribución de captura rápida dentro del shell compartido. */
+.bosse-egresos-rapido-page{width:100%;box-sizing:border-box;}
+.bosse-egresos-rapido-card{box-sizing:border-box;margin:0 auto;background:#fff;border:1px solid #e9e5de;box-shadow:0 8px 26px rgba(31,26,20,.035);}
+.bosse-egresos-rapido-top{position:relative;border-bottom:1px solid #e9e5de;margin-bottom:18px;min-height:110px;}
+.bosse-egresos-volver{position:absolute;left:0;top:4px;font-size:11px;letter-spacing:.025em;color:#827c74;background:transparent;border:0;cursor:pointer;padding:4px;text-transform:uppercase;}
+.bosse-egresos-volver:hover{color:#34291e;text-decoration:underline;}
+.bosse-egresos-rapido-brand{text-align:center;padding:2px 0 16px;}
+.bosse-egresos-rapido-brand img{display:block;width:auto;max-width:190px;max-height:68px;object-fit:contain;margin:0 auto 5px;}
+.bosse-egresos-rapido-brand h1{font-size:22px;letter-spacing:.11em;font-weight:450;text-transform:uppercase;margin:0;color:#191919;}
+.bosse-egresos-rapido-brand p{font-size:10px;color:#83766c;text-transform:uppercase;letter-spacing:.08em;margin:7px 0 0;}
+.bosse-egresos-rapido-grid{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(275px,.85fr);gap:18px 22px;align-items:start;}
+.bosse-egresos-rapido-main,.bosse-egresos-rapido-aside{min-width:0;display:flex;flex-direction:column;gap:17px;}
+.bosse-egresos-rapido-panel{padding:15px 17px 18px;border:1px solid #e9e5de;border-radius:11px;background:#fff;min-width:0;position:relative;}
+.bosse-egresos-panel-cabecera{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-15px -17px 16px;padding:12px 17px;background:#faf9f7;border-radius:11px 11px 0 0;border-bottom:1px solid #f0ece6;}
+.bosse-egresos-panel-cabecera h2{margin:0;color:#262321;font-size:13px;font-weight:750;text-transform:uppercase;letter-spacing:.025em;}
+.bosse-egresos-panel-cabecera span{font-size:11px;color:#877f73;font-style:italic;white-space:nowrap;}
+.bosse-egresos-rapido-basicos{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.88fr) minmax(0,1.32fr);gap:12px;align-items:end;}
+.bosse-egresos-campo{min-width:0;}
+.bosse-egresos-campo>label,.bosse-egresos-tc label,.bosse-egresos-monto-panel>label,.bosse-egresos-adjunto>label{display:block;font-size:10px;color:#77716b;letter-spacing:.075em;text-transform:uppercase;margin:0 0 7px;}
+.bosse-egresos-campo input,.bosse-egresos-campo select{border-radius:6px!important;border:1px solid #dedbd5!important;min-height:44px;}
+.bosse-egresos-categoria-row{display:flex;gap:6px;align-items:stretch;min-width:0;}
+.bosse-egresos-categoria-row select{min-width:0;}
+.bosse-egresos-agregar-categoria{min-width:35px;border-radius:6px;border:1px solid #d7c7ad;background:#fff;color:#765b3a;cursor:pointer;font-size:17px;}
+.bosse-egresos-agregar-categoria:hover{background:#faf6ef;}
+.bosse-egresos-fecha-ayuda{font-size:11px;color:#846b45;margin:10px 0 0;}
+.bosse-egresos-tc{margin-top:12px;padding:10px;background:#fff9ed;border:1px solid #ede1c8;border-radius:8px;max-width:240px;}
+.bosse-egresos-accesos{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:12px;}
+.bosse-egresos-accesos span{font-size:10px;color:#898178;margin-right:3px;}
+.bosse-egresos-accesos button{font-size:10px;color:#403a32;background:#f6f5f2;border:1px solid #ebe7e1;padding:7px 10px;border-radius:99px;cursor:pointer;}
+.bosse-egresos-accesos button.is-selected,.bosse-egresos-accesos button:hover{background:#ede5d7;border-color:#cfb993;color:#433219;}
+.bosse-egresos-rapido-main .bosse-egresos-campo+.bosse-egresos-campo{margin-top:18px;}
+.bosse-egresos-rapido-main .bosse-captura-resultados{top:calc(100% + 5px);max-height:246px;}
+.bosse-egresos-rapido-aside .bosse-egresos-rapido-panel{padding:15px;}
+.bosse-egresos-rapido-aside .bosse-egresos-panel-cabecera{margin:-15px -15px 12px;padding:12px 15px;}
+.bosse-egresos-ayuda-item{display:flex;gap:10px;align-items:flex-start;padding:10px 1px;border-bottom:1px solid #efede9;}
+.bosse-egresos-ayuda-item:last-child{border-bottom:0;padding-bottom:0;}
+.bosse-egresos-ayuda-item span{font-size:17px;color:#a47d4f;line-height:1.1;}
+.bosse-egresos-ayuda-item p{margin:0;font-size:11.5px;color:#5c574f;line-height:1.48;}
+.bosse-egresos-monto-panel{background:#f8f8f7;border:1px solid #e6e4df;border-radius:10px;padding:16px 15px;text-align:center;}
+.bosse-egresos-monto-input{display:flex;gap:5px;align-items:center;justify-content:center;max-width:215px;margin:8px auto 2px;}
+.bosse-egresos-monto-input>span{font-size:22px;color:#332e28;}
+.bosse-egresos-monto-input input{min-width:0;outline:0;}
+.bosse-egresos-monto-panel small{font-size:10px;color:#6a665d;}
+.bosse-egresos-adjunto p{font-size:11px;color:#8b857b;margin:0 0 12px;}
+.bosse-egresos-adjunto input{font-size:11px;max-width:100%;}
+.bosse-egresos-adjunto small{display:block;color:#567a55;margin-top:9px;}
+.bosse-egresos-rapido-acciones{grid-column:1/-1;display:flex;justify-content:flex-end;padding-top:10px;border-top:1px solid #ece9e5;}
+.bosse-egresos-guardar{background:#191919;color:#fff;min-width:245px;border:0;border-radius:8px;padding:14px 26px;cursor:pointer;font-size:13px;font-weight:650;letter-spacing:.025em;}
+.bosse-egresos-guardar:not(:disabled):hover{background:#2c2823;}
+.bosse-egresos-guardar:disabled{background:#b6b5b2;cursor:not-allowed;}
+.bosse-egresos-rapido-main .bosse-captura-solicitud{z-index:3;position:relative;}
+@media (max-width:1050px){.bosse-egresos-rapido-grid{grid-template-columns:minmax(0,1fr)}.bosse-egresos-rapido-aside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.bosse-egresos-ayuda-panel{grid-column:1/-1}}
+@media (max-width:750px){.bosse-egresos-rapido-page{padding:10px!important}.bosse-egresos-rapido-card{padding:14px!important}.bosse-egresos-rapido-top{padding-top:22px}.bosse-egresos-rapido-basicos{grid-template-columns:repeat(2,minmax(0,1fr))}.bosse-egresos-categoria{grid-column:1/-1}.bosse-egresos-rapido-aside{display:flex}.bosse-egresos-panel-cabecera span{display:none}.bosse-egresos-rapido-acciones{display:block}.bosse-egresos-guardar{width:100%;min-width:0}}
+@media (max-width:450px){.bosse-egresos-rapido-basicos{grid-template-columns:minmax(0,1fr)}.bosse-egresos-categoria{grid-column:auto}.bosse-egresos-rapido-brand img{max-width:140px;max-height:52px}.bosse-egresos-rapido-brand h1{font-size:18px}.bosse-egresos-rapido-panel{padding:12px}.bosse-egresos-panel-cabecera{margin:-12px -12px 12px;padding:10px 12px}}

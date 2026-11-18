@@ -1,0 +1,36 @@
+/* BOSSE: mejora progresiva de controles, sin reemplazar el formulario ni su layout */
+.bosse-captura-proveedor,.bosse-captura-concepto{position:relative;min-width:0;width:100%;font-family:inherit}
+.bosse-captura-input-row{position:relative;display:flex;align-items:center;min-width:0}
+.bosse-captura-input-row input:focus,.bosse-captura-concepto input:focus{border-color:#9a7a4e!important;box-shadow:0 0 0 2px rgba(154,122,78,.12);outline:0}
+.bosse-captura-search-icon{position:absolute;left:12px;z-index:1;pointer-events:none;color:#806c50;font-size:25px;line-height:1}
+.bosse-captura-clear{position:absolute;right:7px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#807a72;font-size:19px;cursor:pointer;width:28px;height:28px;border-radius:6px}
+.bosse-captura-clear:hover{background:#f2eee7}
+.bosse-captura-resultados{position:absolute;z-index:55;top:49px;left:0;right:0;max-height:245px;overflow-y:auto;padding:5px;background:#fff;border:1px solid #d8d0c2;border-radius:9px;box-shadow:0 12px 28px rgba(24,21,18,.14)}
+.bosse-captura-resultados button{display:flex;justify-content:space-between;gap:12px;align-items:center;width:100%;padding:10px 12px;text-align:left;cursor:pointer;border:0;border-radius:6px;background:#fff;color:#262626;font:inherit;font-size:13px}
+.bosse-captura-resultados button:hover,.bosse-captura-resultados button.is-active{background:#f4efe7}
+.bosse-captura-option-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bosse-captura-option-meta{font-size:10px;color:#696357;white-space:nowrap}
+.bosse-captura-resultados .bosse-captura-nuevo-link{border-top:1px solid #eee8df;border-radius:0;margin-top:4px;padding-top:12px;color:#71532d;font-weight:700}
+.bosse-captura-empty{padding:11px;color:#706a60;font-size:12px}
+.bosse-captura-validado{font-size:11px;color:#4d7253;margin:6px 0}
+.bosse-captura-pendiente{display:flex;align-items:center;gap:8px;justify-content:space-between;background:#f8f3e8;border:1px solid #e1d3b6;padding:9px 10px;border-radius:7px;margin-top:8px;font-size:11px;color:#5b4c32}
+.bosse-captura-pendiente button{border:0;background:none;font-size:11px;text-decoration:underline;color:#6b4c29;cursor:pointer}
+.bosse-captura-solicitud{padding:12px;border:1px solid #e2d7c6;border-radius:9px;background:#faf8f3;margin-top:8px;font-size:12px;color:#282725}
+.bosse-captura-solicitud strong{font-size:13px}
+.bosse-captura-solicitud p{margin:6px 0 10px;line-height:1.45;color:#6b665e}
+.bosse-captura-similares{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;font-size:11px}
+.bosse-captura-similares button{border:1px solid #d8cab2;background:#fff;border-radius:14px;padding:5px 10px;cursor:pointer;font-size:11px}
+.bosse-captura-solicitud-acciones{display:flex;gap:8px;justify-content:flex-end}
+.bosse-captura-solicitud-acciones button{padding:10px 12px;border:1px solid #d6d0c5;border-radius:7px;background:white;cursor:pointer;font-size:12px;font-weight:650}
+.bosse-captura-solicitud-acciones button:last-child{background:#22211f;color:#fff;border-color:#22211f}
+.bosse-captura-solicitud-acciones button:disabled{opacity:.55;cursor:not-allowed}
+.bosse-captura-error{color:#ad372a;font-size:12px;margin:6px 0}
+.bosse-captura-ayuda{display:block;color:#82776a;font-size:10px;margin-top:6px;line-height:1.45}
+.bosse-captura-conceptos-sugeridos{margin-top:8px;font-size:11px;color:#82776a}
+.bosse-captura-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.bosse-captura-chips button{border:1px solid #dfdbd4;background:#f7f6f3;color:#413d38;border-radius:20px;padding:7px 10px;font:inherit;font-size:11px;cursor:pointer}
+.bosse-captura-chips button:hover{background:#eee8df;border-color:#c9b89e}
+.bosse-captura-chips .bosse-captura-vermas{background:white;border-style:dashed;color:#775b3b}
+.bosse-captura-proveedor .bosse-supplier-helper{padding:7px 9px;margin-top:6px;background:#faf9f6}
+.bosse-captura-proveedor .bosse-supplier-suggestions button{font-size:11px;padding:6px}
+@media (max-width:620px){.bosse-captura-solicitud-acciones{flex-direction:column-reverse}.bosse-captura-resultados{max-height:220px}.bosse-captura-resultados button{font-size:13px}}

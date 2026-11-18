@@ -1,6 +1,6 @@
 import React from "react";
 
-function SelectorNegocio({ usuarioActivo, rol, onSeleccionarBosse, onLogout }) {
+function SelectorNegocio({ usuarioActivo, rol, onSeleccionarBosse, negocios=[], onLogout }) {
   return (
     <div className="bb-business-home">
       <header className="bb-business-home-header">
@@ -22,7 +22,7 @@ function SelectorNegocio({ usuarioActivo, rol, onSeleccionarBosse, onLogout }) {
         </p>
 
         <div className="bb-business-grid">
-          <button type="button" className="bb-business-card" onClick={onSeleccionarBosse}>
+          {negocios.map(business=><button key={business.negocio_id} type="button" className="bb-business-card" onClick={()=>onSeleccionarBosse(business)}>
             <div className="bb-business-card-topline">
               <span className="bb-status-dot" />
               <span>Activo</span>
@@ -34,20 +34,13 @@ function SelectorNegocio({ usuarioActivo, rol, onSeleccionarBosse, onLogout }) {
 
             <div className="bb-business-card-footer">
               <div>
-                <strong>BOSSE</strong>
-                <span>Tijuana · Operación y finanzas</span>
+                <strong>{business.nombre}</strong>
+                <span>{business.rol} · Operación y finanzas</span>
               </div>
               <span className="bb-business-arrow">→</span>
             </div>
-          </button>
-
-          <div className="bb-future-business-card" aria-hidden="true">
-            <span className="bb-future-plus">+</span>
-            <div>
-              <strong>Negocio 2</strong>
-              <span>Loading...</span>
-            </div>
-          </div>
+          </button>)}
+          {!negocios.length&&<p>No tienes negocios asignados.</p>}
         </div>
 
         <div className="bb-home-footnote">

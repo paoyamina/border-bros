@@ -1,3 +1,4 @@
+import { apiFetch } from '../config/api';
 import API_BASE_URL from "../config/api";
 
 export async function obtenerHistorialCorte(corteId) {
@@ -5,7 +6,7 @@ export async function obtenerHistorialCorte(corteId) {
     throw new Error("No se recibió el ID del corte.");
   }
 
-  const respuesta = await fetch(
+  const respuesta = await apiFetch(
     `${API_BASE_URL}/api/cortes/${corteId}/historial`
   );
 

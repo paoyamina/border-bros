@@ -1,3 +1,4 @@
+import { apiFetch } from '../config/api';
 import React, { useCallback, useEffect, useState } from "react";
 import API_BASE_URL from "../config/api";
 
@@ -35,7 +36,7 @@ function Puestos({ usuarioActivo, onVolver }) {
         url += "&activos=false";
       }
 
-      const respuesta = await fetch(url);
+      const respuesta = await apiFetch(url);
       const resultado = await respuesta.json();
 
       if (!respuesta.ok || !resultado.success) {
@@ -76,7 +77,7 @@ function Puestos({ usuarioActivo, onVolver }) {
         ? `${API_BASE_URL}/api/puestos/${puestoEditando.id}`
         : `${API_BASE_URL}/api/puestos`;
 
-      const respuesta = await fetch(url, {
+      const respuesta = await apiFetch(url, {
         method: esEdicion ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
@@ -138,7 +139,7 @@ function Puestos({ usuarioActivo, onVolver }) {
     if (!confirmar) return;
 
     try {
-      const respuesta = await fetch(
+      const respuesta = await apiFetch(
         `${API_BASE_URL}/api/puestos/${puesto.id}/desactivar`,
         {
           method: "PUT",
@@ -168,7 +169,7 @@ function Puestos({ usuarioActivo, onVolver }) {
     if (!confirmar) return;
 
     try {
-      const respuesta = await fetch(
+      const respuesta = await apiFetch(
         `${API_BASE_URL}/api/puestos/${puesto.id}/reactivar`,
         {
           method: "PUT",

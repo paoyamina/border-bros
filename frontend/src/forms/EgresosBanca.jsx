@@ -1,6 +1,11 @@
+import {financialWeek} from '../utils/financialWeek';
+import { apiFetch } from '../config/api';
 import React, { useEffect, useState } from "react";
 import estilos from "../styles/estilos";
+import EgresoCapturaUnificada from "../components/EgresoCapturaUnificada";
 import { validarEgreso } from "../utils/validaciones";
+import ProveedorSelector from "../components/ProveedorAutocompleteEfectivo";
+import ConceptoSelector from "../components/ConceptoSugerenciasEfectivo";
 import API_BASE_URL, { API_ENDPOINTS } from "../config/api";
 
 function EgresosBanca({
@@ -11,21 +16,22 @@ function EgresosBanca({
   onVolver
 }) {
 
-  const [fechaEgreso, setFechaEgreso] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [fechaEgreso, setFechaEgreso] = useState("");
 
   const [montoEgreso, setMontoEgreso] = useState("");
   const [categoriaEgreso, setCategoriaEgreso] = useState("");
   const [conceptoEgreso, setConceptoEgreso] = useState("");
   const [beneficiarioEgreso, setBeneficiarioEgreso] = useState("");
+  const [solicitudProveedorId,setSolicitudProveedorId] = useState(null);
+  const [conceptosAprobados, setConceptosAprobados] = useState([]);
+  const [selectorVersion, setSelectorVersion] = useState(0);
+  const semanaAplicacion=financialWeek(fechaEgreso);
   const [bancoOrigen, setBancoOrigen] = useState("Kueski");
   const [referencia, setReferencia] = useState("");
   const [fotosEgreso, setFotosEgreso] = useState([]);
   const [proveedoresExistentes, setProveedoresExistentes] = useState([]);
 const [categoriasExistentes, setCategoriasExistentes] = useState([]);
-const [conceptosExistentes, setConceptosExistentes] = useState([]);
-const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
+const puedeAgregarCategoria = ["contador", "gobernador"].includes(
   String(rol || "").trim().toLowerCase()
 );
 
@@ -35,7 +41,7 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
 
     try {
 
-      const respuesta = await fetch(
+      const respuesta = await apiFetch(
   `${API_BASE_URL}/api/proveedores?negocio_id=${negocioId}`
 );
 
@@ -54,7 +60,7 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
 
     try {
 
-      const respuesta = await fetch(
+      const respuesta = await apiFetch(
         `${API_BASE_URL}/api/categorias?negocio_id=${negocioId}`
       );
 
@@ -69,91 +75,24 @@ const puedeAgregarCategoria = ["contador", "socio", "gobernador"].includes(
     }
   };
 
-  const cargarConceptos = async () => {
-  try {
-    const respuesta = await fetch(
-      `${API_BASE_URL}/api/egresos/conceptos`
-    );
-
-    const resultado = await respuesta.json();
-
-    if (resultado.success) {
-      setConceptosExistentes(resultado.conceptos || []);
-    }
-  } catch (error) {
-    console.error("Error cargando conceptos:", error);
-  }
-};
-
   cargarProveedores();
   cargarCategorias();
-  cargarConceptos();
+
 
 }, [negocioId]);
 
- const agregarProveedor = async () => {
-  const nuevo = prompt("Nombre del nuevo proveedor:");
-
-  if (!nuevo?.trim()) return;
-
-  try {
-    const respuesta = await fetch(
-      `${API_BASE_URL}/api/proveedores/buscar-o-crear`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-  nombre: nuevo.trim(),
-  usuario_id: usuarioId,
-  negocio_id: negocioId,
-}),
-      }
-    );
-
-    const resultado = await respuesta.json();
-
-    if (!resultado.success) {
-      throw new Error(
-        resultado.error || "No se pudo guardar el proveedor."
-      );
-    }
-
-    const proveedorGuardado = resultado.proveedor;
-
-    setProveedoresExistentes((prev) => {
-      const yaExiste = prev.some(
-        (proveedor) => proveedor.id === proveedorGuardado.id
-      );
-
-      if (yaExiste) return prev;
-
-      return [...prev, proveedorGuardado].sort((a, b) =>
-        a.nombre.localeCompare(b.nombre, "es")
-      );
-    });
-
-    setBeneficiarioEgreso(proveedorGuardado.nombre);
-
-    alert("✅ Proveedor agregado correctamente.");
-  } catch (error) {
-    alert("🚨 Error al agregar proveedor: " + error.message);
-  }
-};
-
-  const agregarCategoria = async () => {
+ const agregarCategoria = async () => {
   const nueva = prompt("Nombre de la nueva categoría:");
 
   if (!nueva?.trim()) return;
 
   try {
-    const respuesta = await fetch(
-      `${API_BASE_URL}/api/categorias/buscar-o-crear`,
+    const respuesta = await apiFetch(
+      `${API_BASE_URL}/api/categorias/catalogo`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem('bosse_catalog_token')||''}`,
         },
         body: JSON.stringify({
           nombre: nueva.trim(),
@@ -197,6 +136,9 @@ const limpiarFormulario = () => {
   setCategoriaEgreso("");
   setConceptoEgreso("");
   setBeneficiarioEgreso("");
+  setSolicitudProveedorId(null);
+  setConceptosAprobados([]);
+  setSelectorVersion(v => v + 1);
   setBancoOrigen("Kueski");
   setReferencia("");
   setFotosEgreso([]);
@@ -205,6 +147,14 @@ const limpiarFormulario = () => {
 
   const registrarEgreso = async () => {
 
+  if (!semanaAplicacion) {
+    alert('Selecciona la fecha a la que corresponde el gasto antes de guardar.');
+    return;
+  }
+  if (!solicitudProveedorId && !proveedoresExistentes.some(p => String(p.nombre).trim().toLowerCase() === beneficiarioEgreso.trim().toLowerCase())) {
+    alert('Selecciona un proveedor del catálogo o registra primero su solicitud.');
+    return;
+  }
   const errorValidacion = validarEgreso({
     categoria: categoriaEgreso,
     concepto: conceptoEgreso,
@@ -230,54 +180,19 @@ const limpiarFormulario = () => {
 ¿REGISTRAR ESTE EGRESO DE PLATAFORMA?
 
 Banco: ${bancoOrigen}
-Proveedor: ${beneficiarioEgreso}
+Fecha de aplicación: ${fechaEgreso} · Semana ${semanaAplicacion.inicio} al ${semanaAplicacion.fin}\nProveedor: ${beneficiarioEgreso}
 Monto: $${parseFloat(montoEgreso).toLocaleString()}
 `);
 
     if (!confirmar) return;
     try {
 
-  const formData = new FormData();
-
-  formData.append(
-    "nombreCarpeta",
-    `EGRESO_BANCA_${fechaEgreso}_${beneficiarioEgreso}`
-  );
-
-  formData.append("usuario", usuarioActivo);
-
-  formData.append(
-    "detalles",
-    JSON.stringify({
-      tipo: "EGRESO_BANCA",
-      fecha: fechaEgreso,
-      banco: bancoOrigen,
-      referencia,
-      categoria: categoriaEgreso,
-      concepto: conceptoEgreso,
-      proveedor: beneficiarioEgreso,
-      monto: parseFloat(montoEgreso) || 0,
-    })
-  );
-
-  fotosEgreso.forEach((file) => {
-    formData.append("fotos", file);
-  });
-
-  const respuesta = await fetch(API_ENDPOINTS.guardarReporte, {
-    method: "POST",
-    body: formData,
-  });
-
-  const resultado = await respuesta.json();
-
-  if (!resultado.success) {
-    throw new Error(resultado.error || "Error desconocido.");
-  }
-
-  const respuestaProveedor = await fetch(`${API_BASE_URL}/api/proveedores/buscar-o-crear`, {
+  let proveedorId=null;
+  if (!solicitudProveedorId) {
+  const respuestaProveedor = await apiFetch(`${API_BASE_URL}/api/proveedores/buscar-o-crear`, {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: {
+          Authorization: `Bearer ${sessionStorage.getItem("bosse_catalog_token") || ""}`, "Content-Type": "application/json" },
   body: JSON.stringify({
     nombre: beneficiarioEgreso,
     usuario_id: usuarioId,
@@ -291,9 +206,11 @@ if (!resultadoProveedor.success) {
   throw new Error(resultadoProveedor.error || "Error al guardar proveedor.");
 }
 
-const proveedorId = resultadoProveedor.proveedor.id;
+proveedorId = resultadoProveedor.proveedor.id;
+  }
 
-const respuestaCategoria = await fetch(`${API_BASE_URL}/api/categorias/buscar-o-crear`, {
+
+const respuestaCategoria = await apiFetch(`${API_BASE_URL}/api/categorias/buscar-o-crear`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -310,9 +227,51 @@ if (!resultadoCategoria.success) {
 
 const categoriaId = resultadoCategoria.categoria.id;
 
+  const formData = new FormData();
+
+  formData.append(
+    "nombreCarpeta",
+    `EGRESO_BANCA_${fechaEgreso}_${beneficiarioEgreso}`
+  );
+
+  formData.append("usuario", usuarioActivo);
+
+  formData.append(
+    "detalles",
+    JSON.stringify({
+      negocio_id: negocioId,
+      tipo: "EGRESO_BANCA",
+      fecha: fechaEgreso,
+      banco: bancoOrigen,
+      referencia,
+      categoria: categoriaEgreso,
+      concepto: conceptoEgreso,
+      proveedor: beneficiarioEgreso,
+      solicitud_proveedor_id: solicitudProveedorId,
+      monto: parseFloat(montoEgreso) || 0,
+    })
+  );
+
+  fotosEgreso.forEach((file) => {
+    formData.append("fotos", file);
+  });
+
+  const respuesta = await apiFetch(API_ENDPOINTS.guardarReporte, {
+    method: "POST",
+    body: formData,
+  });
+
+  const resultado = await respuesta.json();
+
+  if (!resultado.success) {
+    throw new Error(resultado.error || "Error desconocido.");
+  }
+
+
+
 const montoNumerico = parseFloat(montoEgreso) || 0;
 
-const respuestaBD = await fetch(`${API_BASE_URL}/api/egresos`, {
+const respuestaBD = await apiFetch(`${API_BASE_URL}/api/egresos`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -325,6 +284,7 @@ const respuestaBD = await fetch(`${API_BASE_URL}/api/egresos`, {
     negocio_id: negocioId,
     categoria_id: categoriaId,
     proveedor_id: proveedorId,
+    solicitud_proveedor_id: solicitudProveedorId,
     concepto: conceptoEgreso,
     referencia: referencia || null,
     usuario_crea_id: usuarioId,
@@ -354,307 +314,138 @@ window.dispatchEvent(new Event("egresoActualizado"));
   };
 
   return (
-    <div style={estilos.container}>
-      <div style={estilos.card}>
-
-        <button
-          onClick={onVolver}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#888",
-            cursor: "pointer",
-            marginBottom: "20px",
-            fontSize: "12px",
-            textTransform: "uppercase",
-          }}
-        >
-          ← Volver al menú
-        </button>
-
-        <div style={estilos.logoSpace}>
-          <img
-            src="/Logo_BOSSE.png"
-            alt="BOSSE"
-            style={{
-              maxHeight: "100px",
-              marginBottom: "15px",
-              display: "block",
-              margin: "0 auto",
-            }}
-          />
-
-          <h1 style={estilos.h1}>Egresos Plataforma</h1>
-
-          <p style={estilos.p}>
-            Operador: {usuarioActivo}
-          </p>
+    <EgresoCapturaUnificada
+      tipo="Plataforma" usuario={usuarioActivo} onVolver={onVolver}
+      basicos={(<>
+      <div className="eg2-grid-basicos">
+        <div className="eg2-campo">
+          <label htmlFor="eg2-fecha">FECHA DEL GASTO *</label>
+          <input id="eg2-fecha" type="date" value={fechaEgreso}
+            onChange={e=>setFechaEgreso(e.target.value)}
+            style={{...estilos.input,width:'100%'}} />
         </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "15px",
-            }}
-          >
-
-            <div>
-              <label style={estilos.panelLabel}>
-                FECHA DEL EGRESO
-              </label>
-
-              <input
-                type="date"
-                value={fechaEgreso}
-                onChange={(e) => setFechaEgreso(e.target.value)}
-                style={{ ...estilos.input, width: "100%" }}
-              />
-            </div>
-
-            <div>
-              <label style={estilos.panelLabel}>
-                BANCO ORIGEN
-              </label>
-
-              <select
-                value={bancoOrigen}
-                onChange={(e) => setBancoOrigen(e.target.value)}
-                style={{
-                  ...estilos.input,
-                  width: "100%",
-                  height: "42px",
-                }}
-              >
-                <option>Kueski</option>
+        <div className="eg2-campo">
+              <label htmlFor="eg2-origen">PLATAFORMA / CANAL</label>
+              <select id="eg2-origen" value={bancoOrigen} onChange={e => setBancoOrigen(e.target.value)}
+                style={{...estilos.input,width:'100%'}}>
+                <option value="Kueski">Kueski</option>
               </select>
             </div>
-
+        <div className="eg2-campo eg2-categoria">
+          <label htmlFor="eg2-categoria">CATEGORÍA *</label>
+          <div className="eg2-categoria-fila">
+            <select id="eg2-categoria" value={categoriaEgreso}
+              onChange={e=>setCategoriaEgreso(e.target.value)}
+              style={{...estilos.input,width:'100%'}}>
+              <option value="">Selecciona una categoría</option>
+              {categoriasExistentes.map(c=><option value={c.nombre} key={c.id}>{c.nombre}</option>)}
+            </select>
+            {puedeAgregarCategoria && <button type="button" className="eg2-categoria-agregar"
+              title="Agregar categoría" aria-label="Agregar categoría" onClick={agregarCategoria}>+</button>}
           </div>
-
-          <div style={estilos.section}>
-
-            <label style={estilos.panelLabel}>
-              CATEGORÍA
-            </label>
-
-            <div style={{ display: "flex", gap: "5px" }}>
-
-              <input
-                  type="text"
-                  list="categorias-egreso-banca"
-                  value={categoriaEgreso}
-                  onChange={(e) => setCategoriaEgreso(e.target.value)}
-                  placeholder="Escribe para buscar una categoría"
-                  autoComplete="off"
-                  style={{ ...estilos.input, flex: 1, height: "42px" }}
-                />
-
-                <datalist id="categorias-egreso-banca">
-                  {categoriasExistentes.map((cat) => (
-                    <option key={cat.id} value={cat.nombre} />
-                  ))}
-                </datalist>
-
-              {puedeAgregarCategoria && (
-  <button
-    type="button"
-    style={estilos.btnAdd}
-    onClick={agregarCategoria}
-  >
-    +
-  </button>
-)}
-
-            </div>
-
-          </div>
-
-          <div style={estilos.section}>
-
-            <label style={estilos.panelLabel}>
-              DETALLES DEL PAGO
-            </label>
-
-            <input
-  list="conceptos-egresos-banca"
-  placeholder="Concepto del egreso"
-  value={conceptoEgreso}
-  onChange={(e) => setConceptoEgreso(e.target.value)}
-  style={{
-    ...estilos.input,
-    width: "100%",
-    marginBottom: "10px",
-  }}
-/>
-
-<datalist id="conceptos-egresos-banca">
-  {conceptosExistentes.map((concepto) => (
-    <option key={concepto} value={concepto} />
-  ))}
-</datalist>
-
-            <div style={{ display: "flex", gap: "5px" }}>
-
-              <input
-                  type="text"
-                  list="proveedores-egreso-banca"
-                  value={beneficiarioEgreso}
-                  onChange={(e) => setBeneficiarioEgreso(e.target.value)}
-                  placeholder="Escribe para buscar un proveedor"
-                  autoComplete="off"
-                  style={{
-                    ...estilos.input,
-                    flex: 1,
-                    height: "42px",
-                  }}
-                />
-
-                <datalist id="proveedores-egreso-banca">
-                  {proveedoresExistentes.map((proveedor) => (
-                    <option
-                      key={proveedor.id}
-                      value={proveedor.nombre}
-                    />
-                  ))}
-                </datalist>
-
-              <button
-                type="button"
-                style={estilos.btnAdd}
-                onClick={agregarProveedor}
-              >
-                +
-              </button>
-
-            </div>
-
-          </div>
-
-          <div style={estilos.section}>
-
-            <label style={estilos.panelLabel}>
-              REFERENCIA / FOLIO DE PLATAFORMA
-            </label>
-
-            <input
-              placeholder="Ej. Transferencia 88492"
-              value={referencia}
-              onChange={(e) => setReferencia(e.target.value)}
-              style={{
-                ...estilos.input,
-                width: "100%",
-              }}
-            />
-
-          </div>
-
-          <div
-            style={{
-              background: "#fafafa",
-              padding: "20px",
-              borderRadius: "8px",
-              border: "1px solid #eee",
-              textAlign: "center",
-            }}
-          >
-
-            <label
-              style={{
-                ...estilos.panelLabel,
-                color: "#333",
-              }}
-            >
-              MONTO TOTAL PAGADO
-            </label>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "10px",
-              }}
-            >
-
-              <span
-                style={{
-                  fontSize: "24px",
-                  fontWeight: "300",
-                }}
-              >
-                $
-              </span>
-
-              <input
-                type="number"
-                placeholder="0.00"
-                value={montoEgreso}
-                onChange={(e) => setMontoEgreso(e.target.value)}
-                  onWheel={(e) => e.currentTarget.blur()}
-                style={{
-                  ...estilos.input,
-                  width: "150px",
-                  fontSize: "28px",
-                  fontWeight: "700",
-                  border: "none",
-                  background: "none",
-                  textAlign: "center",
-                }}
-              />
-
-            </div>
-
-          </div>
-
-          <div
-            style={{
-              background: "#fff",
-              padding: "15px",
-              borderRadius: "8px",
-              border: "1px dashed #ddd",
-            }}
-          >
-
-            <label style={estilos.panelLabel}>
-              COMPROBANTE / PDF / FOTO
-            </label>
-
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) =>
-                setFotosEgreso(Array.from(e.target.files))
-              }
-              style={{
-                fontSize: "12px",
-                marginTop: "10px",
-              }}
-            />
-
-          </div>
-
-          <button
-            onClick={registrarEgreso}
-            disabled={!montoEgreso || !conceptoEgreso || !categoriaEgreso}
-            style={{
-              ...estilos.btnSubmit,
-              marginTop: "10px",
-              background:
-  !montoEgreso || !conceptoEgreso || !categoriaEgreso
-    ? "#ccc"
-    : "#000",
-            }}
-          >
-            REGISTRAR EGRESO DE PLATAFORMA
-          </button>
-
         </div>
-
       </div>
+      <p className="eg2-semana">{semanaAplicacion ?
+        `Semana financiera: ${semanaAplicacion.inicio} al ${semanaAplicacion.fin} (viernes a jueves)` :
+        'Selecciona la fecha de aplicación del gasto.'}</p>
+
+      {categoriasExistentes.length>0 && <div className="eg2-atajos">
+        <span>Accesos a categorías:</span>
+        {categoriasExistentes.slice(0,4).map(c=><button type="button" key={c.id}
+          aria-pressed={c.nombre===categoriaEgreso} onClick={()=>setCategoriaEgreso(c.nombre)}>{c.nombre}</button>)}
+      </div>}
+    </>)}
+      detalle={(<>
+      <div className="eg2-detalles-campo"><div className="eg2-campo">
+        <label>PROVEEDOR *</label>
+        <ProveedorSelector key={`proveedor-${selectorVersion}`}
+              negocioId={negocioId} proveedores={proveedoresExistentes}
+              value={beneficiarioEgreso} solicitudId={solicitudProveedorId}
+              inputStyle={estilos.input}
+              onChange={nombre => {
+                setBeneficiarioEgreso(nombre);
+                setSolicitudProveedorId(null);
+                setConceptosAprobados([]);
+                if (beneficiarioEgreso && nombre !== beneficiarioEgreso &&
+                  proveedoresExistentes.some(p => p.nombre === beneficiarioEgreso)) {
+                  setCategoriaEgreso(''); setConceptoEgreso('');
+                }
+              }}
+              onSolicitar={setSolicitudProveedorId}
+              onMemoria={combinaciones => setConceptosAprobados(combinaciones.map(x => x.concepto))}
+              onSugerir={(item, automatico) => {
+                setCategoriaEgreso(anterior => automatico && anterior ? anterior : item.categoria);
+                setConceptoEgreso(anterior => automatico && anterior ? anterior : item.concepto);
+                if (!automatico) setSelectorVersion(v => v + 1);
+              }}/>
+
+      </div></div>
+      <div className="eg2-detalles-campo"><div className="eg2-campo">
+        <label>CONCEPTO DEL EGRESO *</label>
+        <ConceptoSelector key={`concepto-${selectorVersion}`}
+              value={conceptoEgreso} onChange={setConceptoEgreso}
+              aprobados={conceptosAprobados} inputStyle={estilos.input} />
+      </div></div>
+      <div className="eg2-detalles-campo">
+        <div className="eg2-campo">
+          <label htmlFor="eg2-referencia">REFERENCIA / FOLIO DE PLATAFORMA</label>
+          <input id="eg2-referencia" type="text" maxLength={250}
+            placeholder="Escribe la referencia de la operación"
+            value={referencia} onChange={e=>setReferencia(e.target.value)}
+            style={{...estilos.input,width:'100%'}} />
+        </div>
+      </div>
+    </>)}
+      ayuda={(<>
+      <div className="eg2-ayuda-item"><span aria-hidden="true">⌕</span><p>
+        {solicitudProveedorId
+          ? 'Proveedor pendiente de aprobación: podrás guardar el gasto con su solicitud.'
+          : 'Busca el proveedor por nombre. Si no aparece, puedes solicitar el alta aquí mismo.'}
+      </p></div>
+      <div className="eg2-ayuda-item"><span aria-hidden="true">✦</span><p>
+        {conceptosAprobados.length>0
+          ? `${conceptosAprobados.length} concepto(s) aprobado(s) disponibles para este proveedor. Escribir otro está permitido.`
+          : 'El concepto es libre. Las sugerencias se mostrarán si existen combinaciones aprobadas.'}
+      </p></div>
+    </>)}
+      monto={(<>
+      <label htmlFor="eg2-monto">MONTO TOTAL PAGADO *</label>
+      <div className="eg2-monto-fila"><span>$</span>
+        <input id="eg2-monto" type="number" min="0" step="0.01" inputMode="decimal"
+          placeholder="0.00" value={montoEgreso} onChange={e=>setMontoEgreso(e.target.value)}
+          onWheel={e=>e.currentTarget.blur()}
+          style={{...estilos.input,width:'100%',border:0,background:'transparent'}} />
+      </div>
+      <small>MXN · Pesos mexicanos</small>
+    </>)}
+      comprobante={(<>
+    <div className="eg2-ux-comprobante-titulo">FOTO O PDF DEL COMPROBANTE</div>
+    <p>Adjunta una foto o PDF del pago.</p>
+    <div className="eg2-ux-adjunto">
+      <input type="file" id="eg2-ux-archivo" className="eg2-ux-file-input"
+        accept="image/*,application/pdf" onClick={e => {e.currentTarget.value = '';}}
+        onChange={e => setFotosEgreso(Array.from(e.target.files || []))} />
+      <label htmlFor="eg2-ux-archivo" className="eg2-ux-file-boton">
+        ▤ {fotosEgreso.length ? 'Cambiar comprobante' : 'Adjuntar comprobante'}
+      </label>
+      {fotosEgreso.length > 0 && <div className="eg2-ux-file-seleccion">
+        <span title={fotosEgreso[0].name}>✓ {fotosEgreso[0].name}</span>
+        <button type="button" onClick={() => setFotosEgreso([])}>Quitar</button>
+      </div>}
     </div>
+  </>)}
+  validacion={[
+   {nombre:'Fecha',listo:Boolean(fechaEgreso)},
+   {nombre:'Categoría',listo:Boolean(categoriaEgreso)},
+   {nombre:'Proveedor',listo:Boolean(solicitudProveedorId || (beneficiarioEgreso && proveedoresExistentes.some(p => p && p.nombre && String(p.nombre).trim().toLowerCase() === String(beneficiarioEgreso).trim().toLowerCase())))},
+   {nombre:'Concepto',listo:Boolean(String(conceptoEgreso || '').trim())},
+   {nombre:'Monto',listo:Number(montoEgreso) > 0},
+   {nombre:'Origen',listo:Boolean(bancoOrigen)}
+ ]}
+ ayudaActiva={Boolean(solicitudProveedorId || (Array.isArray(conceptosAprobados) && conceptosAprobados.length > 0))}
+ accion={(<button type="button" className="eg2-guardar" onClick={registrarEgreso}
+        disabled={!montoEgreso || !conceptoEgreso || !categoriaEgreso}>Guardar egreso de plataforma</button>)}
+    />
   );
 }
 

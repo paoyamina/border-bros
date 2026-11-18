@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "BOSSE",
+  "name": "BOSSE · BorderBros Operating Platform",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +20,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#111514",
+  "background_color": "#f7f7f4",
+  "description": "Análisis financiero y administración de BorderBros"
 }

@@ -1,5 +1,4 @@
-cd C:\Users\PaolaRios\Downloads\Pao\proyecto-bar\frontend
-npm start:root {
+:root {
   --bb-green-950: #0b2115;
   --bb-green-900: #10331f;
   --bb-green-800: #174a2c;
@@ -2358,3 +2357,35 @@ button, input, textarea, select { font: inherit; }
   grid-column: 1 / -1 !important;
   min-height: 130px !important;
 }
+/* BOSSE Editorial: un solo lenguaje visual entre Administración y Análisis. */
+.bb-theme-minimal .bb-platform-sidebar{background:#111514!important;border-right:1px solid #272e29!important;box-shadow:none!important}
+.bb-theme-minimal .bb-business-switcher{background:#1d2321!important;border:1px solid #373c37!important}
+.bb-theme-minimal .bb-nav-item.is-active{background:#313732!important;box-shadow:inset 2px 0 0 #c8b8a0!important}
+.bb-theme-minimal .bb-platform-content{background:#f7f7f4}
+.bosse-admin-page .bosse-luxury-card{background-size:cover!important;background-repeat:no-repeat;box-shadow:none!important;border:1px solid #303a34!important}
+@media(max-width:780px){
+  .bb-platform-shell{padding-top:0!important;padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))!important}
+  .bb-platform-mobilebar{display:none!important}
+  .bb-platform-sidebar{display:none!important}
+  .bb-bosse-mobile-dock{display:flex!important;position:fixed;z-index:5000;bottom:0;left:0;right:0;gap:4px;align-items:stretch;justify-content:space-around;background:#141917;color:#f4eee2;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid #42473c;box-shadow:0 -8px 30px #0002}
+  .bb-bosse-mobile-dock button{background:transparent;color:#c5c6c1;border:0;min-height:52px;min-width:67px;flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1px;font-size:10px;cursor:pointer}
+  .bb-bosse-mobile-dock button.active{color:#f2dfc0}
+  .bb-bosse-mobile-dock button span{font-size:20px;line-height:1.4}
+  .bb-platform-content{min-width:0!important}
+  .bosse-admin-page{padding:17px 12px 76px!important}
+  .bosse-luxury-statusbar{display:flex!important;flex-wrap:wrap}
+  .bosse-luxury-statusbar>*{min-width:110px;flex:1}
+  button,input,select,textarea{touch-action:manipulation}
+  .bosse-admin-page input,.bosse-admin-page select,.bosse-admin-page textarea{font-size:16px!important;max-width:100%}
+}
+@media(min-width:781px){.bb-bosse-mobile-dock{display:none}}
+@media(min-width:781px) and (max-width:1150px){.bb-platform-shell{grid-template-columns:74px minmax(0,1fr)!important}.bb-platform-sidebar{width:74px!important;padding:14px 8px!important}.bb-brand-caption,.bb-business-switcher-copy,.bb-business-chevron,.bb-platform-nav .bb-nav-item>span:last-child,.bb-sidebar-spacer~.bb-all-businesses>span:last-child,.bb-user-copy{display:none!important}.bb-nav-item{justify-content:center!important}.bb-business-switcher{justify-content:center!important}.bb-brand-logo{max-width:58px!important}.bb-user-card{justify-content:center!important}.bb-user-avatar{display:none!important}}
+
+/* BOSSE Análisis Financiero · navegación integrada a la barra lateral original. */
+.bb-finance-subnav{display:flex;flex-direction:column;gap:3px;margin:2px 0 14px 22px;padding-left:12px;border-left:1px solid #5e5a51}
+.bb-finance-subnav button{display:flex;align-items:center;gap:11px;text-align:left;min-height:37px;border:0;border-radius:5px;background:transparent;color:#d5d1c9;font-size:12px;padding:8px 10px;cursor:pointer}
+.bb-finance-subnav button span{font-size:17px;color:#bca17c}
+.bb-finance-subnav button.active{color:#fff;background:linear-gradient(90deg,#896e50,#5b5943)}
+.bb-finance-subnav button:hover{background:#4f524b;color:#fff}
+@media(min-width:781px) and (max-width:1150px){.bb-finance-subnav{margin-left:0;padding-left:0;border:0}.bb-finance-subnav button{justify-content:center;font-size:0}.bb-finance-subnav button span{font-size:18px}}
+@media(max-width:780px){.bb-finance-subnav{display:none}}

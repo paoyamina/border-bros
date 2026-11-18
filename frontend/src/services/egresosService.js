@@ -1,3 +1,4 @@
+import { apiFetch } from '../config/api';
 import API_BASE_URL from "../config/api.js";
 
 export async function obtenerEgresos(negocioId, filtros = {}) {
@@ -19,7 +20,7 @@ export async function obtenerEgresos(negocioId, filtros = {}) {
     }
   });
 
-  const respuesta = await fetch(
+  const respuesta = await apiFetch(
     `${API_BASE_URL}/api/egresos?${parametros.toString()}`
   );
 
@@ -35,7 +36,7 @@ export async function obtenerEgresos(negocioId, filtros = {}) {
 }
 
 export const editarEgreso = async (egresoId, datosEgreso) => {
-  const respuesta = await fetch(
+  const respuesta = await apiFetch(
     `${API_BASE_URL}/api/egresos/${egresoId}`,
     {
       method: "PUT",
@@ -66,7 +67,7 @@ export const editarEgreso = async (egresoId, datosEgreso) => {
 };
 
 export async function cancelarEgreso(id, usuarioId) {
-  const respuesta = await fetch(
+  const respuesta = await apiFetch(
     `${API_BASE_URL}/api/egresos/${id}/cancelar`,
     {
       method: "PUT",
@@ -99,7 +100,7 @@ export async function cancelarEgreso(id, usuarioId) {
 }
 
 export async function reactivarEgreso(id, usuarioId) {
-  const respuesta = await fetch(
+  const respuesta = await apiFetch(
     `${API_BASE_URL}/api/egresos/${id}/reactivar`,
     {
       method: "PUT",
@@ -132,7 +133,7 @@ export async function reactivarEgreso(id, usuarioId) {
 }
 
 export async function obtenerHistorialEgreso(id) {
-  const respuesta = await fetch(
+  const respuesta = await apiFetch(
     `${API_BASE_URL}/api/egresos/${id}/historial`
   );
 

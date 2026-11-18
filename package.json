@@ -23,7 +23,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "server": "node server.js"
+    "server": "node server.js",
+    "test:backend": "node --test tests/domain.test.cjs tests/access.test.cjs tests/server.test.cjs"
   },
   "eslintConfig": {
     "extends": [

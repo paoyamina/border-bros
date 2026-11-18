@@ -1,0 +1,253 @@
+/* BOSSE / Explorar movimientos / ETAPA 2 — KPI y tabla
+   Enfocado exclusivamente a `.be-x-stage2-stats`, `.be-x-results` y tabla.
+   No modifica filtros, panel lateral, backend ni datos.
+*/
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:11px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats > .be-x-stage2-stat {
+  min-width:0;
+  min-height:111px;
+  background:var(--be-card);
+  color:var(--be-ink);
+  padding:13px 16px;
+  border:1px solid var(--be-border);
+  border-radius:12px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:5px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats .be-x-stage2-stat-head {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats .be-x-stage2-stat-head .bosse-icon {
+  color:var(--be-bronze);
+  width:24px;
+  height:24px;
+  flex:0 0 24px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats .be-x-stage2-stat-head span {
+  font-size:12px;
+  font-weight:750;
+  line-height:1.3;
+  color:var(--be-ink);
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats .be-x-stage2-stat strong {
+  color:inherit;
+  font-size:clamp(19px,1.8vw,27px);
+  font-weight:780;
+  line-height:1.14;
+  letter-spacing:-.025em;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats .be-x-stage2-stat small {
+  font-size:11px;
+  color:var(--be-muted);
+  line-height:1.3;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats > .be-x-stage2-stat.be-x-stats-net {
+  color:#fff;
+  background:#171717;
+  border-color:#171717;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats .be-x-stats-net .be-x-stage2-stat-head span {
+  color:#fff;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats .be-x-stats-net small {
+  color:#ddd2c3 !important;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats .be-x-stats-net .bosse-icon {
+  color:#d8b784;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results {
+  border-radius:12px;
+  overflow:hidden;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-table-toolbar {
+  gap:10px;
+  padding:14px 14px 11px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-table-title h3 {
+  font-family:Georgia,'Times New Roman',serif;
+  font-size:21px;
+  font-weight:700;
+  color:var(--be-ink);
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-table-toolbar p {
+  font-size:12px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-table-actions {
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-table-actions button {
+  font-size:12px;
+  font-weight:650;
+  min-height:36px;
+  padding:8px 10px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-table-actions .be-x-column-button {
+  border-color:#c6ae8a;
+  color:var(--be-ink);
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-table-actions button:hover,
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-table-actions button:focus-visible {
+  border-color:var(--be-bronze);
+  background:var(--be-warm);
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-column-settings {
+  background:var(--be-warm);
+  border-top:1px solid var(--be-border);
+  border-bottom:1px solid var(--be-border);
+  padding:12px 15px;
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-column-settings .be-x-column-info {
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-width:175px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-column-settings .be-x-column-info strong { font-size:12px; }
+.be-page .be-x-screen.be-x-stage2 .be-x-column-settings .be-x-column-info span { font-size:11px; color:var(--be-muted); }
+.be-page .be-x-screen.be-x-stage2 .be-x-column-options {
+  display:flex;
+  flex:1 1 490px;
+  flex-wrap:wrap;
+  gap:10px 14px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-column-options label {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:12px;
+  font-weight:600;
+  white-space:nowrap;
+  cursor:pointer;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-column-options input { accent-color:#947450; width:15px; height:15px; }
+.be-page .be-x-screen.be-x-stage2 .be-x-restore-columns {
+  background:var(--be-card);
+  border:1px solid var(--be-border);
+  padding:8px 10px;
+  border-radius:7px;
+  color:var(--be-ink);
+  cursor:pointer;
+  font-size:12px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-table-scroll-help {
+  display:flex;
+  align-items:center;
+  gap:5px;
+  color:var(--be-muted);
+  padding:0 14px 7px;
+  font-size:11px;
+  line-height:1.4;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-table-wrap {
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  scrollbar-color:#b8a285 transparent;
+  scrollbar-width:thin;
+  overscroll-behavior-x:contain;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-stage2-table {
+  width:100%;
+  table-layout:fixed;
+  border-collapse:collapse;
+  font-size:12px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-stage2-table th {
+  background:var(--be-warm);
+  color:var(--be-ink);
+  font-size:11px;
+  letter-spacing:.005em;
+  font-weight:750;
+  padding:10px 9px;
+  white-space:normal;
+  vertical-align:middle;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-stage2-table td {
+  padding:11px 9px;
+  font-size:12px;
+  line-height:1.35;
+  vertical-align:middle;
+  overflow-wrap:break-word;
+  word-break:normal;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-stage2-table td strong {
+  font-size:12px;
+  font-weight:680;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-stage2-table .be-x-cell-date,
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-stage2-table .be-x-cell-folio {
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-stage2-table .be-x-amount {
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+  text-align:right;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-stage2-table .be-x-sort-th {
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:4px;
+  border:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  padding:0;
+  cursor:pointer;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-stage2-table .be-x-status {
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:10px;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-stage2-table .be-x-open {
+  min-height:34px;
+  font-size:12px;
+  display:inline-flex;
+  gap:5px;
+  align-items:center;
+  justify-content:center;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-stage2-table tr.be-x-selected {
+  background:var(--be-warm)!important;
+  box-shadow:inset 3px 0 #9b7a51!important;
+}
+.be-page .be-x-screen.be-x-stage2 .be-x-table-wrap:focus-visible,
+.be-page .be-x-screen.be-x-stage2 .be-x-column-options input:focus-visible,
+.be-page .be-x-screen.be-x-stage2 .be-x-stage2-table .be-x-sort-th:focus-visible {
+  outline:2px solid var(--be-bronze);
+  outline-offset:2px;
+}
+@media(max-width:1260px) {
+  .be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:600px) {
+  .be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats { grid-template-columns:1fr 1fr; gap:8px; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats > .be-x-stage2-stat { padding:11px; min-height:95px; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats .be-x-stage2-stat strong { font-size:16px; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats .be-x-stage2-stat-head { gap:6px; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-stage2-stats .be-x-stage2-stat-head .bosse-icon { width:18px;height:18px;flex-basis:18px; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-table-toolbar { gap:8px; }
+  .be-page .be-x-screen.be-x-stage2 .be-x-results .be-x-table-actions { width:100%; justify-content:flex-start; }
+}

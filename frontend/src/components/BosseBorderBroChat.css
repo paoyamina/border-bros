@@ -1,0 +1,452 @@
+/* BOSSE / BorderBro. Aislado del CSS legado para evitar colisiones entre módulos. */
+.bbai-inline,.bbai-drawer{--bbai-line:#dfd2c1;--bbai-bronze:#a18258;--bbai-black:#171717;--bbai-cream:#f5eee5;--bbai-muted:#635d55;color:#171717;background:#fff;border:1px solid var(--bbai-line);font:400 13px/1.5 Arial,Helvetica,sans-serif;box-sizing:border-box}
+.bbai-inline *,.bbai-drawer *{box-sizing:border-box}
+.bbai-inline{border-radius:13px;padding:18px 20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 3px 18px #17171708}
+.bbai-panel-heading{display:flex;align-items:center;gap:12px;min-width:0;padding-bottom:12px;border-bottom:1px solid var(--bbai-line)}
+.bbai-avatar{width:43px;height:43px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--bbai-black);color:#dfc59b;font:700 27px Georgia,serif;flex:none}
+.bbai-panel-heading>div:nth-child(2){min-width:0;flex:1}.bbai-eyebrow{display:block;font-size:10px;color:var(--bbai-bronze);letter-spacing:.09em;font-weight:800}
+.bbai-panel-heading h2{font:700 clamp(21px,2vw,29px)/1.13 Georgia,'Times New Roman',serif;margin:3px 0 4px!important;letter-spacing:-.025em;color:#171717}
+.bbai-panel-heading p{margin:0!important;color:var(--bbai-muted);font-size:12px;line-height:1.4}
+.bbai-status{border-radius:30px;background:var(--bbai-cream);border:1px solid var(--bbai-line);padding:5px 9px;font:600 11px Arial,sans-serif;color:#5f4b34;white-space:nowrap}
+.bbai-conversation{display:flex;flex-direction:column;gap:12px;min-height:95px;max-height:42vh;overflow-y:auto;overscroll-behavior:contain;padding:9px 5px 10px 2px;scrollbar-width:thin}
+.bbai-conversation-compact{max-height:260px;min-height:74px}
+.bbai-message{align-self:flex-start;max-width:92%;border-radius:10px;padding:11px 13px;background:var(--bbai-cream);border:1px solid var(--bbai-line);overflow-wrap:anywhere}
+.bbai-message.bbai-user{align-self:flex-end;background:#171717;color:#fff;border-color:#171717}
+.bbai-author{display:block;font-weight:800;font-size:11px;margin-bottom:4px}.bbai-message-text{white-space:pre-wrap;font-size:12.5px;line-height:1.55}
+.bbai-message small{display:block;font-size:10px;margin-top:8px;opacity:.7}.bbai-evidence{margin-top:9px}.bbai-evidence summary{cursor:pointer;font-weight:700}
+.bbai-evidence pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:190px;overflow:auto;font:11px/1.5 monospace;padding:10px;background:#fff;color:#171717;border-radius:7px;border:1px solid var(--bbai-line)}
+.bbai-questions{display:flex;flex-wrap:wrap;gap:7px}.bbai-questions button{background:#fff;border:1px solid var(--bbai-line);padding:7px 10px;border-radius:8px;color:#655039;font-size:11px;font-weight:600;cursor:pointer;text-align:left;min-height:32px}
+.bbai-questions button:hover{background:var(--bbai-cream);border-color:var(--bbai-bronze)}
+.bbai-form{margin:0!important}.bbai-form label{display:block;margin-bottom:6px;font-size:11px;font-weight:800;color:#312b24}
+.bbai-compose{display:flex;gap:8px;align-items:stretch}.bbai-compose textarea{width:100%;min-height:60px;resize:vertical;padding:11px 12px;background:#fff;color:#171717;border:1px solid var(--bbai-line);border-radius:8px;font:13px/1.5 Arial,Helvetica,sans-serif}
+.bbai-send{flex:none;border-radius:8px;background:#171717!important;color:#fff!important;font-size:12px!important;font-weight:700!important;padding:8px 15px!important;cursor:pointer;border:1px solid #171717!important;min-width:90px}
+.bbai-send:disabled{background:#b9b2aa!important;border-color:#b9b2aa!important;cursor:not-allowed}
+.bbai-send span{font-size:18px}.bbai-footnote{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;color:var(--bbai-muted);font-size:10.5px}
+.bbai-footnote button{border:0!important;background:transparent!important;color:#6f5533!important;text-decoration:underline;cursor:pointer;font-weight:700;font-size:11px!important;padding:3px!important}
+.bbai-caution{color:var(--bbai-muted);font-size:10.5px;margin:0!important}
+.bbai-error,.bbai-privacy-message{border-radius:8px;padding:12px;background:#fff4e9;border:1px solid #d4b9a0;color:#613a23;font-size:12px;margin:0!important}
+.bbai-thinking{font-size:12px;font-weight:700;color:#7b5f3f}
+.bbai-launcher{position:fixed;right:22px;bottom:23px;z-index:100000;display:flex;align-items:center;justify-content:center;width:62px;height:62px;border-radius:50%;border:2px solid #ad9674;background:#171717;box-shadow:0 9px 24px #0004;cursor:pointer}
+.bbai-launcher span{font:700 32px Georgia,serif;color:#e8d7b8}.bbai-launcher i{position:absolute;right:1px;bottom:2px;width:13px;height:13px;border-radius:50%;background:#96b7a0;border:3px solid #171717}
+.bbai-overlay{position:fixed;inset:0;z-index:100001}.bbai-backdrop{position:absolute;inset:0;background:#10101066;border:0;cursor:default}
+.bbai-drawer{position:absolute;top:0;bottom:0;right:0;width:min(480px,100%);padding:18px 19px;box-shadow:-14px 0 50px #0003;display:flex;flex-direction:column;gap:12px}
+.bbai-drawer .bbai-conversation{flex:1;max-height:none;min-height:100px}.bbai-drawer .bbai-questions{max-height:98px;overflow:auto}
+.bbai-close{margin-left:auto;flex:none;font:26px/1 Arial,sans-serif;color:#171717;background:white;border:1px solid var(--bbai-line);width:34px;height:34px;border-radius:8px;cursor:pointer}
+.bbai-inline button:focus-visible,.bbai-drawer button:focus-visible,.bbai-launcher:focus-visible,.bbai-inline textarea:focus-visible,.bbai-drawer textarea:focus-visible{outline:3px solid #a18258!important;outline-offset:2px}
+.be-page[data-theme='dark'] .bbai-inline{background:#22201c;color:#f7f3eb;--bbai-line:#665746;--bbai-cream:#322b23;--bbai-muted:#ddd0be}.be-page[data-theme='dark'] .bbai-inline .bbai-panel-heading h2,.be-page[data-theme='dark'] .bbai-inline .bbai-form label{color:#f7f3eb}.be-page[data-theme='dark'] .bbai-inline .bbai-questions button{color:#f5ebe1;background:#302b27}
+@media(max-width:720px){.bbai-inline{padding:13px}.bbai-panel-heading{align-items:flex-start}.bbai-status{display:none}.bbai-compose{flex-direction:column}.bbai-send{align-self:stretch}.bbai-launcher{right:14px;bottom:76px;width:56px;height:56px}.bbai-drawer{padding:12px}.bbai-message{max-width:100%}}
+@media(prefers-reduced-motion:reduce){.bbai-inline *,.bbai-drawer *{scroll-behavior:auto!important;transition:none!important}}
+
+/* El chat principal ocupa la primera sección de BorderBro, no una franja al final. */
+.bbi-screen .bbi-chat-first{width:100%;min-width:0;order:-1}
+.bbi-screen .bbi-chat-first .bbai-inline{width:100%;max-width:none}
+
+/* BorderBro Copilot | solo la pantalla de BorderBro; el drawer compartido no cambia. */
+.bbi-screen .bbai-inline-copilot {
+  min-width:0; min-height:585px; height:100%; padding:23px 25px 18px;
+  border-radius:17px; box-shadow:0 8px 26px rgba(30,20,10,.045);
+  gap:14px; background:#fff;
+}
+.bbi-screen .bbai-inline-copilot .bbai-panel-heading{padding-bottom:16px;gap:12px}
+.bbi-screen .bbai-inline-copilot .bbai-avatar{width:42px;height:42px;box-shadow:0 2px 8px #0002}
+.bbi-screen .bbai-inline-copilot .bbai-panel-heading h2{font:700 25px/1.16 Georgia,serif;letter-spacing:-.025em}
+.bbi-screen .bbai-inline-copilot .bbai-panel-heading p{font-size:12px}
+.bbi-screen .bbai-inline-copilot .bbai-live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#36815e;margin-right:5px}
+.bbi-screen .bbai-inline-copilot .bbai-status{font-size:11px;background:#fff}
+.bbi-screen .bbai-inline-copilot .bbai-conversation-copilot{
+  flex:1 1 auto; min-height:236px; max-height:none;
+  gap:18px; padding:17px 4px 11px 2px;
+}
+.bbi-screen .bbai-inline-copilot .bbai-message{
+  max-width:86%;padding:14px 17px;border-radius:15px;background:#f8f5f0;
+  border:1px solid #ebe1d6;
+}
+.bbi-screen .bbai-inline-copilot .bbai-message.bbai-user{background:#f3e7da;color:#171717;border-color:#f3e7da}
+.bbi-screen .bbai-inline-copilot .bbai-author{font-size:11px;color:#866b4b;margin-bottom:5px}
+.bbi-screen .bbai-inline-copilot .bbai-message-text{font-size:14px;line-height:1.65;white-space:pre-wrap}
+.bbi-screen .bbai-inline-copilot .bbai-message small{font-size:10px}
+.bbi-screen .bbai-inline-copilot .bbai-questions-copilot{border-top:1px solid #ebdfd0;padding-top:13px;gap:8px}
+.bbi-screen .bbai-inline-copilot .bbai-questions-copilot:before{content:'SUGERENCIAS PARA CONTINUAR';display:block;width:100%;color:#a18258;font:800 10px/1.5 Arial,sans-serif;letter-spacing:.075em}
+.bbi-screen .bbai-inline-copilot .bbai-questions-copilot button{flex:1 1 170px;min-height:42px;border-radius:9px;font-size:11px!important;color:#4c3d2c;background:white;padding:9px 12px;text-align:left;justify-content:flex-start}
+.bbi-screen .bbai-inline-copilot .bbai-questions-copilot button:hover{background:#f7f1e9}
+.bbi-screen .bbai-inline-copilot .bbai-form{margin-top:4px!important}
+.bbi-screen .bbai-inline-copilot .bbai-compose{border:1px solid #cdbda8;border-radius:12px;padding:5px;align-items:center;gap:6px;background:#fff;box-shadow:0 2px 7px #0000000a}
+.bbi-screen .bbai-inline-copilot .bbai-compose:focus-within{outline:2px solid #a18258;outline-offset:2px}
+.bbi-screen .bbai-inline-copilot .bbai-compose textarea{border:0!important;outline:0!important;resize:vertical;min-height:43px;max-height:140px;padding:10px 12px;background:transparent;font-size:13.5px}
+.bbi-screen .bbai-inline-copilot .bbai-compose textarea:focus-visible{outline:0!important}
+.bbi-screen .bbai-inline-copilot .bbai-send{width:46px;height:44px;min-width:46px;min-height:44px;padding:0!important;border-radius:10px!important;display:flex;align-items:center;justify-content:center;gap:0}
+.bbi-screen .bbai-inline-copilot .bbai-send-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.bbi-screen .bbai-inline-copilot .bbai-send span[aria-hidden]{font-size:25px;line-height:1}
+.bbi-screen .bbai-inline-copilot .bbai-footnote{font-size:10px;margin-top:0;padding:0 2px}
+.bbi-screen .bbai-inline-copilot .bbai-caution{font-size:10px;color:#857c70}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-copilot{background:#26221e}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-copilot .bbai-message{background:#342d25;color:#f8f2ea;border-color:#62523f}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-copilot .bbai-message.bbai-user{background:#5d4935}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-copilot .bbai-author{color:#e3c395}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-copilot .bbai-compose{background:#2c2824}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-copilot .bbai-compose textarea{color:#f5eee4}
+@media(max-width:800px){
+  .bbi-screen .bbai-inline-copilot{min-height:520px;padding:17px}
+  .bbi-screen .bbai-inline-copilot .bbai-message{max-width:95%}
+  .bbi-screen .bbai-inline-copilot .bbai-compose{flex-direction:row}
+  .bbi-screen .bbai-inline-copilot .bbai-send{align-self:auto;flex:none}
+}
+
+.bbi-screen .bbai-visually-hidden{position:absolute!important;clip:rect(0,0,0,0);clip-path:inset(50%);width:1px;height:1px;overflow:hidden;white-space:nowrap;}
+
+/* FOCUS 2026 · Solo el chat incrustado en BorderBro. El chat flotante no cambia. */
+.bbi-screen .bbai-inline-focus{
+  display:flex;flex-direction:column;gap:0;min-height:660px;height:clamp(650px,74vh,860px);
+  padding:19px 24px 18px;border:1px solid #e2d5c4;border-radius:22px;
+  background:#fff;box-shadow:0 8px 28px #24190d0a;overflow:hidden;
+}
+.bbi-screen .bbai-inline-focus .bbai-focus-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:38px}
+.bbi-screen .bbai-inline-focus .bbai-focus-identity{display:flex;align-items:center;gap:9px;color:#29221c;font-size:13px}
+.bbi-screen .bbai-inline-focus .bbai-focus-identity .bbai-avatar{width:30px;height:30px;font-size:19px;background:#171717}
+.bbi-screen .bbai-inline-focus .bbai-focus-online{width:7px;height:7px;background:#37865c;border-radius:50%}
+.bbi-screen .bbai-inline-focus .bbai-focus-new{font-size:11px!important;min-height:33px!important;padding:6px 9px!important;background:transparent!important;border:1px solid #e2d5c4!important;color:#715a3d!important;border-radius:9px!important}
+.bbi-screen .bbai-inline-focus .bbai-focus-welcome{
+  flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  text-align:center;padding:15px 10px 30px;
+}
+.bbi-screen .bbai-inline-focus .bbai-focus-emblem{color:#aa8452;margin:0 0 14px;filter:drop-shadow(0 4px 9px #aa84522b)}
+.bbi-screen .bbai-inline-focus .bbai-focus-welcome h2{
+  margin:0!important;color:#171717;font:700 clamp(29px,3.2vw,43px)/1.15 Georgia,'Times New Roman',serif;letter-spacing:-.043em;
+}
+.bbi-screen .bbai-inline-focus .bbai-focus-welcome>p{
+  max-width:560px;color:#66615a;font-size:clamp(12px,1.17vw,16px);margin:11px 0 28px!important;line-height:1.5;
+}
+.bbi-screen .bbai-inline-focus .bbai-starter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;width:min(100%,790px)}
+.bbi-screen .bbai-inline-focus .bbai-starter-grid button{
+  background:#fff!important;border:1px solid #dfd1bf!important;border-radius:15px!important;
+  color:#201e1b!important;padding:16px 17px!important;min-height:76px!important;
+  display:flex;align-items:center;gap:13px;text-align:left;justify-content:flex-start!important;
+  font-size:13px!important;font-weight:650!important;line-height:1.35;box-shadow:0 3px 10px #1a10050a;
+}
+.bbi-screen .bbai-inline-focus .bbai-starter-grid button:hover{background:#fbf6ef!important;border-color:#b8976e!important;transform:translateY(-1px)}
+.bbi-screen .bbai-inline-focus .bbai-starter-grid button svg{flex:none;color:#a18258}
+.bbi-screen .bbai-inline-focus .bbai-starter-grid button span{flex:1}
+.bbi-screen .bbai-inline-focus .bbai-starter-grid button svg:last-child{color:#745837}
+.bbi-screen .bbai-inline-focus .bbai-conversation-focus{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto;margin:15px 0 12px;padding:8px 7px;gap:18px}
+.bbi-screen .bbai-inline-focus .bbai-conversation-focus .bbai-message{
+  display:flex;align-items:flex-start;gap:10px;max-width:92%;min-width:0;padding:0!important;
+  background:transparent!important;border:0!important;border-radius:0!important;
+}
+.bbi-screen .bbai-inline-focus .bbai-message-avatar{
+  display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:50%;
+  background:#171717;color:#e7d0a7;font:700 19px Georgia,serif;
+}
+.bbi-screen .bbai-inline-focus .bbai-user .bbai-message-avatar{background:#a18258;color:white}
+.bbi-screen .bbai-inline-focus .bbai-user{align-self:flex-end;flex-direction:row-reverse}
+.bbi-screen .bbai-inline-focus .bbai-message-content{min-width:0;padding:13px 17px;border-radius:16px;border:1px solid #e7dbcc;background:#faf7f3}
+.bbi-screen .bbai-inline-focus .bbai-user .bbai-message-content{background:#f2e8db;border-color:#f2e8db}
+.bbi-screen .bbai-inline-focus .bbai-assistant .bbai-message-content{background:#fff}
+.bbi-screen .bbai-inline-focus .bbai-author{color:#846a48!important;font-size:11px;margin-bottom:5px}
+.bbi-screen .bbai-inline-focus .bbai-message-text{font-size:14px;line-height:1.65;white-space:pre-wrap;color:#29231d}
+.bbi-screen .bbai-inline-focus .bbai-message small{font-size:10px;color:#786c5c}
+.bbi-screen .bbai-inline-focus .bbai-questions-focus{gap:6px;padding:7px 0 10px;border:0}
+.bbi-screen .bbai-inline-focus .bbai-questions-focus button{min-height:32px!important;padding:7px 9px!important;border-radius:20px!important;font-size:10.5px!important;background:#fcfaf7!important}
+.bbi-screen .bbai-inline-focus .bbai-form-focus{margin:0!important;padding-top:7px}
+.bbi-screen .bbai-inline-focus .bbai-form-focus .bbai-compose{
+  display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;padding:10px 11px 10px 16px;
+  border:1px solid #d1bda5;border-radius:20px;background:#fff;box-shadow:0 3px 9px #27180b09;
+}
+.bbi-screen .bbai-inline-focus .bbai-form-focus .bbai-compose textarea{
+  width:100%;min-height:39px;max-height:130px;flex:1 1 100%;padding:7px 3px;
+  resize:vertical;font-size:14px;line-height:1.45;border:0!important;background:transparent!important;
+  outline:0!important;box-shadow:none!important;
+}
+.bbi-screen .bbai-inline-focus .bbai-form-focus .bbai-compose textarea:focus-visible{outline:0!important}
+.bbi-screen .bbai-inline-focus .bbai-compose-context{display:inline-flex;align-items:center;gap:6px;color:#786c5d;font-size:11px;flex:1}
+.bbi-screen .bbai-inline-focus .bbai-compose-context svg{color:#a18258}
+.bbi-screen .bbai-inline-focus .bbai-form-focus .bbai-send{width:43px;height:43px;min-width:43px;min-height:43px;padding:0!important;border-radius:50%!important;display:grid;place-items:center;flex:none}
+.bbi-screen .bbai-inline-focus .bbai-form-focus .bbai-send-label{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden}
+.bbi-screen .bbai-inline-focus .bbai-form-focus .bbai-send span[aria-hidden]{font-size:23px;line-height:1;transform:rotate(-18deg)}
+.bbi-screen .bbai-inline-focus .bbai-focus-disclaimer{margin:8px 0 0!important;text-align:center;font-size:10px;color:#8a8075}
+.bbi-screen .bbai-inline-focus .bbai-visually-hidden{position:absolute!important;width:1px;height:1px;clip:rect(0,0,0,0);clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-focus{background:#24201b;border-color:#65523f}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-focus .bbai-focus-welcome h2,.be-page[data-theme='dark'] .bbi-screen .bbai-inline-focus .bbai-focus-identity{color:#f7eee1}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-focus .bbai-starter-grid button{background:#30291f!important;color:#f8eee3!important;border-color:#665443!important}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-focus .bbai-message-content{background:#30291f;color:#f8eee3;border-color:#665443}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-focus .bbai-message-text{color:#f8eee3}
+@media(max-width:800px){
+ .bbi-screen .bbai-inline-focus{min-height:620px;height:auto;padding:15px 16px}
+ .bbi-screen .bbai-inline-focus .bbai-focus-welcome{min-height:480px;padding:16px 0 23px}
+ .bbi-screen .bbai-inline-focus .bbai-starter-grid button{min-height:67px!important;padding:12px!important;font-size:12px!important}
+ .bbi-screen .bbai-inline-focus .bbai-conversation-focus{min-height:300px;max-height:65vh}
+}
+@media(max-width:480px){
+ .bbi-screen .bbai-inline-focus .bbai-starter-grid{grid-template-columns:1fr;gap:8px}
+ .bbi-screen .bbai-inline-focus .bbai-starter-grid button{min-height:53px!important}
+ .bbi-screen .bbai-inline-focus .bbai-focus-welcome{min-height:470px}
+ .bbi-screen .bbai-inline-focus .bbai-focus-welcome h2{font-size:28px}
+ .bbi-screen .bbai-inline-focus .bbai-conversation-focus .bbai-message{max-width:100%}
+ .bbi-screen .bbai-inline-focus .bbai-focus-disclaimer{font-size:9px}
+}
+
+.bbi-screen .bbai-inline-focus .bbai-focus-sources{display:grid;gap:8px;margin-top:7px}
+.bbi-screen .bbai-inline-focus .bbai-focus-source{border:1px solid #e6d7c4;border-radius:10px;background:#fbf7f2;padding:11px;min-width:0}
+.bbi-screen .bbai-inline-focus .bbai-focus-source>strong{display:block;font-size:11px;color:#86623c;margin-bottom:6px}
+.bbi-screen .bbai-inline-focus .bbai-focus-source>div{display:grid;grid-template-columns:minmax(90px,.4fr) minmax(0,1fr);gap:7px;padding:4px 0;border-top:1px solid #eee1d2;font-size:11px;overflow-wrap:anywhere}
+.bbi-screen .bbai-inline-focus .bbai-focus-source>div span:first-child{color:#766653}
+.bbi-screen .bbai-inline-focus .bbai-focus-source p{font-size:11px;overflow-wrap:anywhere;margin:0!important}
+
+/* Mejora final de legibilidad: solamente el chat incrustado de BorderBro. */
+.bbi-screen .bbai-inline-focus{
+  min-height:0;
+  height:clamp(510px,calc(100dvh - 210px),790px);
+  max-height:790px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.bbi-screen .bbai-inline-focus .bbai-conversation-focus{
+  flex:1 1 0;
+  min-height:0;
+  height:0;
+  max-height:none;
+  overflow-y:auto;
+  overscroll-behavior-y:contain;
+  scrollbar-gutter:stable;
+  margin:10px 0 8px;
+  padding:12px 8px 22px;
+}
+.bbi-screen .bbai-inline-focus .bbai-form-focus,.bbi-screen .bbai-inline-focus .bbai-focus-toolbar,
+.bbi-screen .bbai-inline-focus .bbai-questions-focus,.bbi-screen .bbai-inline-focus .bbai-focus-disclaimer{flex-shrink:0}
+.bbi-screen .bbai-inline-focus .bbai-questions-focus{max-height:78px;overflow-y:auto}
+.bbi-screen .bbai-inline-focus .bbai-questions-focus button{max-width:32%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bbi-screen .bbai-inline-focus .bbai-markdown{white-space:normal;overflow-wrap:anywhere;font:400 14px/1.65 Arial,Helvetica,sans-serif;color:inherit}
+.bbi-screen .bbai-inline-focus .bbai-markdown > :first-child{margin-top:0!important}
+.bbi-screen .bbai-inline-focus .bbai-markdown > :last-child{margin-bottom:0!important}
+.bbi-screen .bbai-inline-focus .bbai-markdown p{margin:0 0 12px!important;font:inherit;line-height:inherit}
+.bbi-screen .bbai-inline-focus .bbai-markdown h2,.bbi-screen .bbai-inline-focus .bbai-markdown h3,
+.bbi-screen .bbai-inline-focus .bbai-markdown h4,.bbi-screen .bbai-inline-focus .bbai-markdown h5{
+  color:inherit;font:700 16px/1.35 Arial,Helvetica,sans-serif;letter-spacing:-.01em;margin:17px 0 8px!important
+}
+.bbi-screen .bbai-inline-focus .bbai-markdown h2{font-size:19px}
+.bbi-screen .bbai-inline-focus .bbai-markdown h3{font-size:17px}
+.bbi-screen .bbai-inline-focus .bbai-markdown ul,.bbi-screen .bbai-inline-focus .bbai-markdown ol{padding-left:21px;margin:6px 0 14px!important}
+.bbi-screen .bbai-inline-focus .bbai-markdown li{margin:5px 0;line-height:1.6}
+.bbi-screen .bbai-inline-focus .bbai-markdown strong{font-weight:750;color:inherit}
+.bbi-screen .bbai-inline-focus .bbai-markdown a{color:#76552e;text-decoration:underline;text-underline-offset:3px}
+.bbi-screen .bbai-inline-focus .bbai-markdown blockquote{margin:12px 0;padding:4px 13px;border-left:3px solid #a18258;background:#faf6f0;color:#595149}
+.bbi-screen .bbai-inline-focus .bbai-markdown code{font:12px/1.5 Consolas,monospace;background:#f3ece3;border-radius:4px;padding:2px 5px}
+.bbi-screen .bbai-inline-focus .bbai-markdown .bbai-md-code{max-width:100%;overflow-x:auto;padding:13px;background:#292521;color:#fff;border-radius:9px;margin:12px 0}
+.bbi-screen .bbai-inline-focus .bbai-markdown .bbai-md-code code{background:transparent;color:inherit;padding:0;white-space:pre}
+.bbi-screen .bbai-inline-focus .bbai-md-table-wrap{max-width:100%;overflow-x:auto;margin:13px 0}
+.bbi-screen .bbai-inline-focus .bbai-md-table-wrap table{width:100%;border-collapse:collapse;font-size:12px}
+.bbi-screen .bbai-inline-focus .bbai-md-table-wrap th,.bbi-screen .bbai-inline-focus .bbai-md-table-wrap td{border:1px solid #e1d4c2;text-align:left;padding:7px 9px;vertical-align:top}
+.bbi-screen .bbai-inline-focus .bbai-md-table-wrap th{background:#f5eee5;font-weight:700}
+.bbi-screen .bbai-inline-focus .bbai-markdown hr{border:0;border-top:1px solid #e1d4c2;margin:15px 0}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-focus .bbai-markdown a{color:#e7bf84}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-focus .bbai-markdown blockquote,
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-focus .bbai-markdown code{background:#3b332c;color:#f4eadd}
+.be-page[data-theme='dark'] .bbi-screen .bbai-inline-focus .bbai-md-table-wrap th{background:#3b332c}
+@media(max-width:1300px){.bbi-screen .bbai-inline-focus{height:clamp(520px,calc(100dvh - 170px),780px)}}
+@media(max-width:800px){
+ .bbi-screen .bbai-inline-focus{height:clamp(510px,calc(100dvh - 145px),760px);min-height:0}
+ .bbi-screen .bbai-inline-focus .bbai-conversation-focus{min-height:0;max-height:none}
+ .bbi-screen .bbai-inline-focus .bbai-questions-focus button{max-width:100%}
+}
+@media(max-width:460px){
+ .bbi-screen .bbai-inline-focus{height:max(470px,calc(100dvh - 180px));max-height:none}
+ .bbi-screen .bbai-inline-focus .bbai-questions-focus{max-height:66px}
+ .bbi-screen .bbai-inline-focus .bbai-questions-focus button{max-width:100%}
+}
+/* La regla heredada bbi-copilot-chat > * {flex:1} no debe encoger el panel al tener muchos mensajes. */
+.bbi-screen .bbi-copilot-chat > .bbai-inline-focus{flex:none;min-width:0}
+
+/* Fuentes legibles: compartido por el chat principal y el flotante. */
+.bbai-evidence-group{margin-top:10px;display:grid;gap:8px;min-width:0}
+.bbai-readable-sources{display:grid;gap:9px;margin:9px 0}
+.bbai-readable-source{border:1px solid #e4d8c9;background:#faf7f2;border-radius:11px;padding:11px 13px;min-width:0}
+.bbai-readable-source>strong{display:block;font-size:12px;color:#4e3923}
+.bbai-readable-source .bbai-source-period{display:block;margin-top:4px;color:#766759;font-size:11px}
+.bbai-readable-source p{margin:8px 0 0!important;font-size:12px;line-height:1.5;color:#433b33}
+.bbai-source-note{font-size:11px;color:#7e705f;line-height:1.45;margin:8px 0 1px}
+.bbai-source-technical{margin-top:9px;border-top:1px solid #e9dfd3;padding-top:7px}
+.bbai-source-technical summary{cursor:pointer;font-size:11px;color:#765c41}
+.bbai-source-technical pre,.bbai-evidence-group pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow-y:auto;padding:10px;border-radius:6px;background:#f2ece4;font:11px/1.45 Consolas,monospace}
+.bbai-focus-toolbar-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.bbai-export-wrapper{position:relative;display:inline-flex;min-width:0}
+.bbai-export-trigger{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border:1px solid #e0d1be;border-radius:9px;background:#fff;color:#755634;padding:9px 11px;font:600 12px/1.35 Arial,sans-serif;cursor:pointer}
+.bbai-export-trigger:hover:not(:disabled){background:#f6f0e7}
+.bbai-export-trigger:disabled{opacity:.46;cursor:not-allowed}
+.bbai-export-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:200;min-width:290px;max-width:min(90vw,390px);padding:7px;border:1px solid #d9c9b5;border-radius:12px;background:#fff;box-shadow:0 12px 34px #23170725;display:flex;flex-direction:column;gap:1px}
+.bbai-export-menu button{border:0;background:transparent;border-radius:8px;padding:10px 12px;text-align:left;cursor:pointer;font:600 12px/1.5 Arial,sans-serif;color:#2c251f}
+.bbai-export-menu button:hover,.bbai-export-menu button:focus-visible{background:#f5efe7}
+.bbai-export-menu small{display:block;color:#786c5d;font:400 11px/1.4 Arial,sans-serif}
+.bbai-export-menu p{border-top:1px solid #e9dfd4;margin:5px 4px 1px;padding:8px;color:#86766a;font-size:10px;line-height:1.5}
+.bbai-export-error{display:block;position:absolute;right:0;top:calc(100% + 8px);background:#fff3ee;color:#813b23;padding:8px;z-index:210;min-width:230px;font-size:11px;border-radius:8px}
+.bbai-drawer-export{padding:6px 12px 8px;display:flex;justify-content:flex-end}
+.be-page[data-theme='dark'] .bbai-readable-source,.be-page[data-theme='dark'] .bbai-export-menu{background:#302a23;border-color:#675541}
+.be-page[data-theme='dark'] .bbai-readable-source>strong,.be-page[data-theme='dark'] .bbai-readable-source p,.be-page[data-theme='dark'] .bbai-export-menu button{color:#f5eade}
+.be-page[data-theme='dark'] .bbai-export-trigger{background:#332b23;color:#e6c697;border-color:#6b5943}
+@media(max-width:700px){.bbai-focus-toolbar-actions{gap:5px}.bbai-export-trigger{font-size:11px;padding:8px}.bbai-export-menu{min-width:260px}.bbi-screen .bbai-inline-focus .bbai-focus-toolbar{flex-wrap:wrap}}
+
+.bbai-source-movements{margin-top:9px;border-top:1px solid #e9dfd3;padding-top:7px}
+.bbai-source-movements summary{cursor:pointer;font-size:11px;font-weight:700;color:#755333}
+.bbai-source-movements ul{font-size:11px;line-height:1.5;margin:8px 0 0;padding-left:22px}
+.bbai-source-movements li{margin:4px 0}
+
+
+/* BOSSE · ajuste quirúrgico del chat FLOTANTE (no afecta la pantalla BorderBro).
+   Utiliza el mismo renderizador Markdown que el chat principal. */
+.bbai-drawer{
+  width:min(510px,100%);
+  height:100dvh;
+  max-height:100dvh;
+  padding:16px 18px 13px;
+  gap:9px;
+  overflow:hidden;
+}
+.bbai-drawer .bbai-panel-heading{flex:0 0 auto;gap:10px;padding-bottom:11px}
+.bbai-drawer .bbai-avatar{width:37px;height:37px;font-size:23px}
+.bbai-drawer .bbai-panel-heading h2{font-size:24px;line-height:1.12;margin:2px 0 3px!important}
+.bbai-drawer .bbai-panel-heading p{font-size:11px}
+.bbai-drawer .bbai-drawer-export{flex:0 0 auto;padding:1px 0 6px}
+.bbai-drawer .bbai-conversation{
+  flex:1 1 0;
+  min-height:0;
+  max-height:none;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  gap:12px;
+  padding:8px 7px 12px 1px;
+}
+.bbai-drawer .bbai-message{min-width:0;max-width:97%;border-radius:13px;padding:12px 14px}
+.bbai-drawer .bbai-message.bbai-user{background:#f0e5d7;color:#201b15;border-color:#e6d7c5}
+.bbai-drawer .bbai-message.bbai-assistant{background:#fff;border-color:#eadfd2}
+.bbai-drawer .bbai-message-text{font:400 13.5px/1.65 Arial,Helvetica,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere}
+/* React crea nodos reales; no interpretar HTML del modelo. */
+.bbai-drawer .bbai-markdown{white-space:normal;overflow-wrap:anywhere;color:inherit;font:inherit}
+.bbai-drawer .bbai-markdown>:first-child{margin-top:0!important}
+.bbai-drawer .bbai-markdown>:last-child{margin-bottom:0!important}
+.bbai-drawer .bbai-markdown p{margin:0 0 11px!important;line-height:1.65;font:inherit}
+.bbai-drawer .bbai-markdown h2,
+.bbai-drawer .bbai-markdown h3,
+.bbai-drawer .bbai-markdown h4,
+.bbai-drawer .bbai-markdown h5{margin:14px 0 7px!important;color:inherit;font:700 15px/1.35 Arial,Helvetica,sans-serif}
+.bbai-drawer .bbai-markdown h2{font-size:17px}
+.bbai-drawer .bbai-markdown h3{font-size:16px}
+.bbai-drawer .bbai-markdown ul,.bbai-drawer .bbai-markdown ol{padding-left:20px;margin:7px 0 11px!important}
+.bbai-drawer .bbai-markdown li{margin:4px 0;line-height:1.55}
+.bbai-drawer .bbai-markdown strong{font-weight:750}
+.bbai-drawer .bbai-markdown a{color:#755533;text-decoration:underline;text-underline-offset:2px}
+.bbai-drawer .bbai-markdown blockquote{margin:10px 0;padding:6px 11px;border-left:3px solid #a18258;background:#f9f5ee}
+.bbai-drawer .bbai-markdown code{font:12px/1.4 Consolas,monospace;background:#f2ebe2;padding:2px 5px;border-radius:5px}
+.bbai-drawer .bbai-markdown .bbai-md-code{background:#282521;color:#fff;padding:10px;border-radius:8px;overflow-x:auto;max-width:100%;margin:9px 0}
+.bbai-drawer .bbai-markdown .bbai-md-code code{background:transparent;color:inherit;padding:0;white-space:pre}
+.bbai-drawer .bbai-md-table-wrap{max-width:100%;overflow-x:auto;margin:11px 0}
+.bbai-drawer .bbai-md-table-wrap table{width:100%;border-collapse:collapse;font-size:11px}
+.bbai-drawer .bbai-md-table-wrap td,.bbai-drawer .bbai-md-table-wrap th{border:1px solid #e0d4c6;padding:6px 7px;text-align:left;vertical-align:top}
+.bbai-drawer .bbai-md-table-wrap th{background:#f5eee5}
+.bbai-drawer .bbai-markdown hr{border:0;border-top:1px solid #e0d4c6;margin:13px 0}
+/* Las sugerencias ocupan una fila desplazable, nunca un scroll vertical adicional. */
+.bbai-drawer .bbai-questions{
+  display:flex;flex:0 0 auto;flex-wrap:nowrap;
+  gap:7px;max-height:none;min-height:35px;
+  overflow-x:auto;overflow-y:hidden;
+  overscroll-behavior-x:contain;
+  padding:2px 1px 5px;
+  scrollbar-width:thin;
+}
+.bbai-drawer .bbai-questions button{
+  flex:0 0 auto;max-width:210px;min-height:31px;
+  padding:6px 10px;font-size:10.5px;line-height:1.3;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+}
+.bbai-drawer .bbai-form{flex:0 0 auto;margin:0!important}
+.bbai-drawer .bbai-form>label{position:absolute!important;width:1px;height:1px;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+.bbai-drawer .bbai-compose{
+  display:flex;flex-direction:row;align-items:flex-end;gap:7px;
+  padding:7px 7px 7px 12px;
+  background:white;border:1px solid #cdbca8;border-radius:17px;
+}
+.bbai-drawer .bbai-compose:focus-within{outline:2px solid #a18258;outline-offset:1px}
+.bbai-drawer .bbai-compose textarea{
+  flex:1 1 auto;min-width:0;width:100%;min-height:63px;max-height:120px;
+  padding:7px 2px;resize:vertical;border:0!important;border-radius:0;
+  font:13px/1.5 Arial,Helvetica,sans-serif;outline:0!important;
+}
+.bbai-drawer .bbai-compose textarea:focus-visible{outline:0!important}
+.bbai-drawer .bbai-send{
+  width:42px;height:42px;min-width:42px;min-height:42px;
+  flex:0 0 42px;padding:0!important;display:flex;
+  align-items:center;justify-content:center;border-radius:50%!important;
+}
+.bbai-drawer .bbai-send-label{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+.bbai-drawer .bbai-send span[aria-hidden]{font-size:25px;line-height:1}
+.bbai-drawer .bbai-footnote{flex:0 0 auto;font-size:10px;line-height:1.3}
+.bbai-drawer .bbai-caution{flex:0 0 auto;font-size:10px;line-height:1.35}
+@media(max-width:520px){
+  .bbai-drawer{padding:13px 13px 11px}
+  .bbai-drawer .bbai-panel-heading h2{font-size:22px}
+  .bbai-drawer .bbai-message{max-width:100%}
+}
+
+
+/* BOSSE | Chat flotante: sugerencias sin deslizamiento horizontal y pie compacto.
+   Alcance limitado a .bbai-drawer; BorderBro en página queda intacto. */
+.bbai-drawer .bbai-drawer-suggestions{
+  flex:0 0 auto;min-width:0;max-width:100%;display:grid;gap:6px;
+  overflow:visible;padding:2px 0 4px;
+}
+.bbai-drawer .bbai-drawer-suggestions-main{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;
+  gap:6px;min-width:0;align-items:stretch;
+}
+.bbai-drawer .bbai-drawer-suggestions-extra{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;min-width:0;
+}
+.bbai-drawer .bbai-drawer-suggestion,
+.bbai-drawer .bbai-drawer-suggestions-more{
+  min-width:0;min-height:33px;padding:7px 10px;border:1px solid #ded0be;
+  background:#fff;color:#6b5030;border-radius:10px;font:600 11px/1.25 Arial,Helvetica,sans-serif;
+  text-align:center;white-space:normal;overflow-wrap:break-word;cursor:pointer;
+}
+.bbai-drawer .bbai-drawer-suggestions-more{white-space:nowrap;background:#f7f2eb;color:#4c3a25}
+.bbai-drawer .bbai-drawer-suggestion:hover:not(:disabled),
+.bbai-drawer .bbai-drawer-suggestions-more:hover{background:#f6eee4;border-color:#ac8961}
+.bbai-drawer .bbai-drawer-suggestion:focus-visible,
+.bbai-drawer .bbai-drawer-suggestions-more:focus-visible{outline:2px solid #a18258;outline-offset:2px}
+.bbai-drawer .bbai-drawer-meta{
+  flex:0 0 auto;min-width:0;display:flex;align-items:center;justify-content:space-between;
+  gap:7px;color:#786f65;font:400 10px/1.35 Arial,Helvetica,sans-serif;
+}
+.bbai-drawer .bbai-drawer-meta span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bbai-drawer .bbai-drawer-meta button{
+  flex:none;border:0;background:transparent;color:#745631;font:700 10px/1.3 Arial,sans-serif;
+  text-decoration:underline;cursor:pointer;padding:4px 2px;
+}
+.bbai-drawer .bbai-drawer-meta button:disabled{opacity:.5;cursor:default}
+/* Prioridad a la conversación; compositor cómodo, menos alto, sin segundo scroll. */
+.bbai-drawer .bbai-compose{padding:6px 7px 6px 11px;align-items:center}
+.bbai-drawer .bbai-compose textarea{
+  min-height:40px;height:47px;max-height:110px;padding:7px 2px;
+  resize:vertical;line-height:1.5;
+}
+.bbai-drawer .bbai-send{
+  width:38px;height:38px;min-width:38px;min-height:38px;flex-basis:38px;
+}
+.bbai-drawer .bbai-conversation{gap:15px;overflow-x:hidden}
+.bbai-drawer .bbai-message{padding:14px 15px}
+.bbai-drawer .bbai-message-text{font-size:14px;line-height:1.7}
+.bbai-drawer .bbai-markdown p{margin:0 0 14px!important;line-height:1.7}
+.bbai-drawer .bbai-markdown li{margin:7px 0;line-height:1.7}
+.bbai-drawer .bbai-markdown h2,.bbai-drawer .bbai-markdown h3,
+.bbai-drawer .bbai-markdown h4,.bbai-drawer .bbai-markdown h5{margin:16px 0 9px!important}
+@media(max-width:420px){
+ .bbai-drawer .bbai-drawer-suggestion,.bbai-drawer .bbai-drawer-suggestions-more{font-size:10px;padding:6px 7px}
+ .bbai-drawer .bbai-drawer-meta{font-size:9px}
+}
+.be-page[data-theme='dark'] .bbai-drawer .bbai-drawer-suggestion,
+.be-page[data-theme='dark'] .bbai-drawer .bbai-drawer-suggestions-more{
+  background:#322a23;color:#efd8b7;border-color:#64513d;
+}
+
+/* Catálogo + exportación comparten cabecera sin solaparse */
+.bbai-drawer .bbai-drawer-export{gap:7px;flex-wrap:wrap;align-items:center}
+.bbai-focus-toolbar-actions .bbai-workspace-trigger{max-width:200px;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:760px){.bbai-focus-toolbar-actions .bbai-workspace-trigger{max-width:160px}}
